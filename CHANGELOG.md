@@ -12,6 +12,8 @@ First version.
 - Read-only node access: RPC method/parameter whitelist, optional binary REST, cookie or user/password,
   HTTPS with custom CA, Tor via SOCKS5.
 - Block verification (hash, merkle root, witness commitment).
+- Dashboard is light on the viewing device: no endless animations, compositor-only progress bar, no polling
+  while the tab is hidden.
 - Web dashboard: overview, blocks, history, UTXO set, about, connection; status bar with progress and ETA;
   dark/light themes; CSV/JSON export; shareable summary image.
 - Speed profiles, adaptive backoff, scan time window, pause/resume.

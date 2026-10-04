@@ -414,7 +414,7 @@
     $("#status-detail").textContent = st.detail || "";
     $("#status-detail").title = st.detail || "";
     const prog = st.phase === "live" ? 100 : st.progress != null ? st.progress : 0;
-    $("#progress-fill").style.width = Math.min(100, prog) + "%";
+    $("#progress-fill").style.transform = `scaleX(${Math.max(0, Math.min(100, prog)) / 100})`;
     $("#progress").setAttribute("aria-valuenow", String(Math.round(prog)));
     $("#m-height").textContent = st.height != null ? `${fmtNum(st.height)} / ${fmtNum(st.tip)}` : "–";
     $("#m-progress").textContent = st.phase === "quick" ? `${fmtPct(prog)} (quick)` : st.progress != null ? fmtPct(prog, 2) : "–";
@@ -1017,7 +1017,9 @@
     await pollStatus();
     await refreshData();
     route(true);
-    setInterval(pollStatus, 2000);
+    // no polling while the tab is hidden; catch up immediately when it becomes visible again
+    setInterval(() => { if (!document.hidden) pollStatus(); }, 2000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pollStatus(); });
   }
   init();
 })();
