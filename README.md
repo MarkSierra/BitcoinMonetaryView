@@ -9,7 +9,9 @@ shows, in a web dashboard:
 - how much of each block is spam (inscriptions, oversized OP_RETURN, Stamps-style fake keys, oversized scriptSig),
 - how much block storage a Monetary Node would save,
 - how many spam and dust entries sit in your UTXO set right now, and how old they are,
-- how all of this developed over the whole history of Bitcoin.
+- how all of this developed over the whole history of Bitcoin — or in any period you pick (last 30 days,
+  a year, since Ordinals, any dates or block heights),
+- the details of any single block, looked up by height or hash.
 
 ![Dashboard overview (demo data)](docs/screenshot-overview.png)
 
@@ -96,8 +98,11 @@ Released versions are also published as a ready-made multi-arch image (x86_64 an
 2. **Sample pass** — every 100th block across the rest of the history (about 1 % of the data, typically
    5–20 minutes). From it the dashboard shows an **estimate for the whole chain**, with its margin of error,
    right from the start — instead of numbers that stay small for hours while the scan works through the
-   largely spam-free early years. The estimate is clearly marked (≈) and is replaced by exact figures as the
-   full scan proceeds; the UTXO figures, the share card and the exports always use exact data only.
+   largely spam-free early years. While the scan runs, the overview shows only this estimate (marked ≈),
+   with a line stating the exact figure so far; the estimate is replaced by exact figures as the full scan
+   proceeds. Most of the uncertainty sits in the spam-heavy recent years, so the estimate mostly firms up
+   near the end. The UTXO figures, the share card, the exports and the History and Blocks pages always use
+   exact data only; parts of the history not scanned yet are marked as such.
 3. **Full history scan** — every block from the genesis block to the tip, in order. This is what makes the
    exact UTXO numbers possible: every spam output is tracked from the block that created it until it is spent.
    It is resumable: stop the app at any time and it continues where it stopped.
@@ -105,6 +110,11 @@ Released versions are also published as a ready-made multi-arch image (x86_64 an
    Chain reorganisations are detected and rolled back exactly.
 
 A status bar on every page shows what the app is doing right now, progress, speed and ETA.
+
+Any block can be opened from the Blocks page by height or hash. If the scan has not reached it yet,
+**Analyse this block now** reads that one block from the node (same read-only, verified path as the scanner;
+one lookup at a time with a short cooldown) and shows its exact figures; the result is kept in memory only
+and never mixed into the scan results.
 
 ### Will it slow down my node?
 
@@ -177,7 +187,8 @@ exemptions: the OP_RETURN size test stays upstream's script-length rule.
   No `dumptxoutset` (it would write a large file on the node).
 - **Web interface**: listens on `127.0.0.1` by default. If you expose it (`--bind 0.0.0.0`), set
   `--auth-user/--auth-password` and ideally `--tls-cert/--tls-key`. State-changing requests (pause, rescan,
-  scan settings — all affecting only this app) need a CSRF token; a Host allowlist protects against DNS
+  scan settings — all affecting only this app — and the on-demand block lookup, which only reads one block)
+  need a CSRF token; a Host allowlist protects against DNS
   rebinding; a strict Content-Security-Policy is sent; credentials are never returned by the API or logged.
 - **Privacy**: no telemetry, no external requests — no fonts, no CDNs, no price feeds. The app only talks to
   your node.

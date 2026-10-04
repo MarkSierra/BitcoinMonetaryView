@@ -7,6 +7,16 @@ All notable changes are documented here. This project uses [semantic versioning]
 - Sample pass: right after the quick pass, every 100th block of the remaining history is analysed (about 1 %
   of the data), and the dashboard shows an estimate for the whole chain with its margin of error from the start.
   It is marked with ≈ and converges to the exact figures as the full scan proceeds. Setting `sample_every`.
+- Overview: while the full scan runs, only the whole-chain estimate is shown (≈), with a line giving the exact
+  figure so far — no more switching between estimate and exact figures. Fixed a race that made the estimate
+  briefly disappear (summary queries now read one consistent database snapshot).
+- Overview: corrected the storage note — a Monetary Node usually saves more than the spam itself, because it
+  also drops the witness data of spam-carrying transactions.
+- History: months the scan has not reached are greyed out ("not scanned yet") instead of looking spam-free.
+  New **Custom range** card: spam statistics for any period, with shortcuts (24 hours, 7 / 30 days, this
+  year, any year, since Ordinals, all time) or free dates / block heights, and the share of the range scanned.
+- Blocks: **Find a block** by height or hash, a line showing which blocks are scanned, and **Analyse this
+  block now** for blocks the scan has not reached (read-only, verified, one at a time with a cooldown).
 - Dashboard: the progress bar no longer animates (the animation kept the GPU drawing ~19 frames per second
   during a scan), and background data refreshes swap the content without the fade-in and only when the data
   actually changed, so the page no longer appears to reload every few seconds.

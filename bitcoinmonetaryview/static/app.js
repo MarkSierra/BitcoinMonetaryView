@@ -231,6 +231,18 @@
   }
 
   /** Stacked area over months with crosshair tooltip and milestone annotations. */
+  /** Grey band over the rows the scan has not reached yet ([first, last] index). */
+  function pendingBand(svg, X, step, top, height, range) {
+    if (!range) return;
+    const x0 = Math.max(X(0), X(range[0]) - step / 2), x1 = Math.min(X(range[2]), X(range[1]) + step / 2);
+    svg.append(s("rect", { class: "pending-band", x: x0, y: top, width: Math.max(2, x1 - x0), height }));
+    if (x1 - x0 > 70) {
+      const t = s("text", { class: "pending-label", x: (x0 + x1) / 2, y: top + height / 2, "text-anchor": "middle" });
+      t.textContent = "Not scanned yet";
+      svg.append(t);
+    }
+  }
+
   function stackedArea(container, rows, keys, opts = {}) {
     clear(container);
     if (rows.length < 2) { container.append(h("div", { class: "chart-empty", text: opts.empty || "Not enough data yet" })); return; }
@@ -249,6 +261,7 @@
       t.textContent = fmt((max * i) / 4);
       svg.append(t);
     }
+    if (opts.pending) pendingBand(svg, X, iw / Math.max(1, rows.length - 1), m.t, ih, [...opts.pending, rows.length - 1]);
     const cum = rows.map(() => 0);
     keys.forEach((k) => {
       const lower = cum.slice();
@@ -307,7 +320,7 @@
     if (rows.length < 2) { container.append(h("div", { class: "chart-empty", text: opts.empty || "Not enough data yet" })); return; }
     const W = chartWidth(container), H = opts.height || 220, m = { l: 56, r: 12, t: 12, b: 26 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
-    const max = niceMax(Math.max(...rows.map((r) => r.value)));
+    const max = niceMax(Math.max(0, ...rows.filter((r) => r.value != null).map((r) => r.value)));
     const X = (i) => m.l + (iw * i) / (rows.length - 1);
     const Y = (v) => m.t + ih - (v / max) * ih;
     const fmt = opts.yFmt || fmtNum;
@@ -319,8 +332,12 @@
       t.textContent = (opts.axisFmt || fmt)((max * i) / 4);
       svg.append(t);
     }
-    let d = "";
-    rows.forEach((r, i) => { d += `${i ? "L" : "M"}${X(i)},${Y(r.value)}`; });
+    if (opts.pending) pendingBand(svg, X, iw / Math.max(1, rows.length - 1), m.t, ih, [...opts.pending, rows.length - 1]);
+    let d = "", pen = false;      // months without data (not scanned yet) break the line
+    rows.forEach((r, i) => {
+      if (r.value == null) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${X(i)},${Y(r.value)}`; pen = true;
+    });
     svg.append(s("path", { class: `line l-${key}`, d }));
     const labelEvery = Math.ceil(rows.length / Math.max(3, Math.floor(W / 110)));
     rows.forEach((r, i) => {
@@ -338,6 +355,11 @@
       const px = ((e.clientX - rect.left) / rect.width) * W;
       const i = Math.max(0, Math.min(rows.length - 1, Math.round(((px - m.l) / iw) * (rows.length - 1))));
       cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
+      if (rows[i].value == null) {
+        dot.setAttribute("visibility", "hidden");
+        showTip(e, rows[i].title || rows[i].label, [{ label: "Not scanned yet", value: "" }]);
+        return;
+      }
       dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(rows[i].value)); dot.setAttribute("visibility", "visible");
       showTip(e, rows[i].title || rows[i].label, [{ key, label: opts.seriesLabel || LABEL[key] || key, value: fmt(rows[i].value) }]);
     });
@@ -432,7 +454,6 @@
     const st = S.status, box = clear($("#banners"));
     const add = (kind, text) => box.append(h("div", { class: `banner ${kind}` },
       h("span", { class: "ico", text: kind === "info" ? "i" : "!" }), h("div", { text })));
-    if (st.managed) add("info", `Settings are managed by ${st.managed_by === "startos" ? "StartOS" : st.managed_by} — change them in the service's settings/actions.`);
     if (st.node && st.node.plaintext_remote) add("warn", "Your RPC connection uses plain HTTP to another machine, so the RPC password travels unencrypted. Prefer an https:// URL, Tor or an SSH tunnel.");
     if (st.node && st.node.pruned) add("warn", `Your node is pruned: only blocks from ${fmtNum(st.node.prune_height)} on can be analysed, and the spam UTXO figure will be incomplete.`);
     for (const w of st.warnings || []) add("warn", w);
@@ -448,9 +469,16 @@
     if (sum.meta && sum.meta.full_done === "1") return null;
     const est = sum.estimate;
     if (est) {
-      const m = est.spam_margin_pct != null && est.spam_margin_pct >= 0.1 ? ` (±${fmtPct(est.spam_margin_pct)})` : "";
+      const m = est.spam_margin_pct != null && est.spam_margin_pct >= 0.1 ? ` ±${fmtPct(est.spam_margin_pct)}` : "";
       return h("span", { class: "partial" }, "◔ ",
-        `Estimate${m} from ${fmtNum(est.samples)} sample blocks spread across the chain — exact figures replace it as the full history scan proceeds (${fmtPct(est.exact_share_pct)} of the data scanned exactly so far)`);
+        `Estimate for the whole chain${m}, from ${fmtNum(est.samples)} sample blocks spread across its history. ` +
+        `Exact so far: ${fmtBytes(sum.spam_bytes)} of spam in ${fmtPct(est.exact_share_pct)} of the data — ` +
+        "the estimate is replaced by exact figures as the full history scan proceeds.");
+    }
+    if (sum.estimate_pending) {
+      return h("span", { class: "partial" }, "◔ ",
+        `Based on the ${fmtNum(sum.blocks_scanned)} blocks scanned so far, mostly the latest ones. ` +
+        "The estimate for the whole chain follows in a few minutes, once the sample pass is done.");
     }
     const tipH = st.tip != null ? st.tip + 1 : null;
     return h("span", { class: "partial" }, "◔ ",
@@ -494,7 +522,7 @@
         compareRow("Your node (Core/Knots)", t.size, maxB, [["monetary", t.size - B.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
         compareRow("Monetary Node", t.stored, maxB, [["monetary", t.stored]])),
       h("p", { class: "sub", style: { marginTop: "14px", marginBottom: 0 },
-        text: "The Monetary Node size includes its own bookkeeping (stored txids and filter entries for removed outputs), so the saving is slightly smaller than the spam total. Undo files and optional indexes are not included." }));
+        text: "The saving is usually larger than the spam itself: in transactions that carry spam, a Monetary Node also drops the witness data (signatures and other data already verified when the block was accepted), and transactions that are only spam are reduced to their txid. Its own bookkeeping (stored txids, a record of removed outputs) is included. Undo files and optional indexes are not." }));
 
     const u = sum.utxo;
     const kpis = h("div", { class: "grid grid-4" },
@@ -505,7 +533,9 @@
 
     viewShell(
       h("section", { class: "hero" },
-        h("h1", null, "Your node stores ", h("span", { class: "hl", text: (est ? "≈ " : "") + fmtBytes(B.spam_bytes) }), " of spam."),
+        sum.estimate_pending && !est
+          ? h("h1", null, "Spam makes up ", h("span", { class: "hl", text: fmtPct(sum.spam_pct) }), " of recent blocks.")
+          : h("h1", null, "Your node stores ", h("span", { class: "hl", text: (est ? "≈ " : "") + fmtBytes(B.spam_bytes) }), " of spam."),
         h("p", { text: est
           ? `Estimated for the whole chain (${fmtNum(est.blocks)} blocks): a Monetary Node would store about ${fmtBytes(t.stored)} instead of ${fmtBytes(t.size)} — ${fmtBytes(Math.max(0, saved))} (${fmtPct(Math.max(0, est.saved_pct))}) less.`
           : saved > 0
@@ -570,6 +600,19 @@
     return wrap;
   }
 
+  function coverageText(cov) {
+    if (!cov || cov.complete || !cov.ranges || !cov.ranges.length) return null;
+    const parts = cov.ranges.map(([a, b]) => (a === b ? fmtNum(a) : `${fmtNum(a)}–${fmtNum(b)}`));
+    const list = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
+    return `Scanned so far: block${cov.ranges.length > 1 || cov.ranges[0][0] !== cov.ranges[0][1] ? "s" : ""} ${list}.` +
+      (cov.gap ? ` The full history scan continues from block ${fmtNum(cov.gap.from)}.` : "");
+  }
+  function goToBlock(q) {
+    q = String(q || "").trim();
+    if (/^\d{1,9}$/.test(q) || /^[0-9a-fA-F]{64}$/.test(q)) { location.hash = `#/block/${q.toLowerCase()}`; return true; }
+    return false;
+  }
+
   async function viewBlocks() {
     const chartBox = h("div", { class: "chart" });
     const seg = h("div", { class: "seg", role: "group", "aria-label": "Range" });
@@ -583,12 +626,24 @@
         h("div", null, h("h2", { text: "Spam per block" }), h("p", { class: "sub", text: "Block bytes by type. Click a bar to open the block." })), seg),
       legend(["monetary", ...CARRIERS]), chartBox);
     const tableBox = h("div");
-    const search = h("input", { type: "text", inputmode: "numeric", placeholder: "Go to block height…", "aria-label": "Block height" });
-    search.addEventListener("keydown", (e) => { if (e.key === "Enter" && /^\d+$/.test(search.value.trim())) location.hash = `#/block/${search.value.trim()}`; });
     const tableCard = h("div", { class: "card" },
-      h("div", { class: "card-head" }, h("div", null, h("h2", { text: "Analysed blocks" }), h("p", { class: "sub", text: "Newest first" })), search),
+      h("div", { class: "card-head" }, h("div", null, h("h2", { text: "Analysed blocks" }), h("p", { class: "sub", text: "Newest first" }))),
       tableBox);
-    viewShell(blockStrip(), h("div", { style: { height: "16px" } }), chartCard, h("div", { style: { height: "16px" } }), tableCard);
+    const search = h("input", { type: "text", class: "find-input", placeholder: "Block height or hash", "aria-label": "Block height or hash",
+      autocomplete: "off", spellcheck: "false" });
+    const findMsg = h("span", { class: "find-msg", role: "status" });
+    const find = () => { findMsg.textContent = goToBlock(search.value) ? "" : "Enter a block height or a 64-character block hash."; };
+    search.addEventListener("keydown", (e) => { if (e.key === "Enter") find(); });
+    const cov = coverageText(S.summary && S.summary.coverage);
+    const findCard = h("div", { class: "card find-card" },
+      h("div", { class: "find-row" },
+        h("div", null, h("h2", { text: "Find a block" }),
+          h("p", { class: "sub", text: "Look at any block by its height or hash — also blocks the scan has not reached yet." })),
+        h("div", { class: "find-form" }, search, h("button", { class: "btn btn-primary", type: "button", text: "Show block", onclick: find }))),
+      findMsg,
+      cov ? h("p", { class: "coverage-note" }, "◔ ", cov) : null);
+    viewShell(findCard, h("div", { style: { height: "16px" } }), blockStrip(), h("div", { style: { height: "16px" } }), chartCard,
+      h("div", { style: { height: "16px" } }), tableCard);
 
     const hi = S.summary && !S.summary.empty ? S.summary.highest : null;
     if (hi == null) { stackedBars(chartBox, [], []); }
@@ -649,20 +704,46 @@
     }
   }
 
-  async function openBlock(height) {
-    let b;
-    try { b = await api(`/api/block/${height}`); } catch (e) { b = null; }
+  function blockEta(height) {
+    const st = S.status || {}, cov = S.summary && S.summary.coverage;
+    if (!cov || !cov.gap || height < cov.gap.from || (cov.gap.to != null && height > cov.gap.to)) return "";
+    const bps = st.phase === "full" ? st.blocks_per_s : 0;
+    if (!bps) return " The full history scan will get there.";
+    return ` At the current speed the full history scan gets there in about ${fmtDur((height - cov.gap.from) / bps)}.`;
+  }
+  async function openBlock(key) {
+    let b = null;
+    try { b = await api(`/api/block/${key}`); } catch (e) { b = null; }
     const dlg = $("#dialog"), body = clear($("#dialog-body"));
     const close = h("button", { class: "icon-btn", type: "button", "aria-label": "Close", text: "✕", onclick: () => { dlg.close(); } });
-    if (!b) {
-      body.append(h("div", { class: "dlg" }, h("div", { class: "dlg-head" }, h("h2", { text: `Block ${fmtNum(height)}` }), close),
-        h("p", { class: "muted", text: "This block has not been analysed yet. The history scan will get there." })));
-    } else {
+    const isHeight = /^\d+$/.test(String(key));
+    const title = isHeight ? `Block ${fmtNum(parseInt(key, 10))}` : `Block ${String(key).slice(0, 12)}…`;
+    if (b) renderBlockDetail(body, b, close);
+    else {
+      const msg = h("p", { class: "find-msg", role: "status" });
+      const btn = h("button", { class: "btn btn-primary", type: "button", text: "Analyse this block now" });
+      btn.addEventListener("click", async () => {
+        btn.disabled = true; msg.textContent = "Fetching the block from your node and analysing it…";
+        try {
+          const res = await post("/api/lookup", { q: String(key) });
+          renderBlockDetail(clear(body), res, close);
+        } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+      });
+      body.append(h("div", { class: "dlg" }, h("div", { class: "dlg-head" }, h("h2", { text: title }), close),
+        h("p", { class: "muted", text: "This block has not been scanned yet." + (isHeight ? blockEta(parseInt(key, 10)) : "") }),
+        h("p", { class: "muted", text: "You can analyse it right now: the app reads this one block from your node (read-only) and shows its exact figures." }),
+        h("div", { class: "hero-actions" }, btn), msg));
+    }
+    if (!dlg.open) dlg.showModal();
+    dlg.addEventListener("close", () => { if (location.hash.startsWith("#/block/")) history.replaceState(null, "", "#/blocks"); }, { once: true });
+  }
+  function renderBlockDetail(body, b, close) {
       const items = CARRIERS.map((k) => ({ key: k, value: b[k] || 0 }));
       const dn = h("div", { class: "chart" });
       donut(dn, [{ key: "monetary", value: b.size - b.spam_bytes }, ...items], [fmtPct(b.spam_pct), "spam"]);
       body.append(h("div", { class: "dlg" },
         h("div", { class: "dlg-head" }, h("h2", { text: `Block ${fmtNum(b.height)}` }), close),
+        b.on_demand ? h("p", { class: "coverage-note" }, "✓ Analysed on demand — the figures are exact. The full history scan will add it to the totals when it gets there.") : null,
         h("div", { class: "donut-wrap" }, dn, h("div", { class: "donut-legend" },
           [{ key: "monetary", value: b.size - b.spam_bytes }, ...items].map((it) => h("div", { class: "row" },
             h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }), h("span", { class: "v", text: fmtBytes(it.value) }),
@@ -678,38 +759,172 @@
           b.utxo_done ? h("dd", { text: `+${fmtNum(b.utxo_added)} created · −${fmtNum(b.utxo_spent)} spent` }) : null,
           b.retained_protocol ? h("dt", { text: "Kept by carrier policy" }) : null,
           b.retained_protocol ? h("dd", { text: `${fmtNum(b.retained_protocol)} payment-protocol OP_RETURN(s)` }) : null)));
-    }
-    if (!dlg.open) dlg.showModal();
-    dlg.addEventListener("close", () => { if (location.hash.startsWith("#/block/")) history.replaceState(null, "", "#/blocks"); }, { once: true });
+  }
+
+  const monthOf = (t) => new Date(t * 1000).toISOString().slice(0, 7);
+  function monthSeq(a, b) {
+    const out = [];
+    let [y, m] = a.split("-").map(Number);
+    const [y2, m2] = b.split("-").map(Number);
+    while (y < y2 || (y === y2 && m <= m2)) { out.push(`${y}-${String(m).padStart(2, "0")}`); m++; if (m > 12) { m = 1; y++; } }
+    return out;
   }
 
   async function viewHistory() {
     const area = h("div", { class: "chart" }), share = h("div", { class: "chart" }), utxo = h("div", { class: "chart" });
+    const note = h("div");
     const c1 = h("div", { class: "card" }, h("h2", { text: "Spam per month" }),
       h("p", { class: "sub", text: "Bytes removed by a Monetary Node, by carrier, for each month of blocks scanned" }), legend(CARRIERS), area);
     const c2 = h("div", { class: "card" }, h("h2", { text: "Spam share of block data" }),
       h("p", { class: "sub", text: "Percentage of each month's block bytes that are spam" }), share);
     const c3 = h("div", { class: "card" }, h("h2", { text: "Spam entries in the UTXO set over time" }),
       h("p", { class: "sub", text: "Unspent spam and dust outputs, built up block by block during the full history scan" }), utxo);
-    viewShell(c1, h("div", { style: { height: "16px" } }), h("div", { class: "grid grid-2" }, c2, c3));
+    const rangeCard = periodCard();
+    viewShell(note, c1, h("div", { style: { height: "16px" } }), rangeCard, h("div", { style: { height: "16px" } }),
+      h("div", { class: "grid grid-2" }, c2, c3));
+    loadPeriod();
     const data = await api("/api/history").catch(() => ({ months: [] }));
-    const months = data.months;
+    const byMonth = new Map(data.months.map((mo) => [mo.month, mo]));
     const mainnet = S.status && S.status.network === "mainnet";
-    const rows = months.map((mo) => {
-      const vals = {}; CARRIERS.forEach((k) => { vals[k] = mo[k] || 0; });
-      return { key: mo.month, label: mo.month, title: `${mo.month} · blocks ${fmtNum(mo.from)}–${fmtNum(mo.to)}`, values: vals,
-        extra: [{ label: "Block data", value: fmtBytes(mo.size) }] };
+    const gap = data.coverage && data.coverage.gap;
+    // Continuous month axis; months the scan has not reached are shown as a grey band, not as zero spam.
+    let first = data.months.length ? data.months[0].month : null;
+    const last = data.months.length ? data.months[data.months.length - 1].month : null;
+    let pFrom = null, pTo = null;
+    if (gap && last) {
+      pFrom = gap.from_time ? monthOf(gap.from_time) : (gap.from === 0 && mainnet ? "2009-01" : first);
+      pTo = gap.to_time ? monthOf(gap.to_time) : last;
+      if (pFrom < first) first = pFrom;
+    }
+    const seq = first ? monthSeq(first, last) : [];
+    let pending = null;
+    if (pFrom) {
+      const i0 = seq.indexOf(pFrom), i1 = seq.indexOf(pTo);
+      pending = [Math.max(0, i0), i1 < 0 ? seq.length - 1 : i1];
+    }
+    const inGap = (mo) => pFrom && mo >= pFrom && mo <= pTo;
+    if (pFrom) {
+      note.append(h("p", { class: "coverage-note page-note" }, "◔ ",
+        `The full history scan has not reached ${pFrom === pTo ? pFrom : `${pFrom} – ${pTo}`} yet. That period is greyed out below; ` +
+        "its spam appears as the scan proceeds. The overview shows an estimate for the whole chain in the meantime."));
+    }
+    const rows = seq.map((mk) => {
+      const mo = byMonth.get(mk);
+      const vals = {}; CARRIERS.forEach((k) => { vals[k] = mo ? mo[k] || 0 : 0; });
+      return { key: mk, label: mk, values: vals,
+        title: mo ? `${mk} · blocks ${fmtNum(mo.from)}–${fmtNum(mo.to)}${inGap(mk) ? " (partly scanned)" : ""}` : `${mk} · not scanned yet`,
+        extra: mo ? [{ label: "Block data", value: fmtBytes(mo.size) }] : [] };
     });
-    stackedArea(area, rows, CARRIERS, { milestones: mainnet ? MILESTONES : null, aria: "Spam bytes per month by carrier" });
+    stackedArea(area, rows, CARRIERS, { milestones: mainnet ? MILESTONES : null, aria: "Spam bytes per month by carrier", pending });
     withTableToggle(c1, () => dataTable(["Month", "Blocks", "Block data", ...CARRIERS.map((k) => SHORT[k])],
-      months.map((mo) => [mo.month, fmtNum(mo.blocks), fmtBytes(mo.size), ...CARRIERS.map((k) => fmtBytes(mo[k]))])));
-    const shareRows = months.map((mo) => ({ label: mo.month, title: mo.month,
-      value: mo.size ? (CARRIERS.reduce((a, k) => a + (mo[k] || 0), 0) / mo.size) * 100 : 0 }));
-    lineChart(share, shareRows, "spam", { yFmt: (v) => fmtPct(v), axisFmt: (v) => v.toFixed(0) + " %", seriesLabel: "Spam share" });
-    const full = months.filter((mo) => mo.utxo_count !== 0 || mo.utxo_bytes !== 0);
-    lineChart(utxo, months.map((mo) => ({ label: mo.month, title: mo.month, value: mo.utxo_count })), "p2tr_dust",
-      { yFmt: fmtNum, axisFmt: fmtCompact, seriesLabel: "Spam UTXO entries",
-        empty: full.length ? undefined : "Available once the full history scan has progressed" });
+      data.months.map((mo) => [mo.month, fmtNum(mo.blocks), fmtBytes(mo.size), ...CARRIERS.map((k) => fmtBytes(mo[k]))])));
+    const shareRows = seq.map((mk) => {
+      const mo = byMonth.get(mk);
+      return { label: mk, title: mk, value: mo && mo.size ? (CARRIERS.reduce((a, k) => a + (mo[k] || 0), 0) / mo.size) * 100 : (mo ? 0 : null) };
+    });
+    lineChart(share, shareRows, "spam", { yFmt: (v) => fmtPct(v), axisFmt: (v) => v.toFixed(0) + " %", seriesLabel: "Spam share", pending });
+    const full = data.months.filter((mo) => mo.utxo_count !== 0 || mo.utxo_bytes !== 0);
+    lineChart(utxo, seq.map((mk) => {
+      const mo = byMonth.get(mk);
+      // the spam UTXO set is only known for the chronologically scanned part of the history
+      return { label: mk, title: mk, value: mo && (!pFrom || mk <= pFrom) ? mo.utxo_count : null };
+    }), "p2tr_dust", { yFmt: fmtNum, axisFmt: fmtCompact, seriesLabel: "Spam UTXO entries", pending,
+      empty: full.length ? undefined : "Available once the full history scan has progressed" });
+  }
+
+  // ------------------------------------------------------------------ custom range
+  const ORDINALS_HEIGHT = 767430;
+  function periodPresets() {
+    const now = Math.floor(Date.now() / 1000), day = 86400;
+    const yearStart = Date.UTC(new Date().getUTCFullYear(), 0, 1) / 1000;
+    const p = [
+      { id: "24h", label: "24 hours", q: { start: now - day, end: now } },
+      { id: "7d", label: "7 days", q: { start: now - 7 * day, end: now } },
+      { id: "30d", label: "30 days", q: { start: now - 30 * day, end: now } },
+      { id: "ytd", label: "This year", q: { start: yearStart, end: now } },
+    ];
+    if (S.status && S.status.network === "mainnet") p.push({ id: "ord", label: "Since Ordinals", q: { from: ORDINALS_HEIGHT, to: 1e9 } });
+    p.push({ id: "all", label: "All time", q: { from: 0, to: 1e9 } });
+    return p;
+  }
+  function periodCard() {
+    if (!S.period) S.period = { id: "30d", q: periodPresets().find((x) => x.id === "30d").q };
+    const seg = h("div", { class: "seg seg-wrap", role: "group", "aria-label": "Range shortcuts" });
+    for (const p of periodPresets()) {
+      seg.append(h("button", { type: "button", "aria-pressed": String(S.period.id === p.id), text: p.label,
+        onclick: () => { S.period = { id: p.id, q: p.q }; refreshPeriodButtons(); loadPeriod(); } }));
+    }
+    const year = h("select", { "aria-label": "Year" }, h("option", { value: "", text: "Year…" }));
+    for (let y = new Date().getUTCFullYear(); y >= 2009; y--) year.append(h("option", { value: String(y), text: String(y) }));
+    if (String(S.period.id).startsWith("y")) year.value = S.period.id.slice(1);
+    year.addEventListener("change", () => {
+      if (!year.value) return;
+      const y = parseInt(year.value, 10);
+      S.period = { id: "y" + y, q: { start: Date.UTC(y, 0, 1) / 1000, end: Date.UTC(y + 1, 0, 1) / 1000 - 1 } };
+      refreshPeriodButtons(); loadPeriod();
+    });
+    const mode = h("select", { "aria-label": "Range type" }, h("option", { value: "date", text: "Dates" }), h("option", { value: "height", text: "Block heights" }));
+    const a = h("input", { type: "date", "aria-label": "From" }), b = h("input", { type: "date", "aria-label": "To" });
+    mode.addEventListener("change", () => {
+      const t = mode.value === "date" ? "date" : "number";
+      a.type = b.type = t; a.value = b.value = "";
+      a.placeholder = t === "number" ? "From height" : ""; b.placeholder = t === "number" ? "To height" : "";
+      if (t === "number") { a.min = b.min = "0"; a.inputMode = b.inputMode = "numeric"; }
+    });
+    const msg = h("span", { class: "find-msg", role: "status" });
+    const apply = () => {
+      msg.textContent = "";
+      if (mode.value === "date") {
+        const t0 = Date.parse(a.value + "T00:00:00Z") / 1000, t1 = Date.parse(b.value + "T23:59:59Z") / 1000;
+        if (!isFinite(t0) || !isFinite(t1)) { msg.textContent = "Choose a start and an end date."; return; }
+        S.period = { id: "custom", q: { start: Math.min(t0, t1), end: Math.max(t0, t1) } };
+      } else {
+        const x = parseInt(a.value, 10), y = parseInt(b.value, 10);
+        if (!(x >= 0) || !(y >= 0)) { msg.textContent = "Enter two block heights."; return; }
+        S.period = { id: "custom", q: { from: Math.min(x, y), to: Math.max(x, y) } };
+      }
+      year.value = ""; refreshPeriodButtons(); loadPeriod();
+    };
+    function refreshPeriodButtons() {
+      for (const btn of seg.querySelectorAll("button")) btn.setAttribute("aria-pressed", "false");
+      const i = periodPresets().findIndex((p) => p.id === S.period.id);
+      if (i >= 0) seg.querySelectorAll("button")[i].setAttribute("aria-pressed", "true");
+      if (!String(S.period.id).startsWith("y")) year.value = "";
+    }
+    S.periodBox = h("div", { class: "period-result", "aria-live": "polite" });
+    return h("div", { class: "card" },
+      h("h2", { text: "Custom range" }),
+      h("p", { class: "sub", text: "Spam statistics for any period — pick a shortcut or enter dates or block heights" }),
+      h("div", { class: "period-controls" }, seg, year),
+      h("div", { class: "period-controls" }, mode, a, h("span", { class: "muted", text: "to" }), b,
+        h("button", { class: "btn", type: "button", text: "Show", onclick: apply }), msg),
+      S.periodBox);
+  }
+  async function loadPeriod() {
+    const box = S.periodBox;
+    if (!box || !S.period) return;
+    const q = S.period.q;
+    const qs = q.from != null ? `from=${q.from}&to=${q.to}` : `start=${Math.floor(q.start)}&end=${Math.floor(q.end)}`;
+    let r;
+    try { r = await api(`/api/period?${qs}`); } catch (e) { clear(box).append(h("p", { class: "muted", text: e.message })); return; }
+    clear(box);
+    if (r.empty) { box.append(h("p", { class: "muted", text: "No scanned blocks in this range yet." + (r.blocks_total ? " The full history scan will get there." : "") })); return; }
+    const span = `Blocks ${fmtNum(r.first)}–${fmtNum(r.last)} · ${fmtDate(r.first_time).slice(0, 10)} – ${fmtDate(r.last_time).slice(0, 10)}`;
+    box.append(h("p", { class: "sub", text: span }));
+    if (r.coverage_pct < 99.95) {
+      box.append(h("p", { class: "coverage-note" }, "◔ ",
+        `About ${fmtPct(Math.min(99.9, r.coverage_pct))} of this range is scanned so far — the figures cover only the scanned blocks.`));
+    }
+    box.append(h("div", { class: "grid grid-4 period-kpis" },
+      kpi("Spam", fmtBytes(r.spam_bytes), `${fmtPct(r.spam_pct)} of ${fmtBytes(r.totals.size)} block data`, "envelope"),
+      kpi("Monetary Node saves", fmtBytes(Math.max(0, r.saved_bytes)), `${fmtPct(Math.max(0, r.saved_pct))} less block storage`, "monetary"),
+      kpi("Transactions touched", fmtPct(r.modified_tx_pct), `${fmtNum(r.totals.modified + r.totals.stripped)} of ${fmtNum(r.totals.tx_count)}`),
+      kpi("Blocks", fmtNum(r.blocks_scanned), r.coverage_pct < 99.95 ? `scanned of ≈ ${fmtNum(r.blocks_total)} in this range` : "in this range")));
+    const items = CARRIERS.map((k) => ({ key: k, value: r.by_carrier[k] || 0 }));
+    box.append(h("div", { class: "donut-legend period-legend" }, items.map((it) => h("div", { class: "row" },
+      h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }),
+      h("span", { class: "v num", text: fmtBytes(it.value) }),
+      h("span", { class: "p num", text: fmtPct(r.spam_bytes ? (it.value / r.spam_bytes) * 100 : 0) })))));
   }
 
   function viewUtxo() {
@@ -865,7 +1080,7 @@
         } }) : null)),
       msg);
     const ctrlCard = h("div", { class: "card" }, h("h2", { text: "Scan settings" }),
-      h("p", { class: "sub", text: st.managed ? "Managed by the platform — change these in the service's settings." : "These only affect this app." }), ctrl);
+      h("p", { class: "sub", text: st.managed ? `Managed by ${st.managed_by === "startos" ? "StartOS" : st.managed_by} — change these in the service's Actions.` : "These only affect this app." }), ctrl);
 
     // all settings (read-only list)
     const setTable = settings ? dataTable(["Setting", "Value", "Source"], settings.settings.map((x) => [x.name,
@@ -969,10 +1184,10 @@
   const VIEWS = { overview: viewOverview, blocks: viewBlocks, history: viewHistory, utxo: viewUtxo, about: viewAbout, connection: viewConnection };
   function route(force) {
     const hash = location.hash || "#/overview";
-    const m = hash.match(/^#\/block\/(\d+)$/);
+    const m = hash.match(/^#\/block\/(\d{1,9}|[0-9a-f]{64})$/);
     if (m) {
       if (S.view !== "blocks") { S.view = "blocks"; markNav(); viewBlocks(); }
-      openBlock(parseInt(m[1], 10));
+      openBlock(m[1]);
       return;
     }
     const v = (hash.match(/^#\/(\w+)/) || [])[1];

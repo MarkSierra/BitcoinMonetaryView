@@ -201,6 +201,68 @@ class Managed(ServerTest):
         self.assertEqual(r.status, 200)
 
 
+class OnDemandLookup(ServerTest):
+    """'Analyse this block now': read-only fetch through the whitelisted client, CSRF, cooldown."""
+
+    def setUp(self):
+        from tests import blockgen as bg
+        from tests.mocknode import MockChain, MockNode
+        self.chain = MockChain()
+        for _ in range(12):
+            self.chain.append(lambda h, prev: bg.mixed_block(h, prev=prev, seed=h))
+        self.node = MockNode(self.chain)
+        self.cli_extra = {"rpc_url": self.node.url, "rpc_user": "u", "rpc_password": "p"}
+        super().setUp()
+        from bitcoinmonetaryview.scanner import Scanner
+        sc = Scanner(self.config)
+        sc.network = "regtest"
+        self.app().scanner = sc
+        import bitcoinmonetaryview.server as srvmod
+        self._cooldown = srvmod.LOOKUP_COOLDOWN
+        srvmod.LOOKUP_COOLDOWN = 0.5
+
+    def tearDown(self):
+        import bitcoinmonetaryview.server as srvmod
+        srvmod.LOOKUP_COOLDOWN = self._cooldown
+        super().tearDown()
+        self.node.stop()
+
+    def app(self):
+        return self.srv.app
+
+    def test_lookup_flow(self):
+        import time
+        token = self.csrf()
+        r, _ = self.post("/api/lookup", {"q": "5"})
+        self.assertEqual(r.status, 403)                       # CSRF required
+        r, d = self.post("/api/lookup", {"q": "nope"}, token)
+        self.assertEqual(r.status, 400)
+        r, d = self.post("/api/lookup", {"q": "5"}, token)
+        self.assertEqual(r.status, 200, d)
+        b = json.loads(d)
+        self.assertEqual(b["height"], 5)
+        self.assertTrue(b["on_demand"])
+        self.assertGreater(b["spam_bytes"], 0)
+        # cached: available via the normal block endpoint, by height and by hash, without a node call
+        n_calls = len(self.node.calls)
+        r, d = self.req("GET", "/api/block/5")
+        self.assertEqual(r.status, 200)
+        r, d = self.req("GET", "/api/block/" + b["hash"])
+        self.assertEqual(r.status, 200)
+        self.assertEqual(len(self.node.calls), n_calls)
+        # cooldown between node fetches
+        r, d = self.post("/api/lookup", {"q": "6"}, token)
+        self.assertEqual(r.status, 429)
+        time.sleep(0.6)
+        r, d = self.post("/api/lookup", {"q": "99"}, token)
+        self.assertEqual(r.status, 404)                       # above the node's tip
+        time.sleep(0.6)
+        r, d = self.post("/api/lookup", {"q": "ab" * 32}, token)
+        self.assertEqual(r.status, 404)                       # unknown hash
+        for m, *_ in self.node.calls:
+            self.assertIn(m, ("REST", "getblockchaininfo", "getblockhash", "getblock", "getblockheader"))
+
+
 class Helpers(unittest.TestCase):
     def test_csv_safe(self):
         for v in ("=cmd|'/c calc'!A1", "+1", "-1", "@SUM(A1)"):

@@ -4,10 +4,13 @@ Web interface and JSON API.
 
 The API never acts on the node. The only state-changing endpoints affect this
 app (pause/resume, rescan of its own database, UI-editable settings) and are
-POST-only with a CSRF token, an Origin check and a Host allowlist.
+POST-only with a CSRF token, an Origin check and a Host allowlist. The same
+applies to "analyse this block now", which only reads one block from the node
+(whitelisted, read-only RPC), one request at a time with a cooldown.
 """
 
 import base64
+import collections
 import hmac
 import ipaddress
 import json
@@ -17,16 +20,24 @@ import secrets
 import socket
 import ssl
 import threading
+import re
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import __version__
-from .analytics import Analytics
+from .analytics import Analytics, block_from_result
 from .diagnostics import run_connection_test
+from .node.rpc import NodeError, RPCError
+from .rules import monetary_rules as mr
 from .rules import UPSTREAM_COMMIT, UPSTREAM_REPO
 
 log = logging.getLogger("bmv.server")
+
+
+def worker_analyze(raw, height, hexhash, dust_start, policy):
+    from .worker import analyze_verified
+    return analyze_verified(raw, height, hexhash, dust_start, policy)
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 STATIC_FILES = {
@@ -37,6 +48,10 @@ STATIC_FILES = {
     "/favicon.svg": ("favicon.svg", "image/svg+xml"),
 }
 MAX_BODY = 16 * 1024
+LOOKUP_COOLDOWN = 3.0        # seconds between on-demand block analyses
+LOOKUP_CACHE = 256
+LOOKUP_TTL = 1800            # cached on-demand results expire (reorgs near the tip)
+HEX64 = re.compile(r"^[0-9a-fA-F]{64}$")
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
        "connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; "
        "base-uri 'none'; form-action 'self'")
@@ -77,6 +92,83 @@ class App:
         self._analytics = {}
         self._conn_test = {"running": False, "result": None, "time": None}
         self._conn_lock = threading.Lock()
+        self._lookup_lock = threading.Lock()
+        self._lookup_last = 0.0
+        self._lookup_node = None
+        self._lookup_cache = collections.OrderedDict()     # height -> (time, block dict)
+
+    # ------------------------------------------------------------ on-demand block analysis
+    def cached_lookup(self, height=None, hexhash=None):
+        now = time.time()
+        for h, (t, b) in list(self._lookup_cache.items()):
+            if now - t > LOOKUP_TTL:
+                self._lookup_cache.pop(h, None)
+            elif (height is not None and h == height) or (hexhash is not None and b["hash"] == hexhash.lower()):
+                return b
+        return None
+
+    def lookup(self, query):
+        """
+        Analyse one block the scan has not reached yet. Returns (http_status, json).
+        Read-only: the block is fetched through the same whitelisted RPC/REST client and
+        verified like every scanned block; the result is kept in memory only and never
+        touches the scan results. One lookup at a time, at most one per LOOKUP_COOLDOWN.
+        """
+        q = str(query or "").strip()
+        if q.isdigit() and len(q) <= 9:
+            height, hexhash = int(q), None
+        elif HEX64.match(q):
+            height, hexhash = None, q.lower()
+        else:
+            return 400, {"error": "Enter a block height or a 64-character block hash."}
+        hit = self.cached_lookup(height, hexhash)
+        if hit:
+            return 200, hit
+        if self.scanner.network is None:
+            return 503, {"error": "Not connected to the node yet."}
+        if not self._lookup_lock.acquire(blocking=False):
+            return 429, {"error": "Another block is being analysed. Try again in a moment."}
+        try:
+            wait = LOOKUP_COOLDOWN - (time.monotonic() - self._lookup_last)
+            if wait > 0:
+                return 429, {"error": f"Please wait {wait:.0f} s before the next lookup.", "retry_after": wait}
+            self._lookup_last = time.monotonic()
+            sc = self.scanner
+            if self._lookup_node is None:
+                self._lookup_node = sc.make_node()
+            node = self._lookup_node
+            try:
+                if hexhash is not None:
+                    hdr = node.header(hexhash)
+                    if int(hdr.get("confirmations", -1)) < 0:
+                        return 404, {"error": "That block is not in your node's main chain."}
+                    height = int(hdr["height"])
+                else:
+                    tip = int(node.chain_info()["blocks"])
+                    if height > tip:
+                        return 404, {"error": f"Your node's chain is only {tip:,} blocks high."}
+                    hexhash = node.block_hash(height)
+                raw = node.block(hexhash)
+                res = worker_analyze(raw, height, hexhash, sc.dust_start(), sc.policy())
+            except RPCError as e:
+                msg = str(e)
+                if "prun" in msg.lower() or "not available" in msg.lower():
+                    return 404, {"error": "Your node has pruned this block, so it cannot be analysed."}
+                if "not found" in msg.lower():
+                    return 404, {"error": "Your node does not know this block."}
+                return 502, {"error": f"The node returned an error: {msg}"}
+            except mr.BlockInvalid as e:
+                return 502, {"error": f"The block failed the data check: {e}"}
+            except NodeError as e:
+                self._lookup_node = None
+                return 502, {"error": f"Could not reach the node: {e}"}
+            b = block_from_result(height, res)
+            self._lookup_cache[height] = (time.time(), b)
+            while len(self._lookup_cache) > LOOKUP_CACHE:
+                self._lookup_cache.popitem(last=False)
+            return 200, b
+        finally:
+            self._lookup_lock.release()
 
     def analytics(self):
         path = self.scanner.store_path
@@ -230,11 +322,20 @@ def make_handler(app):
                     return self.send_json(a.blocks(int(q.get("limit", 50)), int(before) if before else None)
                                           if a else [])
                 if path.startswith("/api/block/"):
-                    h = path[len("/api/block/"):]
-                    if not h.isdigit():
-                        return self.error(400, "invalid height")
-                    b = a.block(int(h)) if a else None
+                    key = path[len("/api/block/"):]
+                    if key.isdigit() and len(key) <= 9:
+                        b = (a.block(int(key)) if a else None) or app.cached_lookup(height=int(key))
+                    elif HEX64.match(key):
+                        b = (a.block_by_hash(key) if a else None) or app.cached_lookup(hexhash=key)
+                    else:
+                        return self.error(400, "invalid height or hash")
                     return self.send_json(b) if b else self.error(404, "block not analysed yet")
+                if path == "/api/period":
+                    if not a:
+                        return self.send_json({"empty": True})
+                    if "from" in q:
+                        return self.send_json(a.period(lo=int(q["from"]), hi=int(q["to"])))
+                    return self.send_json(a.period(start=int(q["start"]), end=int(q["end"])))
                 if path == "/api/range":
                     if not a:
                         return self.send_json({"buckets": []})
@@ -347,6 +448,9 @@ def make_handler(app):
                         return self.error(400, f"invalid value: {e}")
                     app.scanner.wake.set()
                     return self.send_json({"ok": True, "settings": app.config.public_view()})
+                if path == "/api/lookup":
+                    code, obj = app.lookup(body.get("q"))
+                    return self.send_json(obj, code)
                 if path == "/api/connection-test":
                     started = app.start_connection_test()
                     return self.send_json({"ok": True, "started": started})
