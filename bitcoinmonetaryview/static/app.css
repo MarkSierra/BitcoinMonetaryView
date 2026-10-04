@@ -150,16 +150,17 @@ a { color: var(--accent-ink); }
   padding: 4px 11px; border-radius: 999px; font-size: 13px; font-weight: 600;
 }
 .phase-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-.phase-pill[data-tone="busy"] .dot { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
-.phase-pill[data-tone="live"] .dot { background: var(--good); animation: pulse 2.4s ease-in-out infinite; }
+/* no endless animations: they keep the browser repainting (and laptop fans spinning) while the tab is open */
+.phase-pill[data-tone="busy"] .dot { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.phase-pill[data-tone="live"] .dot { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
 .phase-pill[data-tone="warn"] .dot { background: var(--warn); }
 .phase-pill[data-tone="error"] .dot { background: var(--crit); }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .phase-pill .dot { animation: none !important; } * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .status-text { min-width: 0; flex: 1; }
 .status-detail { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .progress { height: 6px; background: var(--surface-3); border-radius: 999px; overflow: hidden; margin-top: 6px; }
-.progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #ffb257); border-radius: 999px; transition: width .6s ease; }
+/* scaled, not resized: a transform animates on the GPU compositor without re-layout */
+.progress-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), #ffb257); transform: scaleX(0); transform-origin: left; transition: transform .6s ease; }
 .status-metrics { display: flex; gap: 18px; margin: 0; flex-wrap: wrap; }
 .status-metrics div { min-width: 64px; }
 .status-metrics dt { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
