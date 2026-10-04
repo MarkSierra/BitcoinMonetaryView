@@ -71,6 +71,18 @@ class Client(unittest.TestCase):
         finally:
             node.stop()
 
+    def test_batch_unsupported_falls_back(self):
+        node = MockNode(self.chain)
+        orig = node.handle
+        node.handle = lambda r: orig(r)        # single calls fine
+        try:
+            n = Node(node.url, "u", "p")
+            n.rpc.batch = lambda calls: (_ for _ in ()).throw(rpcmod.NodeError("unexpected batch RPC response"))
+            self.assertEqual(n.block_hashes(0, 5), [mr.hash_to_hex(b[1]) for b in self.chain.blocks])
+            self.assertFalse(n.batch_ok)
+        finally:
+            node.stop()
+
     def test_rest_disabled_falls_back(self):
         node = MockNode(self.chain, rest=False)
         try:

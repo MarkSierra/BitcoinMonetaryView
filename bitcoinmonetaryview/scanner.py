@@ -613,12 +613,7 @@ class Scanner(threading.Thread):
         self.status.event("info", f"Quick pass: analysing the latest {q:,} blocks ({start:,}–{tip:,})")
         t0 = time.monotonic()
         done = q - len(todo)
-        hashes_all = {}
-        for i in range(0, len(todo), 500):
-            chunk = todo[i:i + 500]
-            for h, hx in zip(chunk, self.node.rpc.batch([("getblockhash", [h]) for h in chunk])):
-                hashes_all[h] = hx
-        hashes = [hashes_all[h] for h in todo]
+        hashes = self.node.hashes_for(todo)
         last_commit = time.monotonic()
         self.store.begin()
         try:
