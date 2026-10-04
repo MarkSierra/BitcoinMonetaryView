@@ -60,6 +60,8 @@ LIVE_POLL_SECONDS = 5
 UTXO_INFO_INTERVAL = 24 * 3600
 COMMIT_SECONDS = 2.0
 COMMIT_BLOCKS = 200
+FULL_BATCH = 100             # blocks per full-scan batch (between batches the loop re-checks the node)
+FOLLOW_TIP_SECONDS = 120     # while the history scan runs, pick up newly mined blocks this often
 MIN_SAMPLE_EVERY = 10
 MIN_SAMPLE_BLOCKS = 20
 
@@ -374,6 +376,7 @@ class Scanner(threading.Thread):
     # ------------------------------------------------------------- scheduling
     def loop(self):
         last_info = 0
+        last_follow = 0.0
         info = None
         while not self.stop_event.is_set():
             self.check_config()
@@ -407,6 +410,10 @@ class Scanner(threading.Thread):
                     self.sleep(30)
                     info = None
                     continue
+                if time.monotonic() - last_follow > FOLLOW_TIP_SECONDS:
+                    # keep "latest blocks" and the totals current during a long history scan
+                    last_follow = time.monotonic()
+                    self.follow_new_blocks_quick(int(self.node.chain_info()["blocks"]))
                 q = self.config.quick_pass_blocks
                 if q and self.store.get_meta("quick_done") != "1" and tip - full_next + 1 > q:
                     self.quick_pass(tip, q)
@@ -777,7 +784,7 @@ class Scanner(threading.Thread):
         start_height = int(self.store.get_meta("full_start_height", 0))
         if self.processed_bytes == 0:
             self.processed_bytes = self.store.processed_bytes()
-        batch = min(100, tip - nxt + 1)
+        batch = min(FULL_BATCH, tip - nxt + 1)
         heights = list(range(nxt, nxt + batch))
         hashes = self.node.block_hashes(nxt, batch)
         expected_prev = self.store.block_hash_at(nxt - 1) if nxt > start_height else None

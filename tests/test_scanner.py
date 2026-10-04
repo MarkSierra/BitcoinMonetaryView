@@ -221,6 +221,37 @@ class ScannerTest(unittest.TestCase):
         self.assertEqual(self.db_utxo()[0], brute_force_utxo(self.chain))
 
 
+    def test_new_blocks_shown_during_history_scan(self):
+        from bitcoinmonetaryview import scanner as sc
+        old = sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH
+        sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH = 0, 5
+        try:
+            self.node.delay = 0.1
+            s = self.start(speed_profile="eco")
+            self.wait_phase(s, "full", timeout=60)
+            mk = spending_maker(self.chain)
+            for _ in range(2):
+                self.chain.append(mk)
+            new_tip = len(self.chain.blocks) - 1
+            path = os.path.join(self.dir, "regtest", "bmv.sqlite")
+            t = time.time()
+            while time.time() - t < 30:
+                db = sqlite3.connect(path)
+                top, done = db.execute("SELECT MAX(height), (SELECT value FROM meta WHERE key='full_done') "
+                                       "FROM blocks").fetchone()
+                db.close()
+                if top == new_tip:
+                    break
+                time.sleep(0.1)
+            self.assertEqual(top, new_tip)
+            self.assertIsNone(done)          # picked up while the history scan was still running
+            self.node.delay = 0
+            self.wait_phase(s, "live", cond=self.tip_ok(s))
+            self.assertEqual(self.db_utxo()[0], brute_force_utxo(self.chain))
+        finally:
+            sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH = old
+
+
 class PrunedNode(ScannerTest):
     def test_jumps_when_node_prunes_past_cursor(self):
         self.node.pruned = True
