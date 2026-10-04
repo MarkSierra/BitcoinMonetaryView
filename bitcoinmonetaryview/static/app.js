@@ -464,25 +464,30 @@
   const main = () => $("#main");
   // Fade in only when the user navigates; background data refreshes swap the content silently.
   function viewShell(...kids) { const m = clear(main()); m.append(h("div", { class: S.quiet ? null : "fade-in" }, kids)); }
+  /** The one style for notes in page content (same as the UTXO page's banner). */
+  function notice(kind, text, icon, extraClass) {
+    return h("div", { class: `banner ${kind}${extraClass ? " " + extraClass : ""}` },
+      h("span", { class: "ico", text: icon || (kind === "info" ? "i" : "!") }), h("div", { text }));
+  }
   function partialNote(sum) {
     const st = S.status || {};
     if (sum.meta && sum.meta.full_done === "1") return null;
     const est = sum.estimate;
     if (est) {
       const m = est.spam_margin_pct != null && est.spam_margin_pct >= 0.1 ? ` ±${fmtPct(est.spam_margin_pct)}` : "";
-      return h("span", { class: "partial" }, "◔ ",
+      return notice("warn",
         `Estimate for the whole chain${m}, from ${fmtNum(est.samples)} sample blocks spread across its history. ` +
         `Exact so far: ${fmtBytes(sum.spam_bytes)} of spam in ${fmtPct(est.exact_share_pct)} of the data — ` +
-        "the estimate is replaced by exact figures as the full history scan proceeds.");
+        "the estimate is replaced by exact figures as the full history scan proceeds.", null, "in-card");
     }
     if (sum.estimate_pending) {
-      return h("span", { class: "partial" }, "◔ ",
+      return notice("warn",
         `Based on the ${fmtNum(sum.blocks_scanned)} blocks scanned so far, mostly the latest ones. ` +
-        "The estimate for the whole chain follows in a few minutes, once the sample pass is done.");
+        "The estimate for the whole chain follows in a few minutes, once the sample pass is done.", null, "in-card");
     }
     const tipH = st.tip != null ? st.tip + 1 : null;
-    return h("span", { class: "partial" }, "◔ ",
-      `Based on ${fmtNum(sum.blocks_scanned)}${tipH ? " of " + fmtNum(tipH) : ""} blocks scanned so far — the full history scan is still running`);
+    return notice("warn",
+      `Based on ${fmtNum(sum.blocks_scanned)}${tipH ? " of " + fmtNum(tipH) : ""} blocks scanned so far — the full history scan is still running`, null, "in-card");
   }
   function emptyState(text) {
     return h("div", { class: "card", style: { textAlign: "center", padding: "48px 20px" } },
@@ -641,7 +646,7 @@
           h("p", { class: "sub", text: "Look at any block by its height or hash — also blocks the scan has not reached yet." })),
         h("div", { class: "find-form" }, search, h("button", { class: "btn btn-primary", type: "button", text: "Show block", onclick: find }))),
       findMsg,
-      cov ? h("p", { class: "coverage-note" }, "◔ ", cov) : null);
+      cov ? notice("info", cov, null, "in-card") : null);
     viewShell(findCard, h("div", { style: { height: "16px" } }), blockStrip(), h("div", { style: { height: "16px" } }), chartCard,
       h("div", { style: { height: "16px" } }), tableCard);
 
@@ -743,7 +748,7 @@
       donut(dn, [{ key: "monetary", value: b.size - b.spam_bytes }, ...items], [fmtPct(b.spam_pct), "spam"]);
       body.append(h("div", { class: "dlg" },
         h("div", { class: "dlg-head" }, h("h2", { text: `Block ${fmtNum(b.height)}` }), close),
-        b.on_demand ? h("p", { class: "coverage-note" }, "✓ Analysed on demand — the figures are exact. The full history scan will add it to the totals when it gets there.") : null,
+        b.on_demand ? notice("info", "Analysed on demand — the figures are exact. The full history scan will add it to the totals when it gets there.", "✓", "in-card") : null,
         h("div", { class: "donut-wrap" }, dn, h("div", { class: "donut-legend" },
           [{ key: "monetary", value: b.size - b.spam_bytes }, ...items].map((it) => h("div", { class: "row" },
             h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }), h("span", { class: "v", text: fmtBytes(it.value) }),
@@ -804,9 +809,9 @@
     }
     const inGap = (mo) => pFrom && mo >= pFrom && mo <= pTo;
     if (pFrom) {
-      note.append(h("p", { class: "coverage-note page-note" }, "◔ ",
+      note.append(notice("warn",
         `The full history scan has not reached ${pFrom === pTo ? pFrom : `${pFrom} – ${pTo}`} yet. That period is greyed out below; ` +
-        "its spam appears as the scan proceeds. The overview shows an estimate for the whole chain in the meantime."));
+        "its spam appears as the scan proceeds. The overview shows an estimate for the whole chain in the meantime.", null, "page-top"));
     }
     const rows = seq.map((mk) => {
       const mo = byMonth.get(mk);
@@ -912,8 +917,7 @@
     const span = `Blocks ${fmtNum(r.first)}–${fmtNum(r.last)} · ${fmtDate(r.first_time).slice(0, 10)} – ${fmtDate(r.last_time).slice(0, 10)}`;
     box.append(h("p", { class: "sub", text: span }));
     if (r.coverage_pct < 99.95) {
-      box.append(h("p", { class: "coverage-note" }, "◔ ",
-        `About ${fmtPct(Math.min(99.9, r.coverage_pct))} of this range is scanned so far — the figures cover only the scanned blocks.`));
+      box.append(notice("warn", `About ${fmtPct(Math.min(99.9, r.coverage_pct))} of this range is scanned so far — the figures cover only the scanned blocks.`, null, "in-card"));
     }
     box.append(h("div", { class: "grid grid-4 period-kpis" },
       kpi("Spam", fmtBytes(r.spam_bytes), `${fmtPct(r.spam_pct)} of ${fmtBytes(r.totals.size)} block data`, "envelope"),
@@ -951,8 +955,7 @@
     }
     const nodeU = u.node_utxo;
     viewShell(
-      !u.full_done ? h("div", { class: "banner warn", style: { marginBottom: "16px" } }, h("span", { class: "ico", text: "!" }),
-        h("div", { text: "These figures are still being built: every spam output is tracked from the block that created it until it is spent, so the exact current number is known once the full history scan has reached the tip." })) : null,
+      !u.full_done ? notice("warn", "These figures are still being built: every spam output is tracked from the block that created it until it is spent, so the exact current number is known once the full history scan has reached the tip.", null, "page-top") : null,
       h("div", { class: "grid grid-4" },
         kpi("Spam entries in the UTXO set", fmtNum(u.count), u.complete ? "Exact, current" : "So far", "p2tr_dust"),
         kpi("Chainstate they occupy", fmtBytes(u.disk_estimate), `${fmtBytes(u.bytes)} serialized × 1.35 database overhead`),

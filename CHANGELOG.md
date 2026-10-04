@@ -17,6 +17,10 @@ All notable changes are documented here. This project uses [semantic versioning]
   year, any year, since Ordinals, all time) or free dates / block heights, and the share of the range scanned.
 - Blocks: **Find a block** by height or hash, a line showing which blocks are scanned, and **Analyse this
   block now** for blocks the scan has not reached (read-only, verified, one at a time with a cooldown).
+- Newly mined blocks are picked up every 2 minutes during the history scan too, so "Latest blocks" and the
+  totals stay current (previously they froze until the scan reached the tip).
+- All notes in page content use one style (the bordered banner of the UTXO page); the "managed by StartOS"
+  note appears only on the Connection page.
 - Dashboard: the progress bar no longer animates (the animation kept the GPU drawing ~19 frames per second
   during a scan), and background data refreshes swap the content without the fade-in and only when the data
   actually changed, so the page no longer appears to reload every few seconds.
