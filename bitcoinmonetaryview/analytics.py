@@ -191,27 +191,40 @@ class Analytics:
         return {"months": months}
 
     # ------------------------------------------------------------------ export
-    def export_csv(self):
-        db = self.db()
+    def iter_csv(self):
+        """CSV export, row by row."""
+        cols = [c for c in BLOCK_COLS if c not in ("height", "hash", "time")]
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["height", "hash", "time_utc", *[c for c in BLOCK_COLS if c not in ("height", "hash", "time")]])
-        if db is not None:
-            cur = db.execute(f"SELECT {','.join(BLOCK_COLS)} FROM blocks ORDER BY height")
-            for r in cur:
-                d = _block_dict(r)
-                w.writerow([csv_safe(d["height"]), csv_safe(d["hash"]),
-                            csv_safe(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(d["time"]))),
-                            *[csv_safe(d[c]) for c in BLOCK_COLS if c not in ("height", "hash", "time")]])
-        return buf.getvalue()
 
-    def export_json(self):
+        def take():
+            v = buf.getvalue()
+            buf.seek(0)
+            buf.truncate()
+            return v
+        w.writerow(["height", "hash", "time_utc", *cols])
+        yield take()
         db = self.db()
-        blocks = []
+        if db is None:
+            return
+        cur = db.execute(f"SELECT {','.join(BLOCK_COLS)} FROM blocks ORDER BY height")
+        for r in cur:
+            d = _block_dict(r)
+            w.writerow([csv_safe(d["height"]), csv_safe(d["hash"]),
+                        csv_safe(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(d["time"]))),
+                        *[csv_safe(d[c]) for c in cols]])
+            yield take()
+
+    def iter_json(self):
+        """JSON export {"summary": ..., "blocks": [...]}, streamed block by block."""
+        yield '{"summary":' + json.dumps(self._summary(), default=str) + ',"blocks":['
+        db = self.db()
         if db is not None:
-            cur = db.execute(f"SELECT {','.join(BLOCK_COLS)} FROM blocks ORDER BY height")
-            blocks = [_block_dict(r) for r in cur]
-        return {"summary": self._summary(), "blocks": blocks}
+            first = True
+            for r in db.execute(f"SELECT {','.join(BLOCK_COLS)} FROM blocks ORDER BY height"):
+                yield ("" if first else ",") + json.dumps(_block_dict(r), separators=(",", ":"))
+                first = False
+        yield "]}"
 
 
 def _block_dict(r):

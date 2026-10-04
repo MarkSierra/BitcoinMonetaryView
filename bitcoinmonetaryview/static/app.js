@@ -108,7 +108,7 @@
     if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
     return r.json();
   }
-  async function post(path, body) {
+  async function post(path, body, retried) {
     if (!S.csrf) S.csrf = (await api("/api/session")).csrf;
     const r = await fetch(path, {
       method: "POST", credentials: "same-origin",
@@ -116,6 +116,10 @@
       body: JSON.stringify(body),
     });
     const data = await r.json().catch(() => ({}));
+    if (r.status === 403 && /CSRF/.test(data.error || "") && !retried) {
+      S.csrf = null;                 // server restarted -> fetch a fresh token once
+      return post(path, body, true);
+    }
     if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
     return data;
   }

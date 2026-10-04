@@ -223,8 +223,11 @@ class Store:
             spent_b += cb
         return added, added_b, spent, spent_b
 
-    def disconnect_block(self, height):
-        """Undo a block's UTXO changes (reverse order) and remove its row."""
+    def disconnect_block(self, height, bloom=None):
+        """Undo a block's UTXO changes (reverse order) and remove its row.
+
+        Restored outputs are re-added to the Bloom filter: it may have been rebuilt
+        since they were spent, and a missing entry would hide a later spend."""
         db = self.db
         rows = db.execute("SELECT op, txid, vout, created, value, kind, script_len FROM utxo_undo "
                           "WHERE height=? ORDER BY seq DESC", (height,)).fetchall()
@@ -240,6 +243,8 @@ class Store:
                 db.execute("INSERT OR REPLACE INTO spam_utxo VALUES(?,?,?,?,?,?)",
                            (txid, vout, created, value, kind, slen))
                 self._hist(created, kind, 1, cb)
+                if bloom is not None:
+                    bloom.add(bytes(txid), vout)
         db.execute("DELETE FROM utxo_undo WHERE height=?", (height,))
         db.execute("DELETE FROM blocks WHERE height=?", (height,))
 
@@ -263,7 +268,8 @@ class Store:
         self.begin()
         for t in ("blocks", "spam_utxo", "utxo_undo", "utxo_hist"):
             self.db.execute(f"DELETE FROM {t}")
-        for k in ("full_next_height", "full_start_height", "quick_done", "utxo_info", "utxo_info_time"):
+        for k in ("full_next_height", "full_start_height", "full_done", "quick_done", "quick_top",
+                  "utxo_complete", "utxo_info", "utxo_info_time"):
             self.db.execute("DELETE FROM meta WHERE key=?", (k,))
         self.commit()
 

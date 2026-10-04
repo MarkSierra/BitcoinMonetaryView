@@ -257,3 +257,28 @@ class StaticSafety(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewRegressions(ServerTest):
+    def test_rejected_post_does_not_desync_keepalive(self):
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        h = {"Host": f"127.0.0.1:{self.port}", "Content-Type": "application/json", "X-CSRF-Token": "stale"}
+        c.request("POST", "/api/control", body=json.dumps({"action": "pause"}), headers=h)
+        r = c.getresponse()
+        r.read()
+        self.assertEqual(r.status, 403)
+        try:
+            c.request("GET", "/api/health", headers={"Host": f"127.0.0.1:{self.port}"})
+            r2 = c.getresponse()
+            self.assertEqual(r2.status, 200)
+            r2.read()
+        except (http.client.RemoteDisconnected, ConnectionError, BrokenPipeError):
+            pass                                   # closed cleanly: also correct
+        c.close()
+
+    def test_streamed_exports(self):
+        r, d = self.req("GET", "/api/export.json")
+        self.assertEqual(r.getheader("Transfer-Encoding"), "chunked")
+        self.assertEqual(json.loads(d)["blocks"], [])
+        r, d = self.req("GET", "/api/export.csv")
+        self.assertTrue(d.decode().startswith("height,hash,time_utc"))

@@ -242,19 +242,44 @@ def make_handler(app):
                 if path == "/api/history":
                     return self.send_json(a.history() if a else {"months": []})
                 if path == "/api/export.csv":
-                    data = a.export_csv() if a else ""
-                    return self.send_text(data, ctype="text/csv; charset=utf-8", extra={
-                        "Content-Disposition": 'attachment; filename="bitcoinmonetaryview-blocks.csv"'})
+                    return self.stream((a or Analytics("")).iter_csv(), "text/csv; charset=utf-8",
+                                       "bitcoinmonetaryview-blocks.csv")
                 if path == "/api/export.json":
-                    data = json.dumps(a.export_json() if a else {}, default=str)
-                    return self.send_text(data, ctype="application/json; charset=utf-8", extra={
-                        "Content-Disposition": 'attachment; filename="bitcoinmonetaryview.json"'})
+                    return self.stream((a or Analytics("")).iter_json(), "application/json; charset=utf-8",
+                                       "bitcoinmonetaryview.json")
                 return self.error(404, "not found")
             except (ValueError, KeyError):
                 return self.error(400, "bad request")
             except Exception:
                 log.exception("API error")
                 return self.error(500, "internal error")
+
+        def stream(self, chunks, ctype, filename):
+            """Chunked transfer: exports of ~1M blocks never sit in memory at once."""
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Transfer-Encoding", "chunked")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Security-Policy", CSP)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            if self.command == "HEAD":
+                return
+            buf = []
+            size = 0
+            for piece in chunks:
+                b = piece.encode()
+                buf.append(b)
+                size += len(b)
+                if size >= 65536:
+                    data = b"".join(buf)
+                    self.wfile.write(b"%x\r\n%s\r\n" % (len(data), data))
+                    buf, size = [], 0
+            if buf:
+                data = b"".join(buf)
+                self.wfile.write(b"%x\r\n%s\r\n" % (len(data), data))
+            self.wfile.write(b"0\r\n\r\n")
 
         def static(self, path):
             name, ctype = STATIC_FILES[path]
@@ -266,6 +291,9 @@ def make_handler(app):
 
         # ------------------------------------------------------------ POST
         def do_POST(self):
+            # Until the body has been read, any early error response must close the
+            # connection, otherwise the unread body would be parsed as the next request.
+            self.close_connection = True
             if not self.guard():
                 return
             path, _ = self.query()
@@ -284,8 +312,10 @@ def make_handler(app):
                 return self.error(400, "bad length")
             if n < 0 or n > MAX_BODY:
                 return self.error(413, "request too large")
+            raw = self.rfile.read(n)
+            self.close_connection = False
             try:
-                body = json.loads(self.rfile.read(n) or b"{}")
+                body = json.loads(raw or b"{}")
                 if not isinstance(body, dict):
                     raise ValueError
             except ValueError:

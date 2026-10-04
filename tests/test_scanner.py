@@ -196,6 +196,73 @@ class ScannerTest(unittest.TestCase):
         self.assertEqual(s.config.scan_window, "01:00-02:00")
 
 
+class PrunedNode(ScannerTest):
+    def test_jumps_when_node_prunes_past_cursor(self):
+        self.node.pruned = True
+        self.node.prune_height = 0
+        self.node.delay = 0.05
+        s = self.start(quick_pass_blocks="0", speed_profile="eco")
+        t = time.time()
+        while (s.status.get("height") or 0) < 3 and time.time() - t < 30:
+            time.sleep(0.02)
+        s.pause()
+        self.wait_phase(s, "paused", timeout=20)
+        self.node.prune_height = 25          # node prunes past our cursor while we are paused
+        self.node.delay = 0
+        s.resume()
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        meta = dict(db.execute("SELECT key, value FROM meta").fetchall())
+        db.close()
+        self.assertEqual(meta["utxo_complete"], "0")
+        self.assertIn("pruned blocks", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+
+
+class StoreRegressions(unittest.TestCase):
+    def test_reset_clears_completion_flags(self):
+        from bitcoinmonetaryview.store import Store
+        d = tempfile.mkdtemp()
+        try:
+            st = Store(os.path.join(d, "x.sqlite"))
+            for k in ("full_done", "quick_top", "utxo_complete", "full_next_height"):
+                st.set_meta(k, "1")
+            st.reset()
+            for k in ("full_done", "quick_top", "utxo_complete", "full_next_height"):
+                self.assertIsNone(st.get_meta(k), k)
+            st.close()
+        finally:
+            shutil.rmtree(d)
+
+    def test_disconnect_restores_bloom_entries(self):
+        from bitcoinmonetaryview.store import Store
+        d = tempfile.mkdtemp()
+        try:
+            st = Store(os.path.join(d, "x.sqlite"))
+            raw1, _ = bg.mixed_block(1)
+            r1 = mr.analyze_block(raw1, 1, dust_start_height=0)
+            spam = r1["utxo_spam"]
+            r2 = dict(r1)
+            r2["utxo_spam"] = []
+            r2["spends"] = [(t, v) for t, v, *_ in spam]
+            bloom = Bloom(1)
+            st.begin()
+            st.apply_block_utxo(1, r1, bloom)
+            st.put_block(1, r1, True)
+            st.apply_block_utxo(2, r2, bloom)
+            st.put_block(2, r2, True)
+            st.commit()
+            self.assertEqual(st.spam_utxo_count(), 0)
+            fresh = Bloom(1)                          # as if rebuilt after a restart
+            st.begin()
+            st.disconnect_block(2, fresh)
+            st.commit()
+            self.assertEqual(st.spam_utxo_count(), len(spam))
+            self.assertTrue(all(fresh.maybe(t, v) for t, v, *_ in spam))
+            st.close()
+        finally:
+            shutil.rmtree(d)
+
+
 class Misc(unittest.TestCase):
     def test_window(self):
         import datetime

@@ -156,6 +156,8 @@ class Scanner(threading.Thread):
         self._rules_sig = None
         self.processed_bytes = 0
         self.total_bytes_estimate = None
+        self._pool = None
+        self._pool_workers = None
         self.status.set(paused=False)
 
     # ------------------------------------------------------------- control
@@ -174,6 +176,15 @@ class Scanner(threading.Thread):
         self.status.set(paused=False)
         self.status.event("info", "Scanning resumed")
         self.wake.set()
+
+    def reset_results(self, message, level="warning"):
+        """Delete this app's results and every in-memory value derived from them."""
+        self.store.reset()
+        self.bloom = None                       # free the old filter before allocating a new one
+        self.bloom = Bloom(self.config.bloom_mb)
+        self.processed_bytes = 0
+        self.status.set(full_started_at=None)
+        self.status.event(level, message)
 
     def request_rescan(self):
         self.rescan_requested = True
@@ -276,6 +287,7 @@ class Scanner(threading.Thread):
                         self.store.rollback()
                     except Exception:
                         pass
+                self.shutdown_pool()
                 if self.node is not None:
                     self.node.close()
         if self.store:
@@ -310,13 +322,11 @@ class Scanner(threading.Thread):
         rid = self.rules_id()
         if self.rescan_requested:
             self.rescan_requested = False
-            self.store.reset()
-            self.status.event("info", "Rescan started: previous results deleted")
+            self.reset_results("Rescan started: previous results deleted", "info")
         old = self.store.get_meta("rules_id")
         if old is not None and old != rid and self.store.has_any_blocks():
-            self.store.reset()
-            self.status.event("warning", "Spam rules changed; previous results were deleted and the chain "
-                                         "will be rescanned with the new rules")
+            self.reset_results("Spam rules changed; previous results were deleted and the chain "
+                               "will be rescanned with the new rules")
         self.store.set_meta("rules_id", rid)
         self.status.set(rules={"id": rid, "upstream_commit": UPSTREAM_COMMIT,
                                "carrier_policy": bool(self._policy_obj),
@@ -447,10 +457,7 @@ class Scanner(threading.Thread):
                 break
         if fork is None:
             if rows:
-                self.status.event("warning", "Very deep chain reorganisation; restarting the scan from scratch")
-                self.store.reset()
-                self.bloom = Bloom(self.config.bloom_mb)
-                self.processed_bytes = 0
+                self.reset_results("Very deep chain reorganisation; restarting the scan from scratch")
                 return
             fork = tip          # we only hold blocks above the node's tip
         if fork == top:
@@ -459,7 +466,10 @@ class Scanner(threading.Thread):
             self.store.begin()
             for x in range(top, fork, -1):
                 if self.store.has_block(x):
-                    self.store.disconnect_block(x)
+                    self.store.disconnect_block(x, self.bloom)
+            qt = self.store.get_meta("quick_top")
+            if qt is not None and int(qt) > fork:
+                self.store.set_meta("quick_top", fork)
             nxt = int(self.store.get_meta("full_next_height", 0))
             if nxt > fork + 1:
                 self.store.set_meta("full_next_height", fork + 1)
@@ -467,9 +477,7 @@ class Scanner(threading.Thread):
             self.store.commit()
         except RuntimeError as e:
             self.store.rollback()
-            self.status.event("warning", f"Very deep reorganisation ({e}); restarting the scan from scratch")
-            self.store.reset()
-            self.bloom = Bloom(self.config.bloom_mb)
+            self.reset_results(f"Very deep reorganisation ({e}); restarting the scan from scratch")
             return
         self.status.event("warning", f"Chain reorganisation: blocks {fork + 1:,}–{top:,} were replaced; "
                                      "results rolled back and will be re-analysed")
@@ -493,8 +501,9 @@ class Scanner(threading.Thread):
             t = time.monotonic()
             return self.node.block(h), time.monotonic() - t
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
-            futs = collections.deque()
+        ex = self.executor(workers)
+        futs = collections.deque()
+        try:
             it = iter(enumerate(hashes))
             for _ in range(workers * 2):
                 try:
@@ -511,6 +520,23 @@ class Scanner(threading.Thread):
                 except StopIteration:
                     pass
                 yield i, raw, lat
+        finally:
+            for _, f in futs:
+                f.cancel()
+
+    def executor(self, workers):
+        """One long-lived pool per session, so per-thread keep-alive connections are reused."""
+        if self._pool is None or self._pool_workers != workers:
+            self.shutdown_pool()
+            self._pool = concurrent.futures.ThreadPoolExecutor(max_workers=workers, thread_name_prefix="fetch")
+            self._pool_workers = workers
+        return self._pool
+
+    def shutdown_pool(self):
+        if self._pool is not None:
+            self._pool.shutdown(wait=True, cancel_futures=True)
+            self._pool = None
+            self._pool_workers = None
 
     def throttle(self, latency):
         prof = PROFILES[self.config.speed_profile]
@@ -609,8 +635,24 @@ class Scanner(threading.Thread):
             self.store.rollback()
             raise
 
+    def skip_pruned(self, info, nxt):
+        """If the node has pruned past our cursor, jump forward instead of retrying forever."""
+        ph = int(info.get("pruneheight") or 0) if info.get("pruned") else 0
+        if ph > nxt:
+            self.store.begin()
+            self.store.set_meta("full_next_height", ph)
+            self.store.set_meta("full_start_height", ph)
+            self.store.set_meta("utxo_complete", "0")
+            self.store.commit()
+            self.status.event("warning", f"Your node has pruned blocks {nxt:,}–{ph - 1:,} before they could be "
+                                         f"scanned; continuing from {ph:,}. Spam UTXO figures are incomplete.")
+            return True
+        return False
+
     def full_pass(self, tip, info):
         nxt = int(self.store.get_meta("full_next_height"))
+        if self.skip_pruned(info, nxt):
+            return
         start_height = int(self.store.get_meta("full_start_height", 0))
         if self.processed_bytes == 0:
             self.processed_bytes = self.store.processed_bytes()
@@ -620,6 +662,7 @@ class Scanner(threading.Thread):
         expected_prev = self.store.block_hash_at(nxt - 1) if nxt > start_height else None
         last_commit = time.monotonic()
         blocks_since = 0
+        last_applied = nxt - 1
         t_start = self.status.get("full_started_at") or time.time()
         self.status.set(full_started_at=t_start)
         self.store.begin()
@@ -639,6 +682,7 @@ class Scanner(threading.Thread):
                 delta = self.store.apply_block_utxo(h, res, self.bloom)
                 self.store.put_block(h, res, utxo_done=True, utxo_delta=delta)
                 self.store.set_meta("full_next_height", h + 1)
+                last_applied = h
                 expected_prev = mr.block_hash(res["header"])
                 self.processed_bytes += len(raw)
                 blocks_since += 1
@@ -654,12 +698,15 @@ class Scanner(threading.Thread):
                     if self.paused or self.stop_event.is_set():
                         break
                 self.throttle(lat)
-            self.store.prune_undo(heights[-1] - REORG_WINDOW)
+            self.store.prune_undo(last_applied - REORG_WINDOW)
             self.store.commit()
         except (mr.BlockInvalid, NodeError):
             # Failure happened before the current block was applied: everything in the
             # open transaction is complete block-by-block, so keep that progress.
             self.store.commit()
+            info2 = self.node.chain_info()
+            if self.skip_pruned(info2, int(self.store.get_meta("full_next_height"))):
+                return
             raise
         except BaseException:
             self.store.rollback()
