@@ -9,6 +9,7 @@ SQLite database.
 
 import collections
 import concurrent.futures
+import multiprocessing
 import datetime
 import logging
 import os
@@ -23,6 +24,7 @@ from .rules import UPSTREAM_COMMIT
 from .rules import monetary_rules as mr
 from .rules.upstream import carrier_policy as cp
 from .store import REORG_WINDOW, Bloom, Store
+from . import worker
 
 log = logging.getLogger("bmv.scanner")
 
@@ -33,9 +35,10 @@ RULES_KEYS = ("carrier_policy", "dust_start_height")
 
 PROFILES = {
     # workers: parallel block requests; pause: sleep after each block as a multiple of its fetch time
-    "eco": {"workers": 1, "pause": 1.0, "min_sleep": 0.05, "label": "Eco"},
-    "balanced": {"workers": 2, "pause": 0.25, "min_sleep": 0.0, "label": "Balanced"},
-    "full": {"workers": 4, "pause": 0.0, "min_sleep": 0.0, "label": "Full speed"},
+    # procs: analysis worker processes (CPU cores used for parsing; one core is always left free)
+    "eco": {"workers": 1, "procs": 0, "pause": 1.0, "min_sleep": 0.05, "label": "Eco"},
+    "balanced": {"workers": 2, "procs": 2, "pause": 0.25, "min_sleep": 0.0, "label": "Balanced"},
+    "full": {"workers": 4, "procs": 4, "pause": 0.0, "min_sleep": 0.0, "label": "Full speed"},
 }
 
 PHASE_LABELS = {
@@ -158,6 +161,8 @@ class Scanner(threading.Thread):
         self.total_bytes_estimate = None
         self._pool = None
         self._pool_workers = None
+        self._apool = None
+        self._apool_key = None
         self.status.set(paused=False)
 
     # ------------------------------------------------------------- control
@@ -236,10 +241,6 @@ class Scanner(threading.Thread):
                 f"policy:{pol.policy_id()[:16] if pol else 'off'};dust:{self.dust_start()};"
                 f"opr:{mr.DEFAULT_OP_RETURN_LIMIT};ss:{mr.DEFAULT_SCRIPTSIG_LIMIT}")
 
-    def analyze(self, raw, height):
-        return mr.analyze_block(raw, height, dust_start_height=self.dust_start(),
-                                carrier_policy=self._policy_obj)
-
     # ------------------------------------------------------------- main loop
     def run(self):
         backoff = 2
@@ -288,6 +289,7 @@ class Scanner(threading.Thread):
                     except Exception:
                         pass
                 self.shutdown_pool()
+                self.shutdown_analysis_pool()
                 if self.node is not None:
                     self.node.close()
         if self.store:
@@ -483,46 +485,97 @@ class Scanner(threading.Thread):
                                      "results rolled back and will be re-analysed")
 
     # ------------------------------------------------------------- fetching
-    def fetch_ordered(self, hashes):
-        """Yield (index, raw, latency) in order, prefetching per speed profile."""
+    def fetch_ordered(self, heights, hashes):
+        """
+        Yield (index, result, latency) in order, where result is the analysed and
+        verified block (dict) or the BlockInvalid it raised. Fetching runs in a thread
+        pool and analysis in worker processes, both sized by the speed profile.
+        """
         prof = PROFILES[self.config.speed_profile]
         workers = prof["workers"]
         if self.latency_ewma and self.latency_floor and self.latency_ewma > 3 * self.latency_floor \
                 and self.latency_ewma > 0.5:
             workers = 1      # node seems busy: back off
-        if workers == 1:
-            for i, h in enumerate(hashes):
-                t = time.monotonic()
-                raw = self.node.block(h)
-                yield i, raw, time.monotonic() - t
-            return
+        apool = self.analysis_pool(prof["procs"])
 
-        def job(h):
+        def job(h, hx):
             t = time.monotonic()
-            return self.node.block(h), time.monotonic() - t
+            raw = self.node.block(hx)
+            lat = time.monotonic() - t
+            try:
+                if apool is not None:
+                    res = apool.submit(worker.analyze_in_worker, raw, h, hx).result()
+                else:
+                    res = worker.analyze_verified(raw, h, hx, self.dust_start(), self._policy_obj)
+            except mr.BlockInvalid as e:
+                res = e
+            return res, lat
+
+        if workers == 1:
+            for i, (h, hx) in enumerate(zip(heights, hashes)):
+                res, lat = job(h, hx)
+                yield i, res, lat
+            return
 
         ex = self.executor(workers)
         futs = collections.deque()
         try:
-            it = iter(enumerate(hashes))
+            it = iter(enumerate(zip(heights, hashes)))
             for _ in range(workers * 2):
                 try:
-                    i, h = next(it)
-                    futs.append((i, ex.submit(job, h)))
+                    i, (h, hx) = next(it)
+                    futs.append((i, ex.submit(job, h, hx)))
                 except StopIteration:
                     break
             while futs:
                 i, f = futs.popleft()
-                raw, lat = f.result()
+                res, lat = f.result()
                 try:
-                    j, h = next(it)
-                    futs.append((j, ex.submit(job, h)))
+                    j, (h, hx) = next(it)
+                    futs.append((j, ex.submit(job, h, hx)))
                 except StopIteration:
                     pass
-                yield i, raw, lat
+                yield i, res, lat
         finally:
             for _, f in futs:
                 f.cancel()
+
+    def analysis_pool(self, procs):
+        """Worker processes for parsing (spawned, not forked: safe with threads and SQLite)."""
+        n = min(procs, max(0, (os.cpu_count() or 1) - 1))
+        if n < 2:
+            self.shutdown_analysis_pool()
+            return None
+        key = (n, self.dust_start(), bool(self._policy_obj))
+        if self._apool is None or self._apool_key != key:
+            self.shutdown_analysis_pool()
+            ctx = multiprocessing.get_context("spawn")
+            self._apool = concurrent.futures.ProcessPoolExecutor(
+                max_workers=n, mp_context=ctx, initializer=worker.init, initargs=(key[1], key[2]))
+            self._apool_key = key
+        return self._apool
+
+    def shutdown_analysis_pool(self):
+        if self._apool is not None:
+            self._apool.shutdown(wait=True, cancel_futures=True)
+            self._apool = None
+            self._apool_key = None
+
+    def accept(self, height, hexhash, res, expected_prev):
+        """Turn a fetch_ordered result into a verified block; refetch on a data check failure."""
+        for attempt in range(3):
+            if not isinstance(res, Exception):
+                if expected_prev is not None and res["header"][4:36] != expected_prev:
+                    raise mr.BlockInvalid("block does not connect to the expected parent")
+                return res
+            if attempt == 2:
+                raise res
+            self.status.event("warning", f"Block {height:,} failed the data check ({res}); fetching again")
+            try:
+                res = worker.analyze_verified(self.node.block(hexhash), height, hexhash,
+                                              self.dust_start(), self._policy_obj)
+            except mr.BlockInvalid as e:
+                res = e
 
     def executor(self, workers):
         """One long-lived pool per session, so per-thread keep-alive connections are reused."""
@@ -553,21 +606,6 @@ class Scanner(threading.Thread):
             self.wake.wait(delay)
             self.wake.clear()
 
-    def fetch_block_verified(self, height, hexhash, raw, expected_prev):
-        """Analyse + verify; refetch up to twice on a data check failure."""
-        for attempt in range(3):
-            try:
-                res = self.analyze(raw, height)
-                mr.verify_block(res, expected_hash=mr.hex_to_hash(hexhash), expected_prev=expected_prev)
-                return res
-            except mr.BlockInvalid as e:
-                if "parent" in str(e):
-                    raise
-                if attempt == 2:
-                    raise
-                self.status.event("warning", f"Block {height:,} failed the data check ({e}); fetching again")
-                raw = self.node.block(hexhash)
-
     # ------------------------------------------------------------- passes
     def quick_pass(self, tip, q):
         start = max(0, tip - q + 1)
@@ -575,21 +613,16 @@ class Scanner(threading.Thread):
         self.status.event("info", f"Quick pass: analysing the latest {q:,} blocks ({start:,}–{tip:,})")
         t0 = time.monotonic()
         done = q - len(todo)
-        hashes_all = {}
-        for i in range(0, len(todo), 500):
-            chunk = todo[i:i + 500]
-            for h, hx in zip(chunk, self.node.rpc.batch([("getblockhash", [h]) for h in chunk])):
-                hashes_all[h] = hx
-        hashes = [hashes_all[h] for h in todo]
+        hashes = self.node.hashes_for(todo)
         last_commit = time.monotonic()
         self.store.begin()
         try:
-            for i, raw, lat in self.fetch_ordered(hashes):
+            for i, res, lat in self.fetch_ordered(todo, hashes):
                 h = todo[i]
-                res = self.fetch_block_verified(h, hashes[i], raw, None)
+                res = self.accept(h, hashes[i], res, None)
                 self.store.put_block(h, res, utxo_done=False)
                 done += 1
-                self.meter.add(len(raw))
+                self.meter.add(res["original"])
                 bps, Bps = self.meter.rates()
                 remaining = q - done
                 self.status.set(phase="quick", height=h, tip=tip, quick_done=done, quick_total=q,
@@ -626,7 +659,11 @@ class Scanner(threading.Thread):
                 if self.store.has_block(h):
                     continue
                 hx = self.node.block_hash(h)
-                res = self.fetch_block_verified(h, hx, self.node.block(hx), None)
+                try:
+                    res = worker.analyze_verified(self.node.block(hx), h, hx, self.dust_start(), self._policy_obj)
+                except mr.BlockInvalid as e:
+                    res = e
+                res = self.accept(h, hx, res, None)
                 self.store.put_block(h, res, utxo_done=False)
                 self.status.event("info", f"New block {h:,}: {self.describe_block(h, res)}")
             self.store.set_meta("quick_top", tip)
@@ -667,10 +704,10 @@ class Scanner(threading.Thread):
         self.status.set(full_started_at=t_start)
         self.store.begin()
         try:
-            for i, raw, lat in self.fetch_ordered(hashes):
+            for i, res, lat in self.fetch_ordered(heights, hashes):
                 h = heights[i]
                 try:
-                    res = self.fetch_block_verified(h, hashes[i], raw, expected_prev)
+                    res = self.accept(h, hashes[i], res, expected_prev)
                 except mr.BlockInvalid as e:
                     if "parent" in str(e):
                         self.store.commit()
@@ -684,9 +721,9 @@ class Scanner(threading.Thread):
                 self.store.set_meta("full_next_height", h + 1)
                 last_applied = h
                 expected_prev = mr.block_hash(res["header"])
-                self.processed_bytes += len(raw)
+                self.processed_bytes += res["original"]
                 blocks_since += 1
-                self.meter.add(len(raw))
+                self.meter.add(res["original"])
                 self.update_full_status(h, tip, start_height, res)
                 if time.monotonic() - last_commit > COMMIT_SECONDS or blocks_since >= COMMIT_BLOCKS:
                     self.store.prune_undo(h - REORG_WINDOW)

@@ -5,7 +5,7 @@ import time
 
 from ..rules import monetary_rules as mr
 from .rest import RESTClient
-from .rpc import RPCClient
+from .rpc import NodeAuthError, NodeError, NodeUnreachable, RPCClient, RPCError
 
 HASHES_PER_BATCH = 500
 
@@ -18,6 +18,7 @@ class Node:
         self.rest = RESTClient(self.rpc.transport)
         self.use_rest = use_rest
         self.last_latency = 0.0
+        self.batch_ok = True
 
     @property
     def transport(self):
@@ -42,14 +43,25 @@ class Node:
         return self.rpc.call("getblockhash", height)
 
     def block_hashes(self, start, count):
-        """Hashes for heights start..start+count-1 (batched)."""
+        """Hashes for heights start..start+count-1 (batched; falls back to single calls)."""
+        return self.hashes_for(range(start, start + count))
+
+    def hashes_for(self, heights):
+        """Block hashes for the given heights. Uses JSON-RPC batches; RPC proxies that
+        do not support batches (e.g. some platform proxies) get one call per height."""
+        heights = list(heights)
         out = []
-        h = start
-        end = start + count
-        while h < end:
-            n = min(HASHES_PER_BATCH, end - h)
-            out.extend(self.rpc.batch([("getblockhash", [x]) for x in range(h, h + n)]))
-            h += n
+        for i in range(0, len(heights), HASHES_PER_BATCH):
+            chunk = heights[i:i + HASHES_PER_BATCH]
+            if self.batch_ok:
+                try:
+                    out.extend(self.rpc.batch([("getblockhash", [x]) for x in chunk]))
+                    continue
+                except (RPCError, NodeUnreachable, NodeAuthError):
+                    raise
+                except NodeError:          # malformed/unsupported batch response
+                    self.batch_ok = False
+            out.extend(self.rpc.call("getblockhash", x) for x in chunk)
         return out
 
     def header(self, block_hash):

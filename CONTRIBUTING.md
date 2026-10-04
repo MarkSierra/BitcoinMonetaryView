@@ -13,4 +13,12 @@ Thanks for helping! A few ground rules keep this project trustworthy:
 4. **Tests**: `python3 -m unittest discover -s tests -t .` must pass. Add tests for new behaviour.
 5. **English** for code, UI, docs and commit messages.
 
+## Releases
+
+1. Update the version in `bitcoinmonetaryview/__init__.py` and `pyproject.toml`, and the date in `CHANGELOG.md`.
+2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+3. The *Release image* workflow runs the tests and publishes `ghcr.io/marksierra/bitcoinmonetaryview` for
+   x86_64 and ARM64 (tags `0.1.0`, `0.1`, `latest`). After the first release, set the package's visibility to
+   public once (GitHub → Packages → bitcoinmonetaryview → Package settings).
+
 By contributing you agree that your contribution is licensed under the AGPL-3.0-or-later.
