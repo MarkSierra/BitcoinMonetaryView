@@ -4,6 +4,7 @@
 import csv
 import io
 import json
+import math
 import os
 import sqlite3
 import threading
@@ -85,8 +86,65 @@ class Analytics:
             "by_carrier": {k: tot[k] for k in mr.CARRIERS},
             "meta": _public_meta(m),
             "utxo": self._utxo(db, m, hi),
+            "estimate": self._estimate(db, m, count, tot),
         }
         return out
+
+    def _estimate(self, db, m, count, tot):
+        """
+        Whole-chain estimate while the full scan is still running: the exact results so far plus
+        the evenly spaced sample scaled up to the history that has not been scanned yet. The
+        sample only stands in for blocks without exact results, so the estimate converges to the
+        exact figures as the full scan proceeds. None once the full scan is complete.
+        """
+        if m.get("full_done") == "1" or m.get("sample_done") != "1" or not m.get("sample_top"):
+            return None
+        g0 = int(m.get("full_next_height") or m.get("full_start_height") or 0)
+        low = db.execute("SELECT MIN(height) FROM blocks WHERE height>=?", (g0,)).fetchone()[0]
+        end = low if low is not None else int(m["sample_top"])
+        gap = end - g0
+        if gap <= 0:
+            return None
+        spam_expr = "+".join(f"COALESCE({k},0)" for k in mr.CARRIERS)
+        cols = ",".join(f"COALESCE(SUM({c}),0)" for c in SUM_COLS)
+        r = db.execute(f"SELECT COUNT(*), {cols}, COALESCE(SUM(({spam_expr})*({spam_expr})),0), "
+                       f"COALESCE(SUM((size-stored)*(size-stored)),0) FROM sample WHERE height>=? AND height<?",
+                       (g0, end)).fetchone()
+        n = r[0]
+        if not n:
+            return None
+        part = dict(zip(SUM_COLS, r[1:1 + len(SUM_COLS)]))
+        spam_sq, saved_sq = r[-2], r[-1]
+        scale = gap / n
+        est = {k: tot[k] + part[k] * scale for k in SUM_COLS}
+
+        def margin(total, sq):
+            # 95 % margin of the scaled-up part (sampling error with finite-population correction)
+            if n < 2:
+                return None
+            var = max(0.0, (sq - total * total / n) / (n - 1))
+            return 1.96 * gap * math.sqrt(var / n) * math.sqrt(max(0.0, 1 - n / gap))
+
+        spam = sum(est[k] for k in mr.CARRIERS)
+        saved = est["size"] - est["stored"]
+        spam_m = margin(sum(part[k] for k in mr.CARRIERS), spam_sq)
+        saved_m = margin(part["size"] - part["stored"], saved_sq)
+        txs = est["tx_count"] or 1
+        return {
+            "totals": est,
+            "blocks": count + gap,
+            "samples": n,
+            "sample_every": int(m.get("sample_every") or 0),
+            "exact_share_pct": tot["size"] / est["size"] * 100 if est["size"] else 0,
+            "spam_bytes": spam,
+            "spam_pct": spam / est["size"] * 100 if est["size"] else 0,
+            "spam_margin_pct": spam_m / spam * 100 if spam_m is not None and spam else None,
+            "saved_bytes": saved,
+            "saved_pct": saved / est["size"] * 100 if est["size"] else 0,
+            "saved_margin_pct": saved_m / saved * 100 if saved_m is not None and saved > 0 else None,
+            "modified_tx_pct": (est["modified"] + est["stripped"]) / txs * 100,
+            "by_carrier": {k: est[k] for k in mr.CARRIERS},
+        }
 
     def _utxo(self, db, m, tip):
         rows = db.execute("SELECT bucket, kind, count, bytes FROM utxo_hist").fetchall()
@@ -238,5 +296,6 @@ def _block_dict(r):
 
 
 def _public_meta(m):
-    keep = ("full_next_height", "full_start_height", "full_done", "quick_done", "utxo_complete", "rules_id")
+    keep = ("full_next_height", "full_start_height", "full_done", "quick_done", "sample_done", "utxo_complete",
+            "rules_id")
     return {k: m.get(k) for k in keep}

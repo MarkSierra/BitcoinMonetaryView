@@ -93,10 +93,15 @@ Released versions are also published as a ready-made multi-arch image (x86_64 an
 ## How the scan works
 
 1. **Quick pass** — the latest 1,000 blocks, so you see real numbers within minutes.
-2. **Full history scan** — every block from the genesis block to the tip, in order. This is what makes the
+2. **Sample pass** — every 100th block across the rest of the history (about 1 % of the data, typically
+   5–20 minutes). From it the dashboard shows an **estimate for the whole chain**, with its margin of error,
+   right from the start — instead of numbers that stay small for hours while the scan works through the
+   largely spam-free early years. The estimate is clearly marked (≈) and is replaced by exact figures as the
+   full scan proceeds; the UTXO figures, the share card and the exports always use exact data only.
+3. **Full history scan** — every block from the genesis block to the tip, in order. This is what makes the
    exact UTXO numbers possible: every spam output is tracked from the block that created it until it is spent.
    It is resumable: stop the app at any time and it continues where it stopped.
-3. **Live** — afterwards, new blocks are analysed as they arrive (less than a second of work per block).
+4. **Live** — afterwards, new blocks are analysed as they arrive (less than a second of work per block).
    Chain reorganisations are detected and rolled back exactly.
 
 A status bar on every page shows what the app is doing right now, progress, speed and ETA.

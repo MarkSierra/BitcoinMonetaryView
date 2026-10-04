@@ -196,6 +196,31 @@ class ScannerTest(unittest.TestCase):
         self.assertEqual(s.config.scan_window, "01:00-02:00")
 
 
+    def test_sample_pass_runs_before_full_scan(self):
+        from bitcoinmonetaryview import scanner as sc
+        old = sc.MIN_SAMPLE_EVERY, sc.MIN_SAMPLE_BLOCKS
+        sc.MIN_SAMPLE_EVERY, sc.MIN_SAMPLE_BLOCKS = 1, 2
+        try:
+            s = self.start(sample_every="3")
+            self.wait_phase(s, "live", cond=self.tip_ok(s))
+        finally:
+            sc.MIN_SAMPLE_EVERY, sc.MIN_SAMPLE_BLOCKS = old
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        heights = [r[0] for r in db.execute("SELECT height FROM sample ORDER BY height")]
+        meta = dict(db.execute("SELECT key, value FROM meta").fetchall())
+        db.close()
+        # every 3rd block below the quick pass (blocks 35-39)
+        self.assertEqual(heights, list(range(0, 35, 3)))
+        self.assertEqual(meta["sample_done"], "1")
+        self.assertEqual(meta["sample_top"], "35")
+        self.assertIn("Sample pass", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+        # exact results are unaffected, and no estimate once the full scan is done
+        summ = Analytics(os.path.join(self.dir, "regtest", "bmv.sqlite")).summary()
+        self.assertEqual(summ["blocks_scanned"], 40)
+        self.assertIsNone(summ["estimate"])
+        self.assertEqual(self.db_utxo()[0], brute_force_utxo(self.chain))
+
+
 class PrunedNode(ScannerTest):
     def test_jumps_when_node_prunes_past_cursor(self):
         self.node.pruned = True
@@ -232,6 +257,59 @@ class StoreRegressions(unittest.TestCase):
             st.close()
         finally:
             shutil.rmtree(d)
+
+    def _estimate_store(self, every):
+        """Exact results for blocks 0-9 (full scan) and 30-39 (quick pass); sample of 10-29."""
+        from bitcoinmonetaryview.store import Store
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        path = os.path.join(d, "x.sqlite")
+        st = Store(path)
+        truth = {"size": 0, "stored": 0, "spam": 0}
+        st.begin()
+        for h in range(40):
+            raw, _ = bg.mixed_block(h, seed=h)
+            if h % 4 == 0:      # vary the blocks so the estimate is not trivially exact
+                raw, _ = bg.block([bg.tx([(bg.fake_prev(h), 0, b"")], [(5000, bg.p2wpkh(b"x%d" % h))])], h)
+            res = mr.analyze_block(raw, h, dust_start_height=0)
+            truth["size"] += res["original"]
+            truth["stored"] += res["stored"]
+            truth["spam"] += sum(res[k] for k in mr.CARRIERS)
+            if h < 10 or h >= 30:
+                st.put_block(h, res, utxo_done=h < 10)
+            elif h % every == 0:
+                st.put_sample(h, res)
+        for k, v in (("full_next_height", 10), ("full_start_height", 0), ("sample_done", "1"),
+                     ("sample_top", 30), ("sample_every", every)):
+            st.set_meta(k, v)
+        st.commit()
+        return st, path, truth
+
+    def test_estimate_is_exact_with_every_block_sampled(self):
+        st, path, truth = self._estimate_store(every=1)
+        est = Analytics(path).summary()["estimate"]
+        self.assertEqual(est["blocks"], 40)
+        self.assertEqual(est["samples"], 20)
+        self.assertAlmostEqual(est["totals"]["size"], truth["size"])
+        self.assertAlmostEqual(est["totals"]["stored"], truth["stored"])
+        self.assertAlmostEqual(est["spam_bytes"], truth["spam"])
+        self.assertAlmostEqual(est["spam_margin_pct"], 0, places=6)     # whole gap sampled
+        st.close()
+
+    def test_estimate_from_sample_and_reset(self):
+        st, path, truth = self._estimate_store(every=2)
+        summ = Analytics(path).summary()
+        est = summ["estimate"]
+        self.assertEqual(est["samples"], 10)
+        self.assertLess(abs(est["spam_bytes"] - truth["spam"]) / truth["spam"], 0.25)
+        self.assertGreater(est["spam_bytes"], summ["spam_bytes"])        # covers the unscanned gap
+        self.assertGreater(est["spam_margin_pct"], 0)
+        self.assertLess(est["exact_share_pct"], 100)
+        st.reset()
+        self.assertEqual(st.db.execute("SELECT COUNT(*) FROM sample").fetchone()[0], 0)
+        for k in ("sample_done", "sample_top", "sample_every"):
+            self.assertIsNone(st.get_meta(k))
+        st.close()
 
     def test_disconnect_restores_bloom_entries(self):
         from bitcoinmonetaryview.store import Store

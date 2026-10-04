@@ -39,6 +39,7 @@ Special environment variables (not settings): `BMV_DATA_DIR` (data directory) an
 | `scan_window` | empty | Only scan history during this daily time window, e.g. 01:00-07:00. |
 | `timezone` | UTC | Time zone for scan_window (IANA name, e.g. Europe/Berlin). |
 | `quick_pass_blocks` | 1000 | Recent blocks analysed first for a quick result. |
+| `sample_every` | 100 | Before the full scan, analyse every Nth block of the history for an early whole-chain estimate (0 = off; values below 10 count as 10). Runs once; changing it later has no effect until a rescan. |
 | `carrier_policy` | true | Keep oversized OP_RETURNs that are verified payment-protocol envelopes (upstream carrier policy). |
 | `dust_start_height` | auto | Height from which P2TR dust counts (auto: 767430 on mainnet, 0 on test networks). |
 | `bloom_mb` | 256 | Memory for the spent-output filter (MB). |

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """
-Background scanner: quick pass, full-history pass, live following.
+Background scanner: quick pass, sample pass, full-history pass, live following.
 
 Everything it does to the node is a read through node.client.Node, which only
 permits whitelisted read-only RPCs. Everything it writes goes to the app's own
@@ -47,6 +47,7 @@ PHASE_LABELS = {
     "waiting_node": "Waiting for node",
     "loading_filter": "Loading spent-output filter",
     "quick": "Quick pass",
+    "sample": "Sampling the chain",
     "full": "Full history scan",
     "live": "Live",
     "paused": "Paused",
@@ -59,6 +60,8 @@ LIVE_POLL_SECONDS = 5
 UTXO_INFO_INTERVAL = 24 * 3600
 COMMIT_SECONDS = 2.0
 COMMIT_BLOCKS = 200
+MIN_SAMPLE_EVERY = 10
+MIN_SAMPLE_BLOCKS = 20
 
 
 def in_window(window, tz, now=None):
@@ -408,6 +411,8 @@ class Scanner(threading.Thread):
                 if q and self.store.get_meta("quick_done") != "1" and tip - full_next + 1 > q:
                     self.quick_pass(tip, q)
                     self.maybe_utxo_info(force_first=True)
+                elif self.store.get_meta("sample_done") != "1":
+                    self.sample_pass(tip, full_next)
                 else:
                     self.full_pass(tip, info)
                 info = None if time.monotonic() - last_info > 30 else info
@@ -644,6 +649,82 @@ class Scanner(threading.Thread):
                 self.store.set_meta("quick_done", "1")
                 self.store.set_meta("quick_top", tip)
                 self.status.event("info", f"Quick pass finished in {time.monotonic() - t0:.0f}s")
+            self.store.commit()
+        except BaseException:
+            self.store.rollback()
+            raise
+
+    def sample_plan(self, tip, full_next):
+        """
+        Heights for the sample pass: every Nth block (N = sample_every) of the history the full
+        scan has not reached yet, i.e. from its cursor up to the first block already analysed
+        (normally the quick pass). Heights are multiples of N, so the plan is the same after a
+        restart. Returns (heights, end) or None when sampling is off or not worth it.
+        """
+        n = self.config.sample_every
+        if not n:
+            return None
+        n = max(MIN_SAMPLE_EVERY, n)
+        end = self.store.get_meta("sample_top")
+        if end is None:
+            low = self.store.lowest_block_from(full_next)
+            end = low if low is not None else tip + 1
+        end = int(end)
+        first = -(-full_next // n) * n
+        heights = list(range(first, end, n))
+        if len(heights) < MIN_SAMPLE_BLOCKS:
+            return None
+        return heights, end, n
+
+    def sample_pass(self, tip, full_next):
+        """Analyse an evenly spaced sample of the unscanned history for an early whole-chain
+        estimate. Results go to their own table and never into the exact per-block results."""
+        plan = self.sample_plan(tip, full_next)
+        if plan is None:
+            self.store.begin()
+            self.store.set_meta("sample_done", "1")
+            self.store.commit()
+            return
+        heights, end, n = plan
+        todo = [h for h in heights if not self.store.has_sample(h)]
+        total = len(heights)
+        done = total - len(todo)
+        if self.store.get_meta("sample_top") is None:
+            self.store.begin()
+            self.store.set_meta("sample_top", end)
+            self.store.set_meta("sample_every", n)
+            self.store.commit()
+            self.status.event("info", f"Sample pass: analysing every {n:,}th block of blocks "
+                                      f"{full_next:,}–{end - 1:,} ({total:,} blocks) for a whole-chain estimate")
+        t0 = time.monotonic()
+        hashes = self.node.hashes_for(todo)
+        last_commit = time.monotonic()
+        self.store.begin()
+        try:
+            for i, res, lat in self.fetch_ordered(todo, hashes):
+                h = todo[i]
+                res = self.accept(h, hashes[i], res, None)
+                self.store.put_sample(h, res)
+                done += 1
+                self.meter.add(res["original"])
+                bps, Bps = self.meter.rates()
+                remaining = total - done
+                self.status.set(phase="sample", height=h, tip=tip, sample_count=done, sample_total=total,
+                                progress=round(done / total * 100, 2), blocks_per_s=bps, bytes_per_s=Bps,
+                                eta_seconds=int(remaining / bps) if bps > 0 else None,
+                                detail=self.describe_block(h, res).replace("Analysing", "Sampling", 1))
+                if time.monotonic() - last_commit > COMMIT_SECONDS:
+                    self.store.commit()
+                    self.store.begin()
+                    last_commit = time.monotonic()
+                    self.check_config()
+                    if self.paused or self.stop_event.is_set():
+                        break
+                self.throttle(lat)
+            else:
+                self.store.set_meta("sample_done", "1")
+                self.status.event("info", f"Sample pass finished in {time.monotonic() - t0:.0f}s — "
+                                          "whole-chain estimate available")
             self.store.commit()
         except BaseException:
             self.store.rollback()

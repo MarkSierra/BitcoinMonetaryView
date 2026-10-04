@@ -2,6 +2,12 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- Sample pass: right after the quick pass, every 100th block of the remaining history is analysed (about 1 %
+  of the data), and the dashboard shows an estimate for the whole chain with its margin of error from the start.
+  It is marked with ≈ and converges to the exact figures as the full scan proceeds. Setting `sample_every`.
+
 ## [0.1.0] — 2026-10-04
 
 First version.

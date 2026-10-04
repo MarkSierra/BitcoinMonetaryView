@@ -403,7 +403,7 @@
   }
 
   // ------------------------------------------------------------------ status bar
-  const BUSY = new Set(["quick", "full", "loading_filter", "connecting", "utxo_info", "starting"]);
+  const BUSY = new Set(["quick", "sample", "full", "loading_filter", "connecting", "utxo_info", "starting"]);
   function renderStatus() {
     const st = S.status;
     if (!st) return;
@@ -417,8 +417,8 @@
     $("#progress-fill").style.transform = `scaleX(${Math.max(0, Math.min(100, prog)) / 100})`;
     $("#progress").setAttribute("aria-valuenow", String(Math.round(prog)));
     $("#m-height").textContent = st.height != null ? `${fmtNum(st.height)} / ${fmtNum(st.tip)}` : "–";
-    $("#m-progress").textContent = st.phase === "quick" ? `${fmtPct(prog)} (quick)` : st.progress != null ? fmtPct(prog, 2) : "–";
-    $("#m-speed").textContent = ["full", "quick"].includes(st.phase) && st.bytes_per_s
+    $("#m-progress").textContent = ["quick", "sample"].includes(st.phase) ? `${fmtPct(prog)} (${st.phase})` : st.progress != null ? fmtPct(prog, 2) : "–";
+    $("#m-speed").textContent = ["full", "quick", "sample"].includes(st.phase) && st.bytes_per_s
       ? `${fmtBytes(st.bytes_per_s)}/s · ${st.blocks_per_s.toFixed(1)} blk/s` : "–";
     $("#m-elapsed").textContent = fmtDur(st.now - (st.full_started_at || st.started_at));
     $("#m-eta").textContent = st.phase === "live" ? "done" : st.eta_seconds ? "~" + fmtDur(st.eta_seconds) : "–";
@@ -445,6 +445,12 @@
   function partialNote(sum) {
     const st = S.status || {};
     if (sum.meta && sum.meta.full_done === "1") return null;
+    const est = sum.estimate;
+    if (est) {
+      const m = est.spam_margin_pct != null && est.spam_margin_pct >= 0.1 ? ` (±${fmtPct(est.spam_margin_pct)})` : "";
+      return h("span", { class: "partial" }, "◔ ",
+        `Estimate${m} from ${fmtNum(est.samples)} sample blocks spread across the chain — exact figures replace it as the full history scan proceeds (${fmtPct(est.exact_share_pct)} of the data scanned exactly so far)`);
+    }
     const tipH = st.tip != null ? st.tip + 1 : null;
     return h("span", { class: "partial" }, "◔ ",
       `Based on ${fmtNum(sum.blocks_scanned)}${tipH ? " of " + fmtNum(tipH) : ""} blocks scanned so far — the full history scan is still running`);
@@ -458,43 +464,50 @@
   function viewOverview() {
     const sum = S.summary;
     if (!sum || sum.empty) return viewShell(emptyState());
-    const t = sum.totals;
-    const saved = sum.saved_bytes;
-    const items = CARRIERS.map((k) => ({ key: k, value: sum.by_carrier[k] || 0 }));
+    // While the full scan runs, the chain-wide figures come from the estimate (exact so far + sample);
+    // the UTXO figures are always exact.
+    const est = sum.estimate;
+    const B = est || sum;
+    const t = B.totals;
+    const saved = B.saved_bytes;
+    const ap = est ? "≈" : "";
+    const items = CARRIERS.map((k) => ({ key: k, value: B.by_carrier[k] || 0 }));
     const donutBox = h("div", { class: "chart" });
     const donutCard = h("div", { class: "card" },
       h("h2", { text: "Spam by carrier" }),
-      h("p", { class: "sub", text: "Bytes a Monetary Node removes from block storage, by type" }),
+      h("p", { class: "sub", text: est ? "Bytes a Monetary Node removes from block storage, by type — estimated for the whole chain" : "Bytes a Monetary Node removes from block storage, by type" }),
       h("div", { class: "donut-wrap" }, donutBox,
         h("div", { class: "donut-legend" }, items.map((it) => h("div", { class: "row" },
           h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }),
           h("span", { class: "v num", text: fmtBytes(it.value) }),
-          h("span", { class: "p num", text: fmtPct(sum.spam_bytes ? (it.value / sum.spam_bytes) * 100 : 0) }))))));
-    donut(donutBox, items, [fmtPct(sum.spam_pct), "of block data"]);
+          h("span", { class: "p num", text: fmtPct(B.spam_bytes ? (it.value / B.spam_bytes) * 100 : 0) }))))));
+    donut(donutBox, items, [ap + fmtPct(B.spam_pct), "of block data"]);
     withTableToggle(donutCard, () => dataTable(["Carrier", "Bytes", "Share of spam"],
-      items.map((it) => [LABEL[it.key], fmtBytes(it.value), fmtPct(sum.spam_bytes ? (it.value / sum.spam_bytes) * 100 : 0)])));
+      items.map((it) => [LABEL[it.key], ap + fmtBytes(it.value), fmtPct(B.spam_bytes ? (it.value / B.spam_bytes) * 100 : 0)])));
 
     const maxB = Math.max(t.size, t.stored) || 1;
     const compare = h("div", { class: "card" },
       h("h2", { text: "Block storage: today vs. Monetary Node" }),
-      h("p", { class: "sub", text: "Same blocks, same proof-of-work — only the data carriers removed" }),
+      h("p", { class: "sub", text: est ? "Same blocks, same proof-of-work — only the data carriers removed (estimated for the whole chain)" : "Same blocks, same proof-of-work — only the data carriers removed" }),
       h("div", { class: "compare" },
-        compareRow("Your node (Core/Knots)", t.size, maxB, [["monetary", t.size - sum.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
+        compareRow("Your node (Core/Knots)", t.size, maxB, [["monetary", t.size - B.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
         compareRow("Monetary Node", t.stored, maxB, [["monetary", t.stored]])),
       h("p", { class: "sub", style: { marginTop: "14px", marginBottom: 0 },
         text: "The Monetary Node size includes its own bookkeeping (stored txids and filter entries for removed outputs), so the saving is slightly smaller than the spam total. Undo files and optional indexes are not included." }));
 
     const u = sum.utxo;
     const kpis = h("div", { class: "grid grid-4" },
-      kpi("Spam in your blocks", fmtBytes(sum.spam_bytes), `${fmtPct(sum.spam_pct)} of ${fmtBytes(t.size)} block data`, "envelope"),
-      kpi("Storage a Monetary Node saves", saved >= 0 ? fmtBytes(saved) : "—", saved >= 0 ? `${fmtPct(sum.saved_pct)} less block storage` : "No saving in the blocks scanned so far", "monetary"),
+      kpi("Spam in your blocks", ap + fmtBytes(B.spam_bytes), `${ap}${fmtPct(B.spam_pct)} of ${ap}${fmtBytes(t.size)} block data`, "envelope"),
+      kpi("Storage a Monetary Node saves", saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? `${ap}${fmtPct(B.saved_pct)} less block storage` : "No saving in the blocks scanned so far", "monetary"),
       kpi("Spam entries in the UTXO set", fmtCompact(u.count), utxoFoot(u), "p2tr_dust"),
-      kpi("Transactions touched", fmtPct(sum.modified_tx_pct), `${fmtNum(t.modified + t.stripped)} of ${fmtNum(t.tx_count)} modified or reduced to a txid`));
+      kpi("Transactions touched", ap + fmtPct(B.modified_tx_pct), est ? "of all transactions modified or reduced to a txid" : `${fmtNum(t.modified + t.stripped)} of ${fmtNum(t.tx_count)} modified or reduced to a txid`));
 
     viewShell(
       h("section", { class: "hero" },
-        h("h1", null, "Your node stores ", h("span", { class: "hl", text: fmtBytes(sum.spam_bytes) }), " of spam."),
-        h("p", { text: saved > 0
+        h("h1", null, "Your node stores ", h("span", { class: "hl", text: (est ? "≈ " : "") + fmtBytes(B.spam_bytes) }), " of spam."),
+        h("p", { text: est
+          ? `Estimated for the whole chain (${fmtNum(est.blocks)} blocks): a Monetary Node would store about ${fmtBytes(t.stored)} instead of ${fmtBytes(t.size)} — ${fmtBytes(Math.max(0, saved))} (${fmtPct(Math.max(0, est.saved_pct))}) less.`
+          : saved > 0
           ? `A Monetary Node validating the same ${fmtNum(sum.blocks_scanned)} blocks would store ${fmtBytes(t.stored)} instead of ${fmtBytes(t.size)} — ${fmtBytes(saved)} (${fmtPct(sum.saved_pct)}) less — and keep ${fmtNum(u.count)} spam entries out of its UTXO set.`
           : `In the ${fmtNum(sum.blocks_scanned)} blocks scanned so far, spam makes up ${fmtPct(sum.spam_pct)} of the data.` }),
         partialNote(sum),
@@ -985,7 +998,7 @@
       S.status = await api("/api/status");
       renderStatus();
       const h0 = S.status.height;
-      const stale = Date.now() - S.lastDataFetch > (["full", "quick"].includes(S.status.phase) ? 15000 : 60000);
+      const stale = Date.now() - S.lastDataFetch > (["full", "quick", "sample"].includes(S.status.phase) ? 15000 : 60000);
       if (h0 !== S.lastHeight && (S.lastHeight == null || stale || S.status.phase === "live")) {
         S.lastHeight = h0;
         await refreshData();

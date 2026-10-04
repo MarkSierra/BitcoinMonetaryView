@@ -143,6 +143,9 @@ SCHEMA = [
             ui_editable=True, group="scan"),
     Setting("quick_pass_blocks", _int(0, 50000), 1000, "Recent blocks analysed first for a quick result",
             kind="integer", group="scan"),
+    Setting("sample_every", _int(0, 100000), 100,
+            "Before the full scan, analyse every Nth block of the history for an early whole-chain estimate "
+            "(0 = off)", kind="integer", group="scan"),
     Setting("carrier_policy", _bool, True,
             "Keep oversized OP_RETURNs that are verified payment-protocol envelopes (upstream carrier policy)",
             kind="boolean", group="scan"),
