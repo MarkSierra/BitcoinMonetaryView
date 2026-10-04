@@ -15,7 +15,7 @@ jobs:
         python: ["3.10", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - name: Unit, parity, security and upstream tests
@@ -34,7 +34,7 @@ jobs:
       BITCOIN_VERSION: "29.1"
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Download Bitcoin Core (checksum verified)
