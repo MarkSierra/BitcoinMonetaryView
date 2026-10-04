@@ -148,9 +148,10 @@ number is not overstated.
 Every analysed block is verified before it is counted: its hash must match the header, the merkle root must
 match the transactions, and the witness commitment must match the witness data.
 
-Known upstream behaviours that are kept for comparability (and reported upstream): hybrid-encoded P2PK keys
-count as data; P2WSH envelopes are only detected in witnesses with two or more items, and the last witness item
-of any such input is parsed as a script.
+Known upstream behaviours that are kept for comparability (reported upstream): hybrid-encoded P2PK keys
+count as data; envelopes in single-item P2WSH witnesses and in taproot script-path spends that carry an annex
+are not detected; the last item of any multi-item witness is parsed as a script. The carrier policy only adds
+exemptions: the OP_RETURN size test stays upstream's script-length rule.
 
 ---
 
