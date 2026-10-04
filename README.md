@@ -97,21 +97,23 @@ The node's work is reading and sending blocks. The app limits that:
 
 | Profile | What it does |
 |---|---|
-| **Eco** (default) | one request at a time, pauses after every block |
-| **Balanced** | two parallel requests, short pauses |
-| **Full speed** | up to four parallel requests |
+| **Eco** (default) | one request at a time, pauses after every block, one CPU core |
+| **Balanced** | two parallel requests, short pauses, analysis on up to 2 CPU cores |
+| **Full speed** | up to four parallel requests, analysis on up to 4 CPU cores (one core is always left free) |
 
 In every profile the app backs off automatically when your node answers slowly, waits while the node is
 still syncing, and can be limited to a daily time window (e.g. `--scan-window 01:00-07:00`) or paused.
 
 ### How long does the full scan take?
 
-Roughly — the dashboard shows the measured ETA after a few minutes:
+Roughly — the dashboard shows the measured ETA after a few minutes. Measured on a 4-core machine against a
+fake node: ~9 MB/s (Eco), ~27 MB/s (Balanced), ~36 MB/s (Full speed) of block data; the real node's disk and
+network add to that:
 
 | Hardware | Full speed | Eco |
 |---|---|---|
-| Start9 / Umbrel-class, SSD | ~1–2 days | ~2–5 days |
-| Desktop / NVMe | ~6–12 hours | ~1–2 days |
+| Start9 / Umbrel-class, SSD | ~12–24 hours | ~2–4 days |
+| Desktop / NVMe, 4+ cores | ~5–8 hours | ~1 day |
 
 Over Wi-Fi it is slower; over Tor a full scan is impractical (days to weeks) — use the LAN or run the app on
 the node's machine. The app's own database grows to roughly 4–8 GB after a full mainnet scan.

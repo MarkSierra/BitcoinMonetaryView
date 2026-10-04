@@ -110,16 +110,53 @@ def analyze_block(raw, height, op_return_limit=DEFAULT_OP_RETURN_LIMIT,
         raise BlockInvalid(f"malformed block at height {height}: {e}") from None
 
 
+_U32 = struct.Struct("<I").unpack_from
+_U64 = struct.Struct("<Q").unpack_from
+_U16 = struct.Struct("<H").unpack_from
+
+
+def _rv(d, p, n):
+    """CompactSize at d[p] -> (value, new_p). Bounds-checked."""
+    if p >= n:
+        raise BlockInvalid("truncated")
+    b = d[p]
+    if b < 0xFD:
+        return b, p + 1
+    if b == 0xFD:
+        if p + 3 > n:
+            raise BlockInvalid("truncated")
+        return _U16(d, p + 1)[0], p + 3
+    if b == 0xFE:
+        if p + 5 > n:
+            raise BlockInvalid("truncated")
+        return _U32(d, p + 1)[0], p + 5
+    if p + 9 > n:
+        raise BlockInvalid("truncated")
+    return _U64(d, p + 1)[0], p + 9
+
+
+def _envelope_payload(script):
+    """upstream envelope_payload with an exact fast path: an envelope needs an
+    OP_IF (0x63) or OP_NOTIF (0x64) byte, so scripts without either yield 0."""
+    if b"\x63" not in script and b"\x64" not in script:
+        return 0
+    return up.envelope_payload(script)
+
+
 def _analyze(raw, height, op_return_limit, scriptsig_limit,
              dust_start_height, carrier_policy, build_record):
+    # Hand-inlined parser (same steps as upstream strip_block, parity-tested):
+    # local variables and slices instead of Cursor method calls, ~2x faster.
     dsha = up.dsha
     write_varint = up.write_varint
-    if len(raw) < 81:
+    is_tr_path = up.is_taproot_script_path
+    d = raw
+    n = len(d)
+    if n < 81:
         raise BlockInvalid("block shorter than a header")
-    c = up.Cursor(raw)
-    header = c.take(80)
-    n_tx = c.varint()
-    if n_tx == 0 or n_tx > len(raw):
+    header = d[:80]
+    n_tx, p = _rv(d, 80, n)
+    if n_tx == 0 or n_tx > n:
         raise BlockInvalid("implausible transaction count")
 
     tx_parts = [] if build_record else None
@@ -135,73 +172,90 @@ def _analyze(raw, height, op_return_limit, scriptsig_limit,
     has_witness = False
 
     for tx_index in range(n_tx):
-        tx_start = c.p
-        c.take(4)
-        segwit = c.peek(2) == b"\x00\x01"
+        tx_start = p
+        p += 4
+        segwit = d[p:p + 2] == b"\x00\x01"
         if segwit:
-            c.take(2)
+            p += 2
             has_witness = True
 
-        io_start = c.p
-        n_in = c.varint()
-        if n_in > len(raw):
+        io_start = p
+        n_in, p = _rv(d, p, n)
+        if n_in > n:
             raise BlockInvalid("implausible input count")
         scriptsig_spam = 0
         tx_spends = []
         for _ in range(n_in):
-            prev = c.take(32)
-            vout = struct.unpack("<I", c.take(4))[0]
-            sl = c.varint()
-            c.take(sl)
+            if p + 36 > n:
+                raise BlockInvalid("truncated")
+            prev = d[p:p + 32]
+            vout = _U32(d, p + 32)[0]
+            sl, p = _rv(d, p + 36, n)
+            p += sl + 4
+            if p > n:
+                raise BlockInvalid("truncated")
             if sl > scriptsig_limit:
                 scriptsig_spam += sl
-            c.take(4)
             tx_spends.append((prev, vout))
 
-        n_out = c.varint()
-        if n_out > len(raw):
+        n_out, p = _rv(d, p, n)
+        if n_out > n:
             raise BlockInvalid("implausible output count")
         out_monetary = 0
         dropped_outs = []
         tx_utxo = []
         for vout in range(n_out):
-            amount = c.u64()
-            spk = c.take(c.varint())
+            if p + 8 > n:
+                raise BlockInvalid("truncated")
+            amount = _U64(d, p)[0]
+            sl, p = _rv(d, p + 8, n)
+            if p + sl > n:
+                raise BlockInvalid("truncated")
+            spk = d[p:p + sl]
+            p += sl
             if tx_index == 0:
                 coinbase_outputs.append(spk)
             kind, reason, _proto = classify_output(
                 spk, amount, height, op_return_limit, dust_start_height,
                 carrier_policy)
-            if kind == "spam":
-                dropped_outs.append((vout, amount, spk))
-                st[reason] = st.get(reason, 0) + len(spk)
-                if enters_utxo_set(spk):
-                    tx_utxo.append((vout, amount, UTXO_KIND_DATA_KEY, len(spk)))
-            elif kind == "dust":
-                st["dust_outputs"] += 1
-                out_monetary += 1
-                tx_utxo.append((vout, amount, UTXO_KIND_P2TR_DUST, len(spk)))
-            else:
+            if kind == "monetary":
                 if reason == "retained_protocol":
                     st["retained_protocol"] += 1
                 out_monetary += 1
-        io_end = c.p
+            elif kind == "spam":
+                dropped_outs.append((vout, amount, spk))
+                st[reason] = st.get(reason, 0) + sl
+                if enters_utxo_set(spk):
+                    tx_utxo.append((vout, amount, UTXO_KIND_DATA_KEY, sl))
+            else:  # dust
+                st["dust_outputs"] += 1
+                out_monetary += 1
+                tx_utxo.append((vout, amount, UTXO_KIND_P2TR_DUST, sl))
+        io_end = p
 
         envelope_bytes = 0
         if segwit:
             for i in range(n_in):
-                count = c.varint()
-                if count > len(raw):
+                count, p = _rv(d, p, n)
+                if count > n:
                     raise BlockInvalid("implausible witness item count")
-                items = [c.take(c.varint()) for _ in range(count)]
+                items = []
+                for _ in range(count):
+                    il, p = _rv(d, p, n)
+                    if p + il > n:
+                        raise BlockInvalid("truncated")
+                    items.append(d[p:p + il])
+                    p += il
                 if tx_index == 0 and i == 0:
                     coinbase_witness = items
-                if up.is_taproot_script_path(items):
-                    envelope_bytes += up.envelope_payload(items[-2])
+                if is_tr_path(items):
+                    envelope_bytes += _envelope_payload(items[-2])
                 elif len(items) >= 2 and items[-1]:
-                    envelope_bytes += up.envelope_payload(items[-1])
-        c.take(4)
-        tx_end = c.p
+                    envelope_bytes += _envelope_payload(items[-1])
+        p += 4
+        if p > n:
+            raise BlockInvalid("truncated")
+        tx_end = p
 
         if segwit:
             legacy = (raw[tx_start:tx_start + 4] + raw[io_start:io_end]
@@ -248,7 +302,7 @@ def _analyze(raw, height, op_return_limit, scriptsig_limit,
                                 + raw[tx_start:tx_end])
         stored_tx_bytes += part_len
 
-    if c.p != len(raw):
+    if p != n:
         raise BlockInvalid("trailing bytes after last transaction")
 
     filter_bytes = [txid + write_varint(vout) + struct.pack("<Q", amount)

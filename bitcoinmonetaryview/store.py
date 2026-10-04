@@ -73,12 +73,10 @@ class Bloom:
         self.count = 0
 
     def _idx(self, txid, vout):
-        v = (vout + 1) * 0x9E3779B1
-        out = []
-        for i in range(self.K):
-            x = int.from_bytes(txid[i * 4:i * 4 + 4], "little") ^ (v >> (i % 4)) ^ (i * 0x85EBCA6B)
-            out.append(x & self.mask)
-        return out
+        # One big-int conversion, then K 32-bit windows (txids are uniformly random).
+        x = int.from_bytes(txid[:28], "little") ^ ((vout + 1) * 0x9E3779B97F4A7C15)
+        m = self.mask
+        return [(x >> (32 * i)) & m for i in range(self.K)]
 
     def add(self, txid, vout):
         a = self.arr
