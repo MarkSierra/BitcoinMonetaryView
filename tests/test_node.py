@@ -144,6 +144,19 @@ class Client(unittest.TestCase):
         with self.assertRaises(ValueError):
             Node("http://alice:s3cret@127.0.0.1:1", "a", "b")
 
+    def test_plaintext_warning_only_for_real_networks(self):
+        from bitcoinmonetaryview.config import Config
+        from bitcoinmonetaryview.scanner import Scanner
+        d = tempfile.mkdtemp()
+        try:
+            cli = {"rpc_url": "http://10.0.3.1:58332", "rpc_user": "u", "rpc_password": "p"}
+            plain = Scanner(Config(d, cli=cli, env={})).make_node()
+            self.assertTrue(plain.transport.plaintext_remote)
+            managed = Scanner(Config(d, cli=cli, env={"BMV_MANAGED_BY": "startos"})).make_node()
+            self.assertFalse(managed.transport.plaintext_remote)
+        finally:
+            shutil.rmtree(d)
+
     def test_local_host_detection(self):
         for h in ("127.0.0.1", "localhost", "::1", "bitcoind.startos", "bitcoind.embassy"):
             self.assertTrue(is_local_host(h), h)

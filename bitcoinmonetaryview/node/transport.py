@@ -128,9 +128,15 @@ class Transport:
             ctx.verify_mode = ssl.CERT_REQUIRED
             self.tls_ctx = ctx
         self._local = threading.local()
+        # Set when a platform (StartOS, Umbrel, ...) connects the app to the node over its
+        # internal container network: plain HTTP there never leaves the machine.
+        self.trusted_network = False
 
     @property
     def plaintext_remote(self):
+        """True if RPC credentials would cross a real network unencrypted."""
+        if self.trusted_network:
+            return False
         return self.scheme == "http" and not is_local_host(self.host) and not self.host.endswith(".onion")
 
     def describe(self):
