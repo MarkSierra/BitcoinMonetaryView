@@ -175,12 +175,18 @@ class TLSWithCustomCA(unittest.TestCase):
         try:
             def run(*a):
                 subprocess.run(["openssl", *a], cwd=d, check=True, capture_output=True)
+            # Proper extensions: Python 3.13+ verifies with VERIFY_X509_STRICT
             run("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.pem",
-                "-days", "2", "-subj", "/CN=Test Root CA")
+                "-days", "2", "-subj", "/CN=Test Root CA",
+                "-addext", "basicConstraints=critical,CA:TRUE",
+                "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+                "-addext", "subjectKeyIdentifier=hash")
             run("req", "-newkey", "rsa:2048", "-nodes", "-keyout", "srv.key", "-out", "srv.csr",
                 "-subj", "/CN=localhost")
             with open(os.path.join(d, "ext.cnf"), "w") as f:
-                f.write("subjectAltName=DNS:localhost\n")
+                f.write("subjectAltName=DNS:localhost\nbasicConstraints=critical,CA:FALSE\n"
+                        "keyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n"
+                        "authorityKeyIdentifier=keyid\nsubjectKeyIdentifier=hash\n")
             run("x509", "-req", "-in", "srv.csr", "-CA", "ca.pem", "-CAkey", "ca.key", "-CAcreateserial",
                 "-out", "srv.pem", "-days", "2", "-extfile", "ext.cnf")
 
