@@ -159,8 +159,8 @@ a { color: var(--accent-ink); }
 .status-text { min-width: 0; flex: 1; }
 .status-detail { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .progress { height: 6px; background: var(--surface-3); border-radius: 999px; overflow: hidden; margin-top: 6px; }
-/* scaled, not resized: a transform animates on the GPU compositor without re-layout */
-.progress-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), #ffb257); transform: scaleX(0); transform-origin: left; transition: transform .6s ease; }
+/* no transition: it moves a fraction of a pixel per update, and animating it kept the GPU drawing frames */
+.progress-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), #ffb257); transform: scaleX(0); transform-origin: left; }
 .status-metrics { display: flex; gap: 18px; margin: 0; flex-wrap: wrap; }
 .status-metrics div { min-width: 64px; }
 .status-metrics dt { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }

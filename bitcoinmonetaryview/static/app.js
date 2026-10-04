@@ -441,7 +441,8 @@
 
   // ------------------------------------------------------------------ views
   const main = () => $("#main");
-  function viewShell(...kids) { const m = clear(main()); m.append(h("div", { class: "fade-in" }, kids)); }
+  // Fade in only when the user navigates; background data refreshes swap the content silently.
+  function viewShell(...kids) { const m = clear(main()); m.append(h("div", { class: S.quiet ? null : "fade-in" }, kids)); }
   function partialNote(sum) {
     const st = S.status || {};
     if (sum.meta && sum.meta.full_done === "1") return null;
@@ -1012,10 +1013,17 @@
   async function refreshData() {
     S.lastDataFetch = Date.now();
     const [sum, latest] = await Promise.all([api("/api/summary").catch(() => null), api("/api/blocks?limit=8").catch(() => [])]);
+    // nothing changed (e.g. paused, or no new block): leave the page alone
+    const sig = JSON.stringify([sum, latest]);
+    if (sig === S.dataSig) return;
+    S.dataSig = sig;
     S.summary = sum; S.latestBlocks = latest;
     // re-render data views only when no dialog is open and the user is not interacting with a form
     const typing = document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
-    if (!$("#dialog").open && !typing && ["overview", "utxo"].includes(S.view)) VIEWS[S.view]();
+    if (!$("#dialog").open && !typing && ["overview", "utxo"].includes(S.view)) {
+      S.quiet = true;
+      try { VIEWS[S.view](); } finally { S.quiet = false; }
+    }
   }
 
   async function init() {

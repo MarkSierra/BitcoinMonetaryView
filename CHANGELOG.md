@@ -7,6 +7,9 @@ All notable changes are documented here. This project uses [semantic versioning]
 - Sample pass: right after the quick pass, every 100th block of the remaining history is analysed (about 1 %
   of the data), and the dashboard shows an estimate for the whole chain with its margin of error from the start.
   It is marked with ≈ and converges to the exact figures as the full scan proceeds. Setting `sample_every`.
+- Dashboard: the progress bar no longer animates (the animation kept the GPU drawing ~19 frames per second
+  during a scan), and background data refreshes swap the content without the fade-in and only when the data
+  actually changed, so the page no longer appears to reload every few seconds.
 
 ## [0.1.0] — 2026-10-04
 
