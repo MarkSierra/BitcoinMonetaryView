@@ -10,6 +10,8 @@ Spam UTXO tracking:
               can be disconnected exactly
   utxo_hist   counts/bytes per (1,000-block bucket, kind) -> age bands, totals
   blocks      per-block results incl. UTXO deltas -> history over time
+  sample      per-block results of an evenly spaced sample of not-yet-scanned history,
+              used only for the early whole-chain estimate (never mixed into `blocks`)
 """
 
 import os
@@ -37,6 +39,12 @@ CREATE TABLE IF NOT EXISTS blocks (
     scriptsig INTEGER, whole INTEGER, modified INTEGER, stripped INTEGER, dust_outputs INTEGER,
     filter_entries INTEGER, retained_protocol INTEGER, utxo_added INTEGER, utxo_added_bytes INTEGER,
     utxo_spent INTEGER, utxo_spent_bytes INTEGER, utxo_done INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS sample (
+    height INTEGER PRIMARY KEY, hash BLOB NOT NULL, size INTEGER, stored INTEGER, weight INTEGER,
+    tx_count INTEGER, envelope INTEGER, op_return INTEGER, multisig INTEGER, scriptsig INTEGER,
+    whole INTEGER, modified INTEGER, stripped INTEGER, dust_outputs INTEGER, filter_entries INTEGER,
+    retained_protocol INTEGER
 );
 CREATE TABLE IF NOT EXISTS spam_utxo (
     txid BLOB NOT NULL, vout INTEGER NOT NULL, height INTEGER NOT NULL, value INTEGER NOT NULL,
@@ -147,7 +155,9 @@ class Store:
         return None if r is None else dict(zip(BLOCK_COLS, r))
 
     def has_any_blocks(self):
-        return self.db.execute("SELECT 1 FROM blocks LIMIT 1").fetchone() is not None
+        """True if any results (exact or sample) exist."""
+        return (self.db.execute("SELECT 1 FROM blocks LIMIT 1").fetchone() is not None
+                or self.db.execute("SELECT 1 FROM sample LIMIT 1").fetchone() is not None)
 
     def max_height(self):
         r = self.db.execute("SELECT MAX(height) FROM blocks").fetchone()
@@ -173,6 +183,21 @@ class Store:
                res["filter_entries"], res["retained_protocol"], *utxo_delta, 1 if utxo_done else 0)
         self.db.execute(f"INSERT OR REPLACE INTO blocks({','.join(BLOCK_COLS)}) "
                         f"VALUES({','.join('?' * len(BLOCK_COLS))})", row)
+
+    def lowest_block_from(self, height):
+        """Lowest stored block height >= height (None if there is none)."""
+        return self.db.execute("SELECT MIN(height) FROM blocks WHERE height>=?", (height,)).fetchone()[0]
+
+    # ----------------------------------------------------------------- sample
+    def has_sample(self, height):
+        return self.db.execute("SELECT 1 FROM sample WHERE height=?", (height,)).fetchone() is not None
+
+    def put_sample(self, height, res):
+        row = (height, mr.block_hash(res["header"]), res["original"], res["stored"], res["weight"],
+               res["tx_count"], res["envelope"], res["op_return"], res["multisig"], res["scriptsig"],
+               res["whole"], res["modified"], res["stripped"], res["dust_outputs"], res["filter_entries"],
+               res["retained_protocol"])
+        self.db.execute(f"INSERT OR REPLACE INTO sample VALUES({','.join('?' * len(row))})", row)
 
     # ----------------------------------------------------------------- spam UTXO
     def _hist(self, height, kind, dcount, dbytes):
@@ -264,10 +289,11 @@ class Store:
     def reset(self):
         """Delete all analysis results (e.g. after a rules change). Settings are untouched."""
         self.begin()
-        for t in ("blocks", "spam_utxo", "utxo_undo", "utxo_hist"):
+        for t in ("blocks", "sample", "spam_utxo", "utxo_undo", "utxo_hist"):
             self.db.execute(f"DELETE FROM {t}")
         for k in ("full_next_height", "full_start_height", "full_done", "quick_done", "quick_top",
-                  "utxo_complete", "utxo_info", "utxo_info_time"):
+                  "utxo_complete", "utxo_info", "utxo_info_time", "sample_done", "sample_top",
+                  "sample_every"):
             self.db.execute("DELETE FROM meta WHERE key=?", (k,))
         self.commit()
 
