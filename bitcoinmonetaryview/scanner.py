@@ -224,9 +224,12 @@ class Scanner(threading.Thread):
         if c.tor_proxy:
             host, port = c.tor_proxy.rsplit(":", 1)
             proxy = (host.strip("[]"), int(port))
-        return Node(c.rpc_url, user=c.rpc_user or None, password=c.rpc_password,
+        node = Node(c.rpc_url, user=c.rpc_user or None, password=c.rpc_password,
                     cookie_file=c.rpc_cookie_file or None, proxy=proxy, cafile=c.rpc_cafile or None,
                     timeout=c.rpc_timeout, use_rest=c.use_rest)
+        # In managed mode the platform wires the app to the node over its internal network.
+        node.transport.trusted_network = c.managed
+        return node
 
     def policy(self):
         return cp.Policy() if self.config.carrier_policy else None
