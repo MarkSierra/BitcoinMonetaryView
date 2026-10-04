@@ -20,4 +20,7 @@ You can expect an acknowledgement within a few days. Fixes are released as a new
 - Every block is verified (hash, merkle root, witness commitment) before it is counted.
 - Web interface: localhost by default, optional basic auth and TLS, CSRF tokens on state-changing requests,
   Host allowlist against DNS rebinding, strict Content-Security-Policy, no secrets in API responses or logs.
+- "Analyse this block now" reads exactly one block through the same whitelisted client, verifies it, keeps the
+  result in memory only (never in the scan database), and is CSRF-protected, one request at a time with a
+  cooldown.
 - No external network requests besides your node.

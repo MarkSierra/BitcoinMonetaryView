@@ -276,17 +276,21 @@
       svg.append(s("path", { class: `line s-surface`, d: top, "stroke-width": 1.5 }));
     });
     if (opts.milestones) {
-      let lastX = -1e9, level = 0;
+      const rowEnd = [-1e9, -1e9];          // right edge of the last label in each of the two label rows
       opts.milestones.forEach((ms) => {
         const i = rows.findIndex((r) => r.key >= ms.month);
         if (i < 0) return;
-        level = X(i) - lastX < 90 ? (level + 1) % 2 : 0;
-        lastX = X(i);
+        const x = X(i), w = ms.label.length * 6.2 + 8;
+        const level = rowEnd.findIndex((end) => x > end + 4);
         const g = s("g", { class: "milestone" });
-        g.append(s("line", { x1: X(i), x2: X(i), y1: m.t - 18 + level * 14, y2: m.t + ih }));
-        const t = s("text", { x: X(i) + 4, y: m.t - 22 + level * 14 });
-        t.textContent = ms.label;
-        g.append(t);
+        g.append(s("line", { x1: x, x2: x, y1: level < 0 ? m.t : m.t - 18 + level * 14, y2: m.t + ih }));
+        const tt = s("title"); tt.textContent = `${ms.label} (${ms.month})`; g.append(tt);
+        if (level >= 0 && x + w <= W) {
+          rowEnd[level] = x + w;
+          const t = s("text", { x: x + 4, y: m.t - 22 + level * 14 });
+          t.textContent = ms.label;
+          g.append(t);
+        }
         svg.append(g);
       });
     }
@@ -967,7 +971,7 @@
           h("p", { class: "sub", text: "A Monetary Node keeps these out of its UTXO database. Stamps outputs are removed from blocks too; P2TR dust stays in block storage, where it costs less, and is looked up there if it is ever spent." }),
           kindBars),
         h("div", { class: "card" }, h("h2", { text: "How old they are" }),
-          h("p", { class: "sub", text: "Spam outputs are almost never spent — they sit in RAM-hungry chainstate forever" }), bandBox)));
+          h("p", { class: "sub", text: "Spam outputs are rarely spent — most stay in the chainstate for years" }), bandBox)));
   }
 
   function viewAbout() {
@@ -994,6 +998,11 @@
         h("li", { text: "Transactions whose outputs were removed can no longer have their signatures re-verified from the stripped store (they were fully validated once, when the block arrived)." }),
         h("li", { text: "The dust figures are a proxy: they count small taproot outputs from the inscription era, which includes some ordinary small payments." }),
         h("li", { text: "Monetary Node is early-stage software. This app informs your decision; it does not make it for you." })),
+      h("h2", { text: "Spam vs. storage saved" }),
+      P("“Spam” counts only the data itself: inscription content, oversized OP_RETURN data, fake keys and oversized scriptSigs. “Storage saved” is the real difference in disk space, and it is usually larger: in a transaction that carries spam, a Monetary Node also drops the witness data (signatures already verified when the block arrived), and a transaction that is nothing but spam is reduced to its 32-byte txid. The Monetary Node's own bookkeeping is subtracted. Undo files and optional indexes are not counted on either side."),
+      h("h2", { text: "While the scan is running" }),
+      P("The full history scan reads every block in order, which takes hours (days in Eco mode). So that the first impression is not dominated by the early, almost spam-free years, the app first analyses the latest 1,000 blocks and then every 100th block of the rest. From that sample the overview shows an estimate for the whole chain (marked ≈) with its margin of error, next to the exact figure so far. The estimate is replaced by exact figures as the scan proceeds. History, Blocks, the UTXO set, the share card and the exports always show exact figures; parts of the history that are not scanned yet are marked as such."),
+      P("Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures."),
       h("h2", { text: "Core, Knots and this app" }),
       P("Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both."),
       h("h2", { text: "Rules in use" }),
@@ -1157,7 +1166,7 @@
     return [`My Bitcoin node stores ${fmtBytes(sum.spam_bytes)} of spam — ${fmtPct(sum.spam_pct)} of its block data${full ? "" : " (in the blocks scanned so far)"}.`,
       sum.saved_bytes > 0 ? `A Monetary Node would store ${fmtBytes(sum.saved_bytes)} (${fmtPct(sum.saved_pct)}) less${sum.utxo.count ? ` and keep ${fmtNum(sum.utxo.count)} spam entries out of its UTXO set` : ""}.` : "",
       "Same blocks, same proof-of-work, every consensus rule validated.",
-      "Measured on my own node with BitcoinMonetaryView. https://github.com/sambitcoin/BitcoinMonetaryNode"].filter(Boolean).join(" ");
+      "Measured on my own node with BitcoinMonetaryView (https://github.com/MarkSierra/BitcoinMonetaryView) using the Monetary Node rules (https://github.com/sambitcoin/BitcoinMonetaryNode)."].filter(Boolean).join(" ");
   }
   function openShare() {
     const sum = S.summary;
@@ -1177,6 +1186,7 @@
     body.append(h("div", { class: "dlg" },
       h("div", { class: "dlg-head" }, h("h2", { text: "Share my results" }),
         h("button", { class: "icon-btn", type: "button", "aria-label": "Close", text: "✕", onclick: () => dlg.close() })),
+      sum.meta && sum.meta.full_done !== "1" ? notice("warn", "The share card uses exact figures only. While the full history scan runs, they cover only the part of the chain scanned so far — the estimate on the overview is not included. For your complete result, share again once the scan is finished.", null, "share-note") : null,
       img, ta,
       h("p", { class: "sub", style: { marginTop: "10px" }, text: "Created on this device — nothing is uploaded. Contains chain statistics only, nothing that identifies your node." }),
       h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, dl, copy)));

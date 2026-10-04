@@ -233,7 +233,7 @@ class Analytics:
             res["node_utxo"] = {"txouts": info.get("txouts"), "bogosize": info.get("bogosize"),
                                 "disk_size": info.get("disk_size"), "height": info.get("height"),
                                 "time": float(m.get("utxo_info_time", 0))}
-            if info.get("txouts"):
+            if info.get("txouts") and total_c <= info["txouts"]:
                 res["share_of_entries_pct"] = total_c / info["txouts"] * 100
         return res
 

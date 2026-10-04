@@ -66,8 +66,9 @@ when it detects plain HTTP to another machine.
 
 **Native package (StartOS 0.4):** [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos)
 runs the app on your Start9 next to Bitcoin Core / Knots, connects automatically and needs no setup. It is not
-in the Start9 marketplace yet: download the `.s9pk` for your architecture from that repo's latest *Build* run
-(Actions → Build → Artifacts) and install it via System → Sideload. Updates keep your scan results.
+in the Start9 marketplace yet: download the `.s9pk` for your architecture from that repo's
+[Releases](https://github.com/MarkSierra/BitcoinMonetaryView-startos/releases) and install it via System →
+Sideload. Updates keep your scan results.
 
 **From another computer:** use the RPC connection details shown in your Bitcoin Core / Knots service
 (Interfaces / Properties). StartOS serves LAN RPC over HTTPS with its own certificate authority: download your

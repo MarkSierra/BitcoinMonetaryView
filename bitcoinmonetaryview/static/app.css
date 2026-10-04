@@ -180,6 +180,7 @@ a { color: var(--accent-ink); }
 .banner.error { border-color: color-mix(in srgb, var(--crit) 45%, var(--border)); }
 .banner.error .ico { background: var(--crit); color: #fff; }
 .banner.in-card { margin-top: 14px; font-size: 13.5px; line-height: 1.45; max-width: 900px; }
+.banner.share-note { margin-bottom: 12px; font-size: 13.5px; line-height: 1.45; }
 .banner.page-top { margin-bottom: 16px; line-height: 1.45; }
 .banner > div { min-width: 0; }
 
@@ -197,8 +198,12 @@ main { max-width: 1240px; width: 100%; margin: 0 auto; padding: 20px 16px 40px; 
   .span-2 { grid-column: auto; }
   .ro-badge .ro-text { display: none; }
   .status-metrics { gap: 12px; }
-  .topbar-inner { gap: 10px; }
-  .brand-name { display: none; }
+  /* phones: all six tabs visible (wrapped below the brand) instead of hidden in a scroll row */
+  .topbar, .statusbar { position: static; }
+  .topbar-inner { height: auto; flex-wrap: wrap; gap: 6px 10px; padding-top: 8px; padding-bottom: 8px; }
+  .topbar-right { margin-left: auto; }
+  .tabs { order: 3; flex-basis: 100%; flex-wrap: wrap; overflow: visible; }
+  .tabs a { padding: 6px 10px; }
 }
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
