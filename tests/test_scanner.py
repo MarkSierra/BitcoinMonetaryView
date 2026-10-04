@@ -311,6 +311,29 @@ class StoreRegressions(unittest.TestCase):
             self.assertIsNone(st.get_meta(k))
         st.close()
 
+    def test_coverage_and_period(self):
+        st, path, truth = self._estimate_store(every=2)
+        a = Analytics(path)
+        cov = a.summary()["coverage"]
+        self.assertFalse(cov["complete"])
+        self.assertEqual(cov["ranges"], [[0, 9], [30, 39]])
+        self.assertEqual((cov["gap"]["from"], cov["gap"]["to"]), (10, 29))
+        p = a.period(lo=0, hi=39)
+        self.assertEqual((p["blocks_scanned"], p["blocks_total"]), (20, 40))
+        self.assertAlmostEqual(p["coverage_pct"], 50)
+        p = a.period(lo=30, hi=39)
+        self.assertAlmostEqual(p["coverage_pct"], 100)
+        self.assertEqual(p["first"], 30)
+        # all blocks share one timestamp here, so a time range covering it returns every scanned block
+        p = a.period(start=1600000000, end=1800000000)
+        self.assertEqual(p["blocks_scanned"], 20)
+        self.assertTrue(a.period(start=1, end=2)["empty"])
+        b = a.block(35)
+        self.assertEqual(a.block_by_hash(b["hash"])["height"], 35)
+        self.assertEqual(len(a.history()["months"]), 1)
+        self.assertEqual(a.history()["coverage"]["gap"]["from"], 10)
+        st.close()
+
     def test_disconnect_restores_bloom_entries(self):
         from bitcoinmonetaryview.store import Store
         d = tempfile.mkdtemp()

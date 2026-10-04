@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Read-only queries over the results database for the web API."""
 
+import contextlib
 import csv
 import io
 import json
@@ -52,6 +53,19 @@ class Analytics:
         self._cache[key] = (time.monotonic(), val)
         return val
 
+    @contextlib.contextmanager
+    def snapshot(self, db):
+        """One read transaction: every query inside sees the same committed state, even while
+        the scanner commits in between (otherwise e.g. the scan cursor and the block table
+        could come from different moments and the estimate would briefly vanish)."""
+        if db.in_transaction:
+            db.rollback()
+        db.execute("BEGIN")
+        try:
+            yield db
+        finally:
+            db.rollback()
+
     def meta(self, db):
         return dict(db.execute("SELECT key, value FROM meta").fetchall())
 
@@ -63,6 +77,10 @@ class Analytics:
         db = self.db()
         if db is None:
             return {"empty": True}
+        with self.snapshot(db):
+            return self._summary_in(db)
+
+    def _summary_in(self, db):
         m = self.meta(db)
         cols = ",".join(f"COALESCE(SUM({c}),0)" for c in SUM_COLS)
         r = db.execute(f"SELECT COUNT(*), MIN(height), MAX(height), {cols} FROM blocks").fetchone()
@@ -87,8 +105,41 @@ class Analytics:
             "meta": _public_meta(m),
             "utxo": self._utxo(db, m, hi),
             "estimate": self._estimate(db, m, count, tot),
+            # the whole-chain estimate is still being prepared (sample pass not finished)
+            "estimate_pending": m.get("full_done") != "1" and m.get("sample_done") != "1",
+            "coverage": self._coverage(db, m),
         }
         return out
+
+    def _coverage(self, db, m):
+        """Which heights have exact results: the full scan's range plus the quick pass at the top.
+        `gap` is the part of the history in between that has not been scanned yet."""
+        full_done = m.get("full_done") == "1"
+        start = int(m.get("full_start_height") or 0)
+        nxt = int(m.get("full_next_height") or start)
+        top = db.execute("SELECT MAX(height) FROM blocks").fetchone()[0]
+        ranges = []
+        if nxt > start:
+            ranges.append([start, nxt - 1])
+        gap = None
+        if not full_done and top is not None:
+            low = db.execute("SELECT MIN(height) FROM blocks WHERE height>=?", (nxt,)).fetchone()[0]
+            if low is not None:
+                ranges.append([low, top])
+                gap = {"from": nxt, "to": low - 1}
+            else:
+                gap = {"from": nxt, "to": None}
+            if gap["to"] is not None and gap["to"] < gap["from"]:
+                gap = None
+            if gap:
+                t0 = db.execute("SELECT time FROM blocks WHERE height=?", (nxt - 1,)).fetchone()
+                t1 = db.execute("SELECT time FROM blocks WHERE height=?", (gap["to"] + 1,)).fetchone() \
+                    if gap["to"] is not None else None
+                gap["from_time"] = t0[0] if t0 else None
+                gap["to_time"] = t1[0] if t1 else None
+        elif top is not None and not ranges:
+            ranges.append([start, top])
+        return {"complete": full_done, "ranges": ranges, "gap": gap}
 
     def _estimate(self, db, m, count, tot):
         """
@@ -207,6 +258,83 @@ class Analytics:
         r = db.execute(f"SELECT {','.join(BLOCK_COLS)} FROM blocks WHERE height=?", (int(height),)).fetchone()
         return None if r is None else _block_dict(r)
 
+    def block_by_hash(self, hexhash):
+        db = self.db()
+        if db is None:
+            return None
+        r = db.execute(f"SELECT {','.join(BLOCK_COLS)} FROM blocks WHERE hash=?",
+                       (mr.hex_to_hash(hexhash),)).fetchone()
+        return None if r is None else _block_dict(r)
+
+    def period(self, start=None, end=None, lo=None, hi=None):
+        """
+        Exact statistics for a time range (unix seconds, inclusive) or a height range, from the
+        blocks scanned so far, plus how much of the range that covers. For time ranges the
+        number of blocks in the range is interpolated from known block times when not all of
+        it has been scanned yet.
+        """
+        db = self.db()
+        if db is None:
+            return {"empty": True}
+        with self.snapshot(db):
+            cols = ",".join(f"COALESCE(SUM({c}),0)" for c in SUM_COLS)
+            if lo is not None:
+                lo, hi = int(lo), int(hi)
+                if hi < lo:
+                    lo, hi = hi, lo
+                where, args = "height BETWEEN ? AND ?", (lo, hi)
+            else:
+                start, end = int(start), int(end)
+                if end < start:
+                    start, end = end, start
+                where, args = "time BETWEEN ? AND ?", (start, end)
+            r = db.execute(f"SELECT COUNT(*), MIN(height), MAX(height), MIN(time), MAX(time), {cols} "
+                           f"FROM blocks WHERE {where}", args).fetchone()
+            n, first, last, t0, t1 = r[:5]
+            tot = dict(zip(SUM_COLS, r[5:]))
+            m = self.meta(db)
+            if lo is not None:
+                total_blocks = hi - lo + 1
+                tip = db.execute("SELECT MAX(height) FROM blocks").fetchone()[0]
+                if tip is not None and hi > tip:
+                    total_blocks = max(0, tip - lo + 1)
+            elif m.get("full_done") == "1":
+                total_blocks = n
+            else:
+                h0, h1 = self._height_at(db, start, after=True), self._height_at(db, end, after=False)
+                total_blocks = max(n, h1 - h0 + 1) if h0 is not None and h1 is not None else n
+        spam = sum(tot[k] for k in mr.CARRIERS)
+        size = tot["size"]
+        txs = tot["tx_count"] or 1
+        return {
+            "empty": n == 0, "blocks_scanned": n, "blocks_total": total_blocks,
+            "coverage_pct": n / total_blocks * 100 if total_blocks else 0,
+            "first": first, "last": last, "first_time": t0, "last_time": t1,
+            "totals": tot, "spam_bytes": spam, "spam_pct": spam / size * 100 if size else 0,
+            "saved_bytes": size - tot["stored"], "saved_pct": (size - tot["stored"]) / size * 100 if size else 0,
+            "modified_tx_pct": (tot["modified"] + tot["stripped"]) / txs * 100,
+            "by_carrier": {k: tot[k] for k in mr.CARRIERS},
+        }
+
+    def _height_at(self, db, t, after):
+        """Approximate height of the first block at/after (or last block at/before) time t,
+        interpolated between the nearest scanned blocks (blocks arrive at a nearly constant rate,
+        so this is close even across the not-yet-scanned part of the history)."""
+        below = db.execute("SELECT height, time FROM blocks WHERE time<=? ORDER BY time DESC LIMIT 1",
+                           (t,)).fetchone()
+        above = db.execute("SELECT height, time FROM blocks WHERE time>=? ORDER BY time LIMIT 1", (t,)).fetchone()
+        if below is None and above is None:
+            return None
+        if below is None:
+            return above[0]
+        if above is None:
+            return below[0] + (0 if not after else 1)
+        if above[1] == below[1]:
+            return below[0]
+        frac = (t - below[1]) / (above[1] - below[1])
+        h = below[0] + frac * (above[0] - below[0])
+        return int(math.ceil(h)) if after else int(math.floor(h))
+
     def range(self, lo, hi, points=400):
         """Per-block (or bucketed) carrier bytes for a height range, for the bar chart."""
         db = self.db()
@@ -232,6 +360,10 @@ class Analytics:
         db = self.db()
         if db is None:
             return {"months": []}
+        with self.snapshot(db):
+            return self._history_in(db)
+
+    def _history_in(self, db):
         rows = db.execute(
             "SELECT strftime('%Y-%m', time, 'unixepoch') AS m, COUNT(*), SUM(size), SUM(stored), "
             "SUM(envelope), SUM(op_return), SUM(multisig), SUM(scriptsig), "
@@ -246,7 +378,7 @@ class Analytics:
             months.append({"month": r[0], "blocks": r[1], "size": r[2], "stored": r[3], "envelope": r[4],
                            "op_return": r[5], "multisig": r[6], "scriptsig": r[7],
                            "utxo_count": cum_c, "utxo_bytes": cum_b, "from": r[10], "to": r[11]})
-        return {"months": months}
+        return {"months": months, "coverage": self._coverage(db, self.meta(db))}
 
     # ------------------------------------------------------------------ export
     def iter_csv(self):
@@ -292,6 +424,23 @@ def _block_dict(r):
     d["spam_bytes"] = spam
     d["spam_pct"] = spam / d["size"] * 100 if d["size"] else 0
     d["utxo_done"] = bool(d["utxo_done"])
+    return d
+
+
+def block_from_result(height, res):
+    """Same shape as an API block row, for a block analysed on demand (not stored)."""
+    header = res["header"]
+    d = {"height": height, "hash": mr.hash_to_hex(mr.block_hash(header)), "time": mr.header_time(header),
+         "size": res["original"], "stored": res["stored"], "weight": res["weight"], "tx_count": res["tx_count"],
+         "whole": res["whole"], "modified": res["modified"], "stripped": res["stripped"],
+         "dust_outputs": res["dust_outputs"], "filter_entries": res["filter_entries"],
+         "retained_protocol": res["retained_protocol"], "utxo_added": 0, "utxo_added_bytes": 0,
+         "utxo_spent": 0, "utxo_spent_bytes": 0, "utxo_done": False, "on_demand": True}
+    for k in mr.CARRIERS:
+        d[k] = res[k]
+    spam = sum(res[k] for k in mr.CARRIERS)
+    d["spam_bytes"] = spam
+    d["spam_pct"] = spam / d["size"] * 100 if d["size"] else 0
     return d
 
 
