@@ -454,7 +454,6 @@
     const st = S.status, box = clear($("#banners"));
     const add = (kind, text) => box.append(h("div", { class: `banner ${kind}` },
       h("span", { class: "ico", text: kind === "info" ? "i" : "!" }), h("div", { text })));
-    if (st.managed) add("info", `Settings are managed by ${st.managed_by === "startos" ? "StartOS" : st.managed_by} — change them in the service's settings/actions.`);
     if (st.node && st.node.plaintext_remote) add("warn", "Your RPC connection uses plain HTTP to another machine, so the RPC password travels unencrypted. Prefer an https:// URL, Tor or an SSH tunnel.");
     if (st.node && st.node.pruned) add("warn", `Your node is pruned: only blocks from ${fmtNum(st.node.prune_height)} on can be analysed, and the spam UTXO figure will be incomplete.`);
     for (const w of st.warnings || []) add("warn", w);
@@ -1081,7 +1080,7 @@
         } }) : null)),
       msg);
     const ctrlCard = h("div", { class: "card" }, h("h2", { text: "Scan settings" }),
-      h("p", { class: "sub", text: st.managed ? "Managed by the platform — change these in the service's settings." : "These only affect this app." }), ctrl);
+      h("p", { class: "sub", text: st.managed ? `Managed by ${st.managed_by === "startos" ? "StartOS" : st.managed_by} — change these in the service's Actions.` : "These only affect this app." }), ctrl);
 
     // all settings (read-only list)
     const setTable = settings ? dataTable(["Setting", "Value", "Source"], settings.settings.map((x) => [x.name,
