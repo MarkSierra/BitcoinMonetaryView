@@ -62,12 +62,17 @@ when it detects plain HTTP to another machine.
 
 ### Start9 (StartOS)
 
-Until a native StartOS package exists, run the app on another computer and use the RPC connection details
-shown in your Bitcoin Core / Knots service (Interfaces / Properties). StartOS serves LAN RPC over HTTPS with
-its own certificate authority: download your Start9 root CA and pass it with `--rpc-cafile` (TLS verification
-is never disabled). Over Tor: `--rpc-url http://<rpc-address>.onion:8332 --tor-proxy 127.0.0.1:9050`.
+**Native package (StartOS 0.4):** [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos)
+runs the app on your Start9 next to Bitcoin Core / Knots, connects automatically and needs no setup. It is not
+in the Start9 marketplace yet: download the `.s9pk` for your architecture from that repo's latest *Build* run
+(Actions → Build → Artifacts) and install it via System → Sideload. Updates keep your scan results.
 
-The app is prepared for a native StartOS 0.4 package — see [docs/startos.md](docs/startos.md).
+**From another computer:** use the RPC connection details shown in your Bitcoin Core / Knots service
+(Interfaces / Properties). StartOS serves LAN RPC over HTTPS with its own certificate authority: download your
+Start9 root CA and pass it with `--rpc-cafile` (TLS verification is never disabled). Over Tor:
+`--rpc-url http://<rpc-address>.onion:8332 --tor-proxy 127.0.0.1:9050`.
+
+Packaging details: [docs/startos.md](docs/startos.md).
 
 ### Docker
 
@@ -79,7 +84,9 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64 and ARM64):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` — use it instead of `build: .` in the compose file.
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.1.0`) — use it as
+`image:` instead of `build: .` in the compose file, or fetch it with
+`docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---
 

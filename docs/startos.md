@@ -1,7 +1,9 @@
 # Packaging notes: StartOS 0.4 (and similar platforms)
 
-This repository is the platform-independent core. A StartOS package is a thin wrapper (a separate
-`startos/` project using the StartOS SDK) around the Docker image built from this repo's `Dockerfile`.
+This repository is the platform-independent core. The StartOS package is a thin wrapper in a separate
+repository, [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos): a
+StartOS SDK project that includes this repo as a git submodule (`upstream/`) and builds its own image from that
+source. The table below is what the wrapper relies on.
 Based on the [StartOS 0.4.0.x packaging guide](https://docs.start9.com/packaging/0.4.0.x/).
 
 | StartOS concept | How this app supports it |
