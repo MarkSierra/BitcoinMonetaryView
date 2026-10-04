@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/screenshots-tmp/
