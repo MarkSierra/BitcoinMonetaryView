@@ -102,7 +102,7 @@ class Analytics:
             kinds[k]["bytes"] += b
             total_c += c
             total_b += b
-            age = (tip or 0) - (bucket * BUCKET + BUCKET // 2)
+            age = max(0, (tip or 0) - (bucket * BUCKET + BUCKET // 2))
             for name, lower in AGE_BANDS:
                 if age >= lower:
                     bands[name]["count"] += c

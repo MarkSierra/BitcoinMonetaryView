@@ -115,6 +115,7 @@ class ScannerTest(unittest.TestCase):
         self.assertEqual(summ["blocks_scanned"], 40)
         self.assertEqual(summ["utxo"]["count"], len(expect))
         self.assertTrue(summ["utxo"]["complete"])
+        self.assertEqual(sum(b["count"] for b in summ["utxo"]["age_bands"]), len(expect))
         self.assertGreater(summ["spam_pct"], 10)
         # forbidden methods were never sent
         for m, *_ in self.node.calls:
