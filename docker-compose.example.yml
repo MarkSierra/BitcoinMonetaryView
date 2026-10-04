@@ -1,0 +1,36 @@
+# Copy to docker-compose.yml and adapt. Then: docker compose up -d → http://127.0.0.1:8338/
+services:
+  bitcoinmonetaryview:
+    build: .
+    container_name: bitcoinmonetaryview
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8338:8338"        # change to "8338:8338" for LAN access (then set BMV_AUTH_* below)
+    environment:
+      BMV_RPC_URL: "http://192.168.1.20:8332"
+      BMV_RPC_USER: "myuser"
+      BMV_RPC_PASSWORD: "change-me"
+      # Or use the node's cookie file instead of user/password (mount it read-only below):
+      # BMV_RPC_COOKIE_FILE: "/node/.cookie"
+      # BMV_RPC_CAFILE: "/certs/start9-root-ca.crt"   # https RPC with a custom CA (e.g. Start9)
+      BMV_SPEED_PROFILE: "eco"
+      # BMV_SCAN_WINDOW: "01:00-07:00"
+      # BMV_TIMEZONE: "Europe/Berlin"
+      # BMV_AUTH_USER: "admin"
+      # BMV_AUTH_PASSWORD: "change-me-too"
+      # BMV_ALLOWED_HOSTS: "bmv.example.lan"
+    volumes:
+      - bmv-data:/data
+      # - /path/to/bitcoin/.cookie:/node/.cookie:ro
+      # - ./start9-root-ca.crt:/certs/start9-root-ca.crt:ro
+    # hardening
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  bmv-data:

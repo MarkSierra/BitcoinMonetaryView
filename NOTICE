@@ -1,0 +1,31 @@
+BitcoinMonetaryView
+Copyright (C) 2026 BitcoinMonetaryView contributors
+Licensed under the GNU Affero General Public License v3.0 or later (see LICENSE).
+
+-------------------------------------------------------------------------------
+Third-party code included in this repository
+-------------------------------------------------------------------------------
+
+1. Monetary Node — https://github.com/sambitcoin/BitcoinMonetaryNode
+   Upstream commit: 492539256d43151973cb4cdf73c91d67c4be203c (2026-09-24)
+   License: BSD-2-Clause, Copyright (c) 2026, 'sambitcoin'
+   (full text: bitcoinmonetaryview/rules/upstream/LICENSE)
+
+   Files copied verbatim (byte-identical, verified by tests):
+     bitcoinmonetaryview/rules/upstream/monetary_store.py   (tools/monetary_store.py)
+     bitcoinmonetaryview/rules/upstream/carrier_policy.py   (tools/carrier_policy.py)
+     tests/upstream/test_monetary_store.py                  (tools/test_monetary_store.py)
+
+   bitcoinmonetaryview/rules/monetary_rules.py applies these rules to a block and
+   mirrors upstream's strip_block() step by step (parity-tested). Documented
+   extensions, both parameters that leave the rule logic unchanged:
+     - the P2TR dust start height is a parameter (upstream hard-codes mainnet
+       height 767,430) so test networks can be analysed;
+     - upstream's carrier_policy.Policy is wired in as described in upstream's
+       tools/CARRIER_POLICY.md ("Integration"), as an option (default on).
+       With it off, results equal upstream's published ruleset.
+
+2. Bitcoin Core test data — https://github.com/bitcoin/bitcoin
+   License: MIT, Copyright (c) The Bitcoin Core developers
+     tests/fixtures/block413567.raw     (src/bench/data/block413567.raw)
+     tests/fixtures/blockfilters.json   (src/test/data/blockfilters.json)
