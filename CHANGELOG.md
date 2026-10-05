@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.2.2] — 2026-10-05
+
+- Umbrel: new platform mode (`BMV_MANAGED_BY=umbrel`) for the Umbrel package in the
+  [community app store](https://github.com/MarkSierra/umbrel-community-app-store). Umbrel's proxy fronts the
+  dashboard and provides the login, the connection to Umbrel's Bitcoin Node / Knots app is not flagged as
+  plain HTTP, and the settings stay editable in the dashboard. The Connection page says the app runs on Umbrel.
+
 ## [0.2.1] — 2026-10-05
 
 Bug fixes from a code and security review of 0.2.0 (the security review found no vulnerabilities).

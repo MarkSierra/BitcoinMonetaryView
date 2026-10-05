@@ -12,8 +12,11 @@ while the app runs. This is the file a platform package (e.g. a StartOS action) 
 
 The machine-readable JSON Schema is printed by `python3 -m bitcoinmonetaryview --print-settings-schema`.
 
-Special environment variables (not settings): `BMV_DATA_DIR` (data directory) and `BMV_MANAGED_BY`
-(e.g. `startos` — the web interface then shows settings read-only and refers to the platform).
+Special environment variables (not settings): `BMV_DATA_DIR` (data directory) and `BMV_MANAGED_BY`, set by
+platform packages. With any value the platform's proxy fronts the web interface (Host check and login are left
+to it) and plain-HTTP RPC on its internal network is not flagged. `startos` additionally shows the settings
+read-only and refers to the service's Actions; with `umbrel` they stay editable in the web interface, because
+Umbrel has no settings screen for apps.
 
 > **Secrets:** prefer the cookie file, the environment or `settings.json` (written with mode 0600) over
 > `--rpc-password` on the command line, which other local users can see in the process list.

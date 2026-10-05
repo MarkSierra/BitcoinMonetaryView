@@ -195,6 +195,9 @@ def default_data_dir():
     return os.environ.get("BMV_DATA_DIR") or os.path.join(os.path.expanduser("~"), ".bitcoinmonetaryview")
 
 
+OWN_SETTINGS_PLATFORMS = ("umbrel",)
+
+
 class Config:
     """Resolved settings with per-key source tracking and live reload of the file."""
 
@@ -215,8 +218,16 @@ class Config:
         return os.path.join(self.data_dir, SETTINGS_FILE)
 
     @property
-    def managed(self):
+    def platform(self):
+        """True when a platform (StartOS, Umbrel, ...) runs the app: its proxy fronts the web UI
+        (and handles login) and it connects the app to the node over its internal network."""
         return bool(self.managed_by)
+
+    @property
+    def managed(self):
+        """True when the platform owns the settings (StartOS Actions), so they are read-only here.
+        Umbrel has no settings UI for apps, so there the app's own settings stay editable."""
+        return self.platform and self.managed_by not in OWN_SETTINGS_PLATFORMS
 
     def _read_file(self):
         try:

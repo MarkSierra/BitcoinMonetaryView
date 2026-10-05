@@ -216,13 +216,14 @@ class App:
         c = self.config
         s["managed"] = c.managed
         s["managed_by"] = c.managed_by
+        s["platform"] = c.managed_by or None
         s["can_pause"] = (not c.managed) or c.allow_pause_when_managed
         s["can_rescan"] = not c.managed
         s["upstream"] = {"repo": UPSTREAM_REPO, "commit": UPSTREAM_COMMIT}
         s["auth_enabled"] = bool(c.auth_user)
         s["bind"] = c.bind
         s["warnings"] = list(c.warnings)
-        if c.bind not in ("127.0.0.1", "localhost", "::1") and not c.auth_user and not c.managed:
+        if c.bind not in ("127.0.0.1", "localhost", "::1") and not c.auth_user and not c.platform:
             s["warnings"].append("The web interface is reachable from your network without a password. "
                                  "Set auth_user/auth_password (and ideally tls_cert/tls_key).")
         a = self.analytics()
@@ -281,7 +282,7 @@ def make_handler(app):
 
         def guard(self):
             c = app.config
-            if not host_allowed(self.headers.get("Host"), c.bind, c.allowed_hosts, c.managed):
+            if not host_allowed(self.headers.get("Host"), c.bind, c.allowed_hosts, c.platform):
                 self.send_text("Host not allowed. Add it to allowed_hosts if you use this name.", 421)
                 return False
             if c.auth_user and self.path != "/api/health":
