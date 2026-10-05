@@ -21,6 +21,14 @@ All notable changes are documented here. This project uses [semantic versioning]
   totals stay current (previously they froze until the scan reached the tip).
 - All notes in page content use one style (the bordered banner of the UTXO page); the "managed by StartOS"
   note appears only on the Connection page.
+- Phones: all six tabs are visible (wrapped under the brand) instead of three hidden in a scroll row.
+- Share dialog: explains that the card uses exact figures only and, during the scan, covers only the part
+  scanned so far; the share text links this app too.
+- About: new sections "Spam vs. storage saved" and "While the scan is running".
+- History: milestone labels no longer overlap on narrow screens (a label that does not fit keeps its line and
+  a tooltip). UTXO: the share of all UTXOs is hidden if the node's figure is older and smaller than the live
+  count.
+- Docs: README screenshot, Start9 download from Releases, SECURITY (on-demand lookup), release steps.
 - Dashboard: the progress bar no longer animates (the animation kept the GPU drawing ~19 frames per second
   during a scan), and background data refreshes swap the content without the fade-in and only when the data
   actually changed, so the page no longer appears to reload every few seconds.

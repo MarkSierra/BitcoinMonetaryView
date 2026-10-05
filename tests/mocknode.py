@@ -201,8 +201,9 @@ class MockNode:
             time.sleep(self.delay)
             return ok(self.raw(i).hex())
         if m == "gettxoutsetinfo":
-            return ok({"height": len(blocks) - 1, "txouts": 1000, "bogosize": 100000,
-                       "disk_size": 50000, "total_amount": 21.0})
+            n = max(1000, len(blocks) * 35)
+            return ok({"height": len(blocks) - 1, "txouts": n, "bogosize": n * 100,
+                       "disk_size": n * 50, "total_amount": 21.0})
         return err(-32601, "Method not found")
 
     def stop(self):
