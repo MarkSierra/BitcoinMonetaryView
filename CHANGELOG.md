@@ -2,7 +2,7 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] — 2026-10-05
 
 - Sample pass: right after the quick pass, every 100th block of the remaining history is analysed (about 1 %
   of the data), and the dashboard shows an estimate for the whole chain with its margin of error from the start.
