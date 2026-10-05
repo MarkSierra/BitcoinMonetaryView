@@ -716,9 +716,11 @@
   function blockEta(height) {
     const st = S.status || {}, cov = S.summary && S.summary.coverage;
     if (!cov || !cov.gap || height < cov.gap.from || (cov.gap.to != null && height > cov.gap.to)) return "";
-    const bps = st.phase === "full" ? st.blocks_per_s : 0;
-    if (!bps) return " The full history scan will get there.";
-    return ` At the current speed the full history scan gets there in about ${fmtDur((height - cov.gap.from) / bps)}.`;
+    // Blocks get bigger towards the tip, so a block count divided by the current rate is far too
+    // optimistic; the scan's own byte-based ETA for the whole history is an honest upper bound.
+    const eta = st.phase === "full" && st.total_bytes_estimate ? st.eta_seconds : null;
+    if (!eta) return " The full history scan will get there.";
+    return ` At the current speed the full history scan gets there within about ${fmtDur(eta)}.`;
   }
   async function openBlock(key) {
     let b = null;
@@ -735,6 +737,8 @@
         btn.disabled = true; msg.textContent = "Fetching the block from your node and analysing it…";
         try {
           const res = await post("/api/lookup", { q: String(key) });
+          // the dialog may have been closed or reused for another block or the share card meanwhile
+          if (!dlg.open || !body.contains(btn)) return;
           renderBlockDetail(clear(body), res, close);
         } catch (e) { msg.textContent = e.message; btn.disabled = false; }
       });
@@ -857,15 +861,15 @@
     return p;
   }
   function periodCard() {
-    if (!S.period) S.period = { id: "30d", q: periodPresets().find((x) => x.id === "30d").q };
+    if (!S.period) S.period = { id: "30d" };
     const seg = h("div", { class: "seg seg-wrap", role: "group", "aria-label": "Range shortcuts" });
     for (const p of periodPresets()) {
       seg.append(h("button", { type: "button", "aria-pressed": String(S.period.id === p.id), text: p.label,
-        onclick: () => { S.period = { id: p.id, q: p.q }; refreshPeriodButtons(); loadPeriod(); } }));
+        onclick: () => { S.period = { id: p.id }; refreshPeriodButtons(); loadPeriod(); } }));
     }
     const year = h("select", { "aria-label": "Year" }, h("option", { value: "", text: "Year…" }));
     for (let y = new Date().getUTCFullYear(); y >= 2009; y--) year.append(h("option", { value: String(y), text: String(y) }));
-    if (String(S.period.id).startsWith("y")) year.value = S.period.id.slice(1);
+    if (isYearPeriod(S.period.id)) year.value = S.period.id.slice(1);
     year.addEventListener("change", () => {
       if (!year.value) return;
       const y = parseInt(year.value, 10);
@@ -898,7 +902,7 @@
       for (const btn of seg.querySelectorAll("button")) btn.setAttribute("aria-pressed", "false");
       const i = periodPresets().findIndex((p) => p.id === S.period.id);
       if (i >= 0) seg.querySelectorAll("button")[i].setAttribute("aria-pressed", "true");
-      if (!String(S.period.id).startsWith("y")) year.value = "";
+      if (!isYearPeriod(S.period.id)) year.value = "";
     }
     S.periodBox = h("div", { class: "period-result", "aria-live": "polite" });
     return h("div", { class: "card" },
@@ -909,13 +913,20 @@
         h("button", { class: "btn", type: "button", text: "Show", onclick: apply }), msg),
       S.periodBox);
   }
+  const isYearPeriod = (id) => /^y\d{4}$/.test(String(id));
   async function loadPeriod() {
     const box = S.periodBox;
     if (!box || !S.period) return;
-    const q = S.period.q;
+    // shortcuts are relative to now: work out their range on every load, not once when clicked
+    const preset = periodPresets().find((p) => p.id === S.period.id);
+    const q = preset ? preset.q : S.period.q;
+    if (!q) return;
     const qs = q.from != null ? `from=${q.from}&to=${q.to}` : `start=${Math.floor(q.start)}&end=${Math.floor(q.end)}`;
-    let r;
-    try { r = await api(`/api/period?${qs}`); } catch (e) { clear(box).append(h("p", { class: "muted", text: e.message })); return; }
+    const seq = (S.periodSeq = (S.periodSeq || 0) + 1);
+    let r, err = null;
+    try { r = await api(`/api/period?${qs}`); } catch (e) { err = e; }
+    if (seq !== S.periodSeq || box !== S.periodBox) return;      // a newer choice was made meanwhile
+    if (err) { clear(box).append(h("p", { class: "muted", text: err.message })); return; }
     clear(box);
     if (r.empty) { box.append(h("p", { class: "muted", text: "No scanned blocks in this range yet." + (r.blocks_total ? " The full history scan will get there." : "") })); return; }
     const span = `Blocks ${fmtNum(r.first)}–${fmtNum(r.last)} · ${fmtDate(r.first_time).slice(0, 10)} – ${fmtDate(r.last_time).slice(0, 10)}`;
@@ -1243,20 +1254,26 @@
     const [sum, latest] = await Promise.all([api("/api/summary").catch(() => null), api("/api/blocks?limit=8").catch(() => [])]);
     // nothing changed (e.g. paused, or no new block): leave the page alone
     const sig = JSON.stringify([sum, latest]);
-    if (sig === S.dataSig) return;
+    if (sig === S.dataSig && !S.redrawPending) return;
     S.dataSig = sig;
     S.summary = sum; S.latestBlocks = latest;
-    // re-render data views only when no dialog is open and the user is not interacting with a form
+    redrawDataView();
+  }
+  // re-render data views only when no dialog is open and the user is not interacting with a form;
+  // otherwise remember it, so the new data appears as soon as that is over
+  function redrawDataView() {
+    S.redrawPending = false;
+    if (!["overview", "utxo"].includes(S.view)) return;
     const typing = document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
-    if (!$("#dialog").open && !typing && ["overview", "utxo"].includes(S.view)) {
-      S.quiet = true;
-      try { VIEWS[S.view](); } finally { S.quiet = false; }
-    }
+    if ($("#dialog").open || typing) { S.redrawPending = true; return; }
+    S.quiet = true;
+    try { VIEWS[S.view](); } finally { S.quiet = false; }
   }
 
   async function init() {
     initTheme();
     $("#pause-btn").addEventListener("click", togglePause);
+    $("#dialog").addEventListener("close", () => { if (S.redrawPending) setTimeout(redrawDataView, 0); });
     window.addEventListener("hashchange", () => route(false));
     let rz = null, lastW = innerWidth;
     window.addEventListener("resize", () => {

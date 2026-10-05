@@ -262,6 +262,27 @@ class OnDemandLookup(ServerTest):
         for m, *_ in self.node.calls:
             self.assertIn(m, ("REST", "getblockchaininfo", "getblockhash", "getblock", "getblockheader"))
 
+    def test_non_ascii_digits_rejected(self):
+        token = self.csrf()
+        for q in ("\u00b2", "\u0663", "12\u00b3"):          # '²', Arabic-Indic three: isdigit() but not int()
+            r, d = self.post("/api/lookup", {"q": q}, token)
+            self.assertEqual(r.status, 400, (q, d))
+        r, _ = self.req("GET", "/api/block/%C2%B2")
+        self.assertEqual(r.status, 400)
+
+    def test_cache_dropped_when_node_or_rules_change(self):
+        token = self.csrf()
+        r, d = self.post("/api/lookup", {"q": "5"}, token)
+        self.assertEqual(r.status, 200, d)
+        r, _ = self.req("GET", "/api/block/5")
+        self.assertEqual(r.status, 200)
+        node_before = self.app()._lookup_node
+        self.app().scanner.status.set(rules={"id": "different rules"})
+        r, _ = self.req("GET", "/api/block/5")
+        self.assertEqual(r.status, 404)                       # not served from the old context
+        self.assertIsNone(self.app()._lookup_node)
+        self.assertIsNotNone(node_before)
+
 
 class Helpers(unittest.TestCase):
     def test_csv_safe(self):

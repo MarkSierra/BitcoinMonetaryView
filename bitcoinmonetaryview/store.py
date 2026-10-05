@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS blocks (
     utxo_spent INTEGER, utxo_spent_bytes INTEGER, utxo_done INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS blocks_time ON blocks(time);
+CREATE INDEX IF NOT EXISTS blocks_hash ON blocks(hash);
 CREATE TABLE IF NOT EXISTS sample (
     height INTEGER PRIMARY KEY, hash BLOB NOT NULL, size INTEGER, stored INTEGER, weight INTEGER,
     tx_count INTEGER, envelope INTEGER, op_return INTEGER, multisig INTEGER, scriptsig INTEGER,

@@ -410,16 +410,25 @@ class Scanner(threading.Thread):
                     self.sleep(30)
                     info = None
                     continue
-                if time.monotonic() - last_follow > FOLLOW_TIP_SECONDS:
+                if self.store.get_meta("full_done") != "1" and \
+                        time.monotonic() - last_follow > FOLLOW_TIP_SECONDS:
                     # keep "latest blocks" and the totals current during a long history scan
+                    # (not once the full scan is done: then full_pass takes each new block itself)
                     last_follow = time.monotonic()
-                    self.follow_new_blocks_quick(int(self.node.chain_info()["blocks"]))
+                    fresh = self.node.chain_info()
+                    if int(fresh["blocks"]) > tip:
+                        self.follow_new_blocks_quick(int(fresh["blocks"]))
+                        # continue with the fresh chain info: a reorg check against the older
+                        # tip would treat the block just stored as replaced
+                        info, last_info = fresh, time.monotonic()
+                        self.update_node_info(info)
+                        continue
                 q = self.config.quick_pass_blocks
                 if q and self.store.get_meta("quick_done") != "1" and tip - full_next + 1 > q:
                     self.quick_pass(tip, q)
                     self.maybe_utxo_info(force_first=True)
                 elif self.store.get_meta("sample_done") != "1":
-                    self.sample_pass(tip, full_next)
+                    self.sample_pass(tip, full_next, info)
                 else:
                     self.full_pass(tip, info)
                 info = None if time.monotonic() - last_info > 30 else info
@@ -668,11 +677,15 @@ class Scanner(threading.Thread):
         (normally the quick pass). Heights are multiples of N, so the plan is the same after a
         restart. Returns (heights, end) or None when sampling is off or not worth it.
         """
-        n = self.config.sample_every
-        if not n:
-            return None
-        n = max(MIN_SAMPLE_EVERY, n)
         end = self.store.get_meta("sample_top")
+        if end is not None and self.store.get_meta("sample_every"):
+            # a pass already under way keeps its grid: mixing two spacings would bias the estimate
+            n = int(self.store.get_meta("sample_every"))
+        else:
+            n = self.config.sample_every
+            if not n:
+                return None
+            n = max(MIN_SAMPLE_EVERY, n)
         if end is None:
             low = self.store.lowest_block_from(full_next)
             end = low if low is not None else tip + 1
@@ -683,9 +696,11 @@ class Scanner(threading.Thread):
             return None
         return heights, end, n
 
-    def sample_pass(self, tip, full_next):
+    def sample_pass(self, tip, full_next, info):
         """Analyse an evenly spaced sample of the unscanned history for an early whole-chain
         estimate. Results go to their own table and never into the exact per-block results."""
+        if self.skip_pruned(info, full_next):
+            return          # the plan starts at the full scan's cursor, which just moved
         plan = self.sample_plan(tip, full_next)
         if plan is None:
             self.store.begin()
@@ -733,35 +748,56 @@ class Scanner(threading.Thread):
                 self.status.event("info", f"Sample pass finished in {time.monotonic() - t0:.0f}s — "
                                           "whole-chain estimate available")
             self.store.commit()
+        except (mr.BlockInvalid, NodeError):
+            # keep the samples taken so far; if the node pruned the blocks we were after,
+            # move the cursor past them so the next plan skips them instead of retrying forever
+            self.store.commit()
+            if self.skip_pruned(self.node.chain_info(), full_next):
+                return
+            raise
         except BaseException:
             self.store.rollback()
             raise
 
     def follow_new_blocks_quick(self, tip):
-        """While history is still pending, show newly mined blocks (statistics only)."""
+        """While history is still pending, show newly mined blocks (statistics only). Every block
+        above the quick pass is taken, in order, so the exact results at the top stay one
+        contiguous range (after the app was off for a while too)."""
         if self.store.get_meta("quick_done") != "1":
             return
         top = int(self.store.get_meta("quick_top", tip))
         if tip <= top:
             return
+        todo = [h for h in range(top + 1, tip + 1) if not self.store.has_block(h)]
+        if len(todo) > 10:
+            self.status.event("info", f"Catching up on {tip - top:,} new blocks ({top + 1:,}–{tip:,})")
+        hashes = self.node.hashes_for(todo)
+        by_height = dict(zip(todo, hashes))
+        last_commit = time.monotonic()
+        results = self.fetch_ordered(todo, hashes)
         self.store.begin()
         try:
-            for h in range(max(top + 1, tip - 9), tip + 1):
-                if self.store.has_block(h):
-                    continue
-                hx = self.node.block_hash(h)
-                try:
-                    res = worker.analyze_verified(self.node.block(hx), h, hx, self.dust_start(), self._policy_obj)
-                except mr.BlockInvalid as e:
-                    res = e
-                res = self.accept(h, hx, res, None)
-                self.store.put_block(h, res, utxo_done=False)
-                self.status.event("info", f"New block {h:,}: {self.describe_block(h, res)}")
-            self.store.set_meta("quick_top", tip)
+            for h in range(top + 1, tip + 1):
+                if h in by_height:
+                    i, res, lat = next(results)
+                    res = self.accept(h, by_height[h], res, None)
+                    self.store.put_block(h, res, utxo_done=False)
+                    if len(todo) <= 10:
+                        self.status.event("info", f"New block {h:,}: {self.describe_block(h, res)}")
+                    self.throttle(lat)
+                self.store.set_meta("quick_top", h)
+                if time.monotonic() - last_commit > COMMIT_SECONDS:
+                    self.store.commit()
+                    self.store.begin()
+                    last_commit = time.monotonic()
+                    if self.stop_event.is_set():
+                        break
             self.store.commit()
         except BaseException:
             self.store.rollback()
             raise
+        finally:
+            results.close()
 
     def skip_pruned(self, info, nxt):
         """If the node has pruned past our cursor, jump forward instead of retrying forever."""
