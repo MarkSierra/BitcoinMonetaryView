@@ -23,6 +23,15 @@ benefits on *their own* node, with *their own* data.
 
 ---
 
+## Install
+
+| Platform | How |
+|---|---|
+| **Umbrel** | Add the community app store [`https://github.com/MarkSierra/umbrel-community-app-store`](https://github.com/MarkSierra/umbrel-community-app-store) in your Umbrel's App Store, then install **Monetary View** — [steps](#umbrel) |
+| **Start9 (StartOS 0.4)** | Download the `.s9pk` from the [StartOS package releases](https://github.com/MarkSierra/BitcoinMonetaryView-startos/releases) and sideload it — [steps](#start9-startos) |
+| **Docker** | `ghcr.io/marksierra/bitcoinmonetaryview:latest` — [steps](#docker) |
+| **Any computer with Python** | See the [quick start](#quick-start) below |
+
 ## Quick start
 
 Requirements: Python 3.10+ (standard library only — nothing to install) and a Bitcoin Core or Knots node.
@@ -79,10 +88,14 @@ Packaging details: [docs/startos.md](docs/startos.md).
 
 ### Umbrel
 
-**Community app store (umbrelOS 1.x and 2.0):** in Umbrel open the App Store → ⋯ → *Community App Stores*,
-paste `https://github.com/MarkSierra/umbrel-community-app-store` and click *Add*, then install
-**Monetary View** from that store. It runs next to Umbrel's Bitcoin Node or Bitcoin Knots app, connects
-automatically and needs no setup; Umbrel's own login protects the dashboard. The scan results are excluded from
+**Community app store (umbrelOS 1.x and 2.0):**
+[MarkSierra/umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store)
+
+1. In Umbrel open the **App Store** → **⋯** (top right) → **Community App Stores**.
+2. Paste `https://github.com/MarkSierra/umbrel-community-app-store` and click **Add**.
+3. Open **Mark Sierra's App Store** and install **Monetary View**.
+
+It runs next to Umbrel's Bitcoin Node or Bitcoin Knots app, connects automatically and needs no setup; Umbrel's own login protects the dashboard. The scan results are excluded from
 Umbrel backups (they can always be rebuilt); your settings are kept. Packaging details:
 [docs/umbrel.md](docs/umbrel.md).
 
