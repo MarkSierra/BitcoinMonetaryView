@@ -232,8 +232,8 @@ class Scanner(threading.Thread):
         node = Node(c.rpc_url, user=c.rpc_user or None, password=c.rpc_password,
                     cookie_file=c.rpc_cookie_file or None, proxy=proxy, cafile=c.rpc_cafile or None,
                     timeout=c.rpc_timeout, use_rest=c.use_rest)
-        # In managed mode the platform wires the app to the node over its internal network.
-        node.transport.trusted_network = c.managed
+        # On a platform (StartOS, Umbrel) the app reaches the node over its internal network.
+        node.transport.trusted_network = c.platform
         return node
 
     def policy(self):

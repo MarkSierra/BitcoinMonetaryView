@@ -5,6 +5,7 @@
 
 (() => {
   // ------------------------------------------------------------------ constants
+  const PLATFORM_NAMES = { startos: "StartOS", umbrel: "Umbrel" };
   const CARRIERS = ["envelope", "op_return", "multisig", "scriptsig"];
   const LABEL = {
     monetary: "Monetary data",
@@ -1032,7 +1033,9 @@
     const byName = {};
     (settings ? settings.settings : []).forEach((x) => { byName[x.name] = x; });
 
+    const platformName = PLATFORM_NAMES[st.platform] || st.platform;
     const nodeCard = h("div", { class: "card" }, h("h2", { text: "Your node" }), h("p", { class: "sub", text: "Connection used for all read-only requests" }),
+      st.platform && !st.managed ? notice("info", `Running on ${platformName}: it connects this app to your Bitcoin node and protects this dashboard with its own login.`, null, "in-card") : null,
       h("dl", { class: "kv" },
         h("dt", { text: "Address" }), h("dd", { text: node.url || "–" }),
         h("dt", { text: "Software" }), h("dd", { text: node.version || "–" }),
@@ -1089,7 +1092,7 @@
       try { await post("/api/settings", { changes }); msg.textContent = "Saved."; setTimeout(viewConnection, 300); }
       catch (e) { msg.textContent = `Not saved: ${e.message}`; }
     }
-    const pinnedNote = (x) => x && !x.editable ? h("span", { class: "src", text: st.managed ? "managed" : `set via ${x.source}` }) : null;
+    const pinnedNote = (x) => x && !x.editable ? h("span", { class: "src", text: st.managed ? "managed" : st.platform && x.source === "env" ? `set by ${platformName}` : `set via ${x.source}` }) : null;
     ctrl.append(
       h("div", { class: "form-row" }, h("label", null, "Speed profile", pinnedNote(prof)), seg,
         h("div", { class: "help", text: "Eco is gentlest on your node (default). Full speed uses parallel requests. The scanner also backs off automatically when your node responds slowly." })),
@@ -1103,7 +1106,7 @@
         } }) : null)),
       msg);
     const ctrlCard = h("div", { class: "card" }, h("h2", { text: "Scan settings" }),
-      h("p", { class: "sub", text: st.managed ? `Managed by ${st.managed_by === "startos" ? "StartOS" : st.managed_by} — change these in the service's Actions.` : "These only affect this app." }), ctrl);
+      h("p", { class: "sub", text: st.managed ? `Managed by ${platformName} — change these in the service's Actions.` : "These only affect this app." }), ctrl);
 
     // all settings (read-only list)
     const setTable = settings ? dataTable(["Setting", "Value", "Source"], settings.settings.map((x) => [x.name,

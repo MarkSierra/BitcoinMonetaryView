@@ -52,6 +52,9 @@ def main(argv=None):
     log.info("Data directory: %s", data_dir)
     if config.managed:
         log.info("Managed by %s: settings are read-only in the web interface", config.managed_by)
+    elif config.platform:
+        log.info("Running on %s: it connects the node and fronts the web interface",
+                 {"umbrel": "Umbrel"}.get(config.managed_by, config.managed_by))
 
     try:
         os.nice(10)     # analysis work yields to everything else on this machine

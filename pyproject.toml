@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bitcoinmonetaryview"
-version = "0.2.1"
+version = "0.2.2"
 description = "Read-only spam analysis for Bitcoin Core/Knots nodes, based on the Monetary Node rules"
 readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }

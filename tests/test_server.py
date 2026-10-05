@@ -201,6 +201,31 @@ class Managed(ServerTest):
         self.assertEqual(r.status, 200)
 
 
+class OnUmbrel(ServerTest):
+    """Umbrel: its proxy fronts the UI and connects the node, but the settings stay in the app."""
+    env = {"BMV_MANAGED_BY": "umbrel"}
+    cli_extra = {"bind": "0.0.0.0", "rpc_url": "http://10.21.21.8:8332"}
+
+    def test_umbrel_mode(self):
+        r, d = self.req("GET", "/api/status", host="umbrel.tail1234.ts.net:8338")
+        self.assertEqual(r.status, 200)        # Host check delegated to Umbrel's app proxy
+        st = json.loads(d)
+        self.assertEqual(st["platform"], "umbrel")
+        self.assertFalse(st["managed"])
+        self.assertTrue(st["can_rescan"])
+        self.assertFalse(any("without a password" in w for w in st["warnings"]))
+        tok = self.csrf()
+        r, d = self.post("/api/settings", {"changes": {"scan_window": "01:00-05:00"}}, token=tok)
+        self.assertEqual(r.status, 200, d)
+        self.assertEqual(self.config.scan_window, "01:00-05:00")
+
+    def test_internal_rpc_over_http_is_trusted(self):
+        from bitcoinmonetaryview.scanner import Scanner
+        self.assertFalse(Scanner(self.config).make_node().transport.plaintext_remote)
+        plain = Config(self.dir, cli={"rpc_url": "http://10.21.21.8:8332", "rpc_user": "u", "rpc_password": "p"}, env={})
+        self.assertTrue(Scanner(plain).make_node().transport.plaintext_remote)
+
+
 class OnDemandLookup(ServerTest):
     """'Analyse this block now': read-only fetch through the whitelisted client, CSRF, cooldown."""
 

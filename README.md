@@ -77,6 +77,15 @@ Start9 root CA and pass it with `--rpc-cafile` (TLS verification is never disabl
 
 Packaging details: [docs/startos.md](docs/startos.md).
 
+### Umbrel
+
+**Community app store (umbrelOS 1.x and 2.0):** in Umbrel open the App Store → ⋯ → *Community App Stores*,
+paste `https://github.com/MarkSierra/umbrel-community-app-store` and click *Add*, then install
+**Monetary View** from that store. It runs next to Umbrel's Bitcoin Node or Bitcoin Knots app, connects
+automatically and needs no setup; Umbrel's own login protects the dashboard. The scan results are excluded from
+Umbrel backups (they can always be rebuilt); your settings are kept. Packaging details:
+[docs/umbrel.md](docs/umbrel.md).
+
 ### Docker
 
 ```bash
@@ -87,7 +96,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64 and ARM64):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.2.1`) — use it as
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.2.2`) — use it as
 `image:` instead of `build: .` in the compose file, or fetch it with
 `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
