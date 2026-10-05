@@ -52,6 +52,7 @@ LOOKUP_COOLDOWN = 3.0        # seconds between on-demand block analyses
 LOOKUP_CACHE = 256
 LOOKUP_TTL = 1800            # cached on-demand results expire (reorgs near the tip)
 HEX64 = re.compile(r"^[0-9a-fA-F]{64}$")
+HEIGHT = re.compile(r"^[0-9]{1,9}$")       # ASCII only: str.isdigit() also accepts e.g. '²'
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
        "connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; "
        "base-uri 'none'; form-action 'self'")
@@ -95,10 +96,23 @@ class App:
         self._lookup_lock = threading.Lock()
         self._lookup_last = 0.0
         self._lookup_node = None
+        self._lookup_key = None
         self._lookup_cache = collections.OrderedDict()     # height -> (time, block dict)
 
     # ------------------------------------------------------------ on-demand block analysis
+    def _lookup_context(self):
+        """Drop the lookup connection and cached results when the node, network or rules change,
+        so a lookup never uses the old node and never serves a block from the old chain."""
+        c, sc = self.config, self.scanner
+        key = (c.rpc_url, c.rpc_user, c.rpc_password, c.rpc_cookie_file, c.tor_proxy, c.rpc_cafile,
+               c.use_rest, sc.store_path, (sc.status.get("rules") or {}).get("id"))
+        if key != self._lookup_key:
+            self._lookup_key = key
+            self._lookup_node = None
+            self._lookup_cache.clear()
+
     def cached_lookup(self, height=None, hexhash=None):
+        self._lookup_context()
         now = time.time()
         for h, (t, b) in list(self._lookup_cache.items()):
             if now - t > LOOKUP_TTL:
@@ -115,7 +129,7 @@ class App:
         touches the scan results. One lookup at a time, at most one per LOOKUP_COOLDOWN.
         """
         q = str(query or "").strip()
-        if q.isdigit() and len(q) <= 9:
+        if HEIGHT.match(q):
             height, hexhash = int(q), None
         elif HEX64.match(q):
             height, hexhash = None, q.lower()
@@ -323,7 +337,7 @@ def make_handler(app):
                                           if a else [])
                 if path.startswith("/api/block/"):
                     key = path[len("/api/block/"):]
-                    if key.isdigit() and len(key) <= 9:
+                    if HEIGHT.match(key):
                         b = (a.block(int(key)) if a else None) or app.cached_lookup(height=int(key))
                     elif HEX64.match(key):
                         b = (a.block_by_hash(key) if a else None) or app.cached_lookup(hexhash=key)

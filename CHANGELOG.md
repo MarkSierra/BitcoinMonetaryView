@@ -2,6 +2,28 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.2.1] — 2026-10-05
+
+Bug fixes from a code and security review of 0.2.0 (the security review found no vulnerabilities).
+
+- Pruned nodes: the sample pass no longer gets stuck retrying when the node has pruned the blocks it wants to
+  sample; it moves past them like the full scan does.
+- After the full scan is complete, each new block is downloaded and analysed once again, not twice.
+- No more false "Chain reorganisation" warnings when a new block arrives during the history scan.
+- After the app was off for a while during the scan, every block mined meanwhile is picked up, not only the
+  last 10; previously the rest counted as scanned and was missing from the whole-chain estimate.
+- Changing `sample_every` while the sample pass runs no longer mixes two sampling grids (the documented
+  behaviour: it applies from the next rescan).
+- Custom range: a range reaching back before the scanned blocks no longer shows as 100 % scanned; the
+  shortcuts (24 hours, 7 / 30 days, this year) are recalculated each time instead of keeping the time of the
+  first click; a slow earlier answer no longer replaces a later choice; "This year" clears the year list.
+- Block dialog: a slow "Analyse this block now" result no longer appears in a dialog opened meanwhile; the
+  "scan gets there" time uses the byte-based scan estimate (block counts were far too optimistic).
+- Overview: new data that arrived while a dialog was open is shown when it closes.
+- Block search: non-ASCII digits (e.g. "²") are rejected with a clear message instead of an internal error;
+  after switching to another node or rules, on-demand results from the old one are dropped; finding a block
+  by hash uses a database index (built once on the first start after the update).
+
 ## [0.2.0] — 2026-10-05
 
 - Sample pass: right after the quick pass, every 100th block of the remaining history is analysed (about 1 %

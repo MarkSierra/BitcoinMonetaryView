@@ -15,6 +15,7 @@ from .rules import monetary_rules as mr
 from .store import BLOCK_COLS, BUCKET
 
 BLOCKS_PER_YEAR = 52560
+BLOCK_SPACING = 600          # target seconds between blocks
 AGE_BANDS = (("2+ years", 2 * BLOCKS_PER_YEAR), ("1–2 years", BLOCKS_PER_YEAR),
              ("6–12 months", BLOCKS_PER_YEAR // 2), ("under 6 months", 0))
 SUM_COLS = ("size", "stored", "weight", "tx_count", "envelope", "op_return", "multisig", "scriptsig",
@@ -326,7 +327,9 @@ class Analytics:
         if below is None and above is None:
             return None
         if below is None:
-            return above[0]
+            # t lies before every scanned block: extrapolate back at the 10-minute target spacing
+            # (not the earliest scanned height, which would make the range look fully scanned)
+            return max(0, above[0] - int((above[1] - t) // BLOCK_SPACING))
         if above is None:
             return below[0] + (0 if not after else 1)
         if above[1] == below[1]:

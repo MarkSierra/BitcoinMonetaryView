@@ -10,7 +10,7 @@ from bitcoinmonetaryview.analytics import Analytics
 from bitcoinmonetaryview.config import Config
 from bitcoinmonetaryview.rules import monetary_rules as mr
 from bitcoinmonetaryview.scanner import Scanner, in_window
-from bitcoinmonetaryview.store import Bloom
+from bitcoinmonetaryview.store import Bloom, Store
 from tests import blockgen as bg
 from tests.mocknode import MockChain, MockNode
 
@@ -252,6 +252,88 @@ class ScannerTest(unittest.TestCase):
             sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH = old
 
 
+    def test_new_block_fetched_once_after_full_scan(self):
+        from bitcoinmonetaryview import scanner as sc
+        old = sc.FOLLOW_TIP_SECONDS
+        sc.FOLLOW_TIP_SECONDS = 0
+        try:
+            s = self.start()
+            self.wait_phase(s, "live", cond=self.tip_ok(s))
+            n_calls = len(self.node.calls)
+            self.chain.append(spending_maker(self.chain))
+            self.wait_phase(s, "live", cond=self.tip_ok(s))
+            time.sleep(0.3)
+            new_hex = self.chain.tip_hex()
+            fetches = [c for c in self.node.calls[n_calls:]
+                       if new_hex in str(c) and (c[0] == "getblock" or "/rest/block/" in str(c))]
+            self.assertEqual(len(fetches), 1, fetches)
+            self.assertNotIn("New block", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+        finally:
+            sc.FOLLOW_TIP_SECONDS = old
+
+    def test_new_block_during_scan_is_not_a_reorg(self):
+        from bitcoinmonetaryview import scanner as sc
+        old = sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH
+        sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH = 0, 2
+        try:
+            self.node.delay = 0.05
+            s = self.start(speed_profile="eco", sample_every="0")
+            self.wait_phase(s, "full", timeout=60)
+            self.chain.append(spending_maker(self.chain))
+            self.node.delay = 0
+            self.wait_phase(s, "live", cond=self.tip_ok(s))
+            msgs = " ".join(e["message"] for e in s.status.snapshot()["activity"])
+            self.assertNotIn("reorganisation", msgs)
+            self.assertEqual(self.db_utxo()[0], brute_force_utxo(self.chain))
+        finally:
+            sc.FOLLOW_TIP_SECONDS, sc.FULL_BATCH = old
+
+    def test_catch_up_after_downtime_leaves_no_hole(self):
+        from bitcoinmonetaryview import scanner as sc
+        old = sc.FOLLOW_TIP_SECONDS
+        sc.FOLLOW_TIP_SECONDS = 0
+        path = os.path.join(self.dir, "regtest", "bmv.sqlite")
+        try:
+            self.node.delay = 0.05
+            s = self.start(speed_profile="eco", sample_every="0", quick_pass_blocks="5")
+            self.wait_phase(s, "full", timeout=60)
+            s.stop()
+            s.join(10)
+            mk = spending_maker(self.chain)
+            for _ in range(15):                      # more new blocks than the old 10-block window
+                self.chain.append(mk)
+            tip = len(self.chain.blocks) - 1
+            s2 = self.start(speed_profile="eco", sample_every="0", quick_pass_blocks="5")
+            t = time.time()
+            while time.time() - t < 30:
+                db = sqlite3.connect(path)
+                qt = db.execute("SELECT value FROM meta WHERE key='quick_top'").fetchone()
+                db.close()
+                if qt and int(qt[0]) == tip:
+                    break
+                time.sleep(0.05)
+            db = sqlite3.connect(path)
+            have = {r[0] for r in db.execute("SELECT height FROM blocks WHERE height>=35")}
+            db.close()
+            self.assertEqual(have, set(range(35, tip + 1)))       # contiguous up to the tip
+            self.node.delay = 0
+            self.wait_phase(s2, "live", cond=self.tip_ok(s2))
+            self.assertEqual(self.db_utxo()[0], brute_force_utxo(self.chain))
+        finally:
+            sc.FOLLOW_TIP_SECONDS = old
+
+    def test_sample_grid_kept_when_setting_changes(self):
+        from bitcoinmonetaryview import scanner as sc
+        s = Scanner(self.config(sample_every="250"))
+        s.store = Store(os.path.join(self.dir, "plan.sqlite"))
+        s.store.set_meta("sample_top", 5000)
+        s.store.set_meta("sample_every", 100)
+        heights, end, n = s.sample_plan(5000, 0)
+        self.assertEqual((n, end), (100, 5000))
+        self.assertEqual(heights, list(range(0, 5000, 100)))
+        s.store.close()
+
+
 class PrunedNode(ScannerTest):
     def test_jumps_when_node_prunes_past_cursor(self):
         self.node.pruned = True
@@ -272,6 +354,27 @@ class PrunedNode(ScannerTest):
         db.close()
         self.assertEqual(meta["utxo_complete"], "0")
         self.assertIn("pruned blocks", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+
+    def test_sample_pass_skips_pruned_blocks(self):
+        from bitcoinmonetaryview import scanner as sc
+        old = sc.MIN_SAMPLE_EVERY, sc.MIN_SAMPLE_BLOCKS
+        sc.MIN_SAMPLE_EVERY, sc.MIN_SAMPLE_BLOCKS = 1, 2
+        try:
+            self.node.pruned = True
+            self.node.prune_height = 0
+            self.node.delay = 0.1
+            s = self.start(speed_profile="eco", sample_every="3")
+            self.wait_phase(s, "sample", timeout=60)
+            self.node.prune_height = 30          # the node prunes the blocks the sample pass is after
+            self.node.delay = 0
+            self.wait_phase(s, "live", cond=self.tip_ok(s))
+        finally:
+            sc.MIN_SAMPLE_EVERY, sc.MIN_SAMPLE_BLOCKS = old
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        meta = dict(db.execute("SELECT key, value FROM meta").fetchall())
+        db.close()
+        self.assertEqual(meta["sample_done"], "1")
+        self.assertEqual(meta["full_start_height"], "30")
 
 
 class StoreRegressions(unittest.TestCase):
@@ -363,6 +466,22 @@ class StoreRegressions(unittest.TestCase):
         self.assertEqual(a.block_by_hash(b["hash"])["height"], 35)
         self.assertEqual(len(a.history()["months"]), 1)
         self.assertEqual(a.history()["coverage"]["gap"]["from"], 10)
+        st.close()
+
+    def test_period_before_scanned_blocks_is_not_fully_covered(self):
+        st, path, truth = self._estimate_store(every=2)
+        st.begin()
+        st.db.execute("DELETE FROM blocks WHERE height<30")          # only the quick pass (30-39)
+        st.db.execute("UPDATE blocks SET time=1700000000+height*600")
+        st.commit()
+        a = Analytics(path)
+        p = a.period(start=1700000000 + 10 * 600, end=1700000000 + 39 * 600)
+        self.assertEqual(p["blocks_scanned"], 10)
+        self.assertEqual(p["blocks_total"], 30)                      # 10-39, extrapolated back
+        self.assertAlmostEqual(p["coverage_pct"], 100 / 3)
+        self.assertEqual(a.period(start=1600000000, end=1700000000)["blocks_total"], 1)    # clamped at 0
+        plan = st.db.execute("EXPLAIN QUERY PLAN SELECT * FROM blocks WHERE hash=?", (b"x" * 32,)).fetchall()
+        self.assertIn("blocks_hash", str(plan))
         st.close()
 
     def test_disconnect_restores_bloom_entries(self):
