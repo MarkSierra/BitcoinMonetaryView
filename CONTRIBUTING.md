@@ -23,7 +23,10 @@ Thanks for helping! A few ground rules keep this project trustworthy:
    x86_64 and ARM64 (tags `X.Y.Z`, `X.Y`, `latest`). The package is public.
 4. StartOS: in [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos), move the
    `upstream` submodule to the release, bump the package version and release notes in
-   `startos/versions/current.ts` (`X.Y.Z:0`), then publish a GitHub release there with tag `vX.Y.Z.0`: its
-   *Release* workflow attaches both `.s9pk` files permanently (see its `UPDATING.md`).
+   `startos/versions/current.ts` (`X.Y.Z:0`, notes in English and German), then publish a GitHub release
+   there with tag `vX.Y.Z_0` (Start9's tag convention): its *Release* workflow attaches both `.s9pk` files
+   permanently (see its `UPDATING.md`).
+5. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the
+   new image by version and digest and bump `version` / `releaseNotes` (see [docs/umbrel.md](docs/umbrel.md)).
 
 By contributing you agree that your contribution is licensed under the AGPL-3.0-or-later.
