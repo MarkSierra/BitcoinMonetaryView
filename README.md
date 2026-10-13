@@ -13,7 +13,7 @@ shows, in a web dashboard:
   a year, since Ordinals, any dates or block heights),
 - the details of any single block, looked up by height or hash.
 
-![Dashboard overview (demo data)](docs/screenshot-overview.png)
+![Dashboard overview (a fully scanned mainnet node)](docs/screenshot-overview.png)
 
 It is meant for people who run Core or Knots today and are considering a Monetary Node: it shows the
 benefits on *their own* node, with *their own* data.
