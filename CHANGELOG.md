@@ -6,6 +6,7 @@ All notable changes are documented here. This project uses [semantic versioning]
 
 - Fix: switching between pages no longer shifts the header and page a few pixels sideways. A short page
   without a scrollbar (e.g. UTXO set) was wider than a long one; the scrollbar's space is now always kept.
+- The About page uses the full width for its text, like the other pages.
 
 ## [0.2.5] — 2026-10-27
 
