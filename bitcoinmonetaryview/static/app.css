@@ -87,6 +87,7 @@
 [hidden] { display: none !important; }
 main:focus { outline: none; }
 html, body { margin: 0; }
+html { scrollbar-gutter: stable; }   /* same width with or without a scrollbar: the layout doesn't jump between pages */
 body {
   background: var(--bg);
   color: var(--text);
