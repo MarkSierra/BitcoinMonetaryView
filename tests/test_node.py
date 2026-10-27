@@ -8,10 +8,24 @@ import threading
 import unittest
 
 from bitcoinmonetaryview.node import rpc as rpcmod
-from bitcoinmonetaryview.node.client import Node
+from bitcoinmonetaryview.node.client import Node as _Node
 from bitcoinmonetaryview.node.transport import NodeUnreachable, is_local_host, socks5_connect
 from bitcoinmonetaryview.rules import monetary_rules as mr
 from tests.mocknode import MockChain, MockNode
+
+_open_nodes = []
+
+
+class Node(_Node):
+    """The app's client; tests close every instance afterwards (see tearDownModule)."""
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        _open_nodes.append(self)
+
+
+def tearDownModule():
+    for n in _open_nodes:
+        n.close()
 
 
 class Whitelist(unittest.TestCase):
@@ -55,6 +69,28 @@ class Client(unittest.TestCase):
     def setUp(self):
         self.chain = MockChain()
         self.chain.build(5)
+
+    def test_close_reaches_every_threads_connection(self):
+        # the scanner fetches with a thread pool; each thread keeps its own keep-alive connection
+        import concurrent.futures
+        node = MockNode(self.chain)
+        try:
+            n = Node(node.url, "u", "p")
+            barrier = threading.Barrier(3)
+
+            def fetch(_):
+                barrier.wait(10)                  # three threads at once -> three connections
+                return n.chain_info()["blocks"]
+            with concurrent.futures.ThreadPoolExecutor(3) as pool:
+                self.assertEqual(list(pool.map(fetch, range(3))), [4, 4, 4])
+            conns = list(n.rpc.transport._conns)
+            self.assertEqual(len(conns), 3)
+            self.assertTrue(all(c.sock is not None for c in conns))
+            n.close()                             # from another thread than the ones that opened them
+            self.assertTrue(all(c.sock is None for c in conns))
+            self.assertEqual(n.chain_info()["blocks"], 4)   # still usable: reconnects
+        finally:
+            node.stop()
 
     def test_rpc_and_rest_blocks_equal(self):
         node = MockNode(self.chain)

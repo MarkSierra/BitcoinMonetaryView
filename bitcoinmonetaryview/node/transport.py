@@ -128,6 +128,8 @@ class Transport:
             ctx.verify_mode = ssl.CERT_REQUIRED
             self.tls_ctx = ctx
         self._local = threading.local()
+        self._conns = set()                 # every thread's connection, so close() can reach them all
+        self._conns_lock = threading.Lock()
         # Set when a platform (StartOS, Umbrel, ...) connects the app to the node over its
         # internal container network: plain HTTP there never leaves the machine.
         self.trusted_network = False
@@ -148,13 +150,27 @@ class Transport:
         if c is None:
             c = _Conn(self.host, self.port, self.timeout, self.proxy, self.tls_ctx)
             self._local.conn = c
+        with self._conns_lock:              # (again) after a close() by another thread: it reconnects
+            self._conns.add(c)
         return c
 
-    def close(self):
+    def _drop(self):
+        """Close this thread's connection (after an error or a 'Connection: close')."""
         c = getattr(self._local, "conn", None)
         if c is not None:
             c.close()
             self._local.conn = None
+            with self._conns_lock:
+                self._conns.discard(c)
+
+    def close(self):
+        """Close the connections of all threads. Call when no request is in flight
+        (end of a scan session): each fetch thread keeps its own keep-alive connection."""
+        with self._conns_lock:
+            conns, self._conns = self._conns, set()
+        for c in conns:
+            c.close()
+        self._local.conn = None
 
     def request(self, method, path, body=None, headers=None):
         """Returns (status, body_bytes). Retries once on a stale keep-alive connection."""
@@ -168,27 +184,27 @@ class Transport:
                 resp = conn.getresponse()
                 length = resp.getheader("Content-Length")
                 if length is not None and int(length) > MAX_RESPONSE_BYTES:
-                    self.close()
+                    self._drop()
                     raise NodeError("response from node is too large")
                 data = resp.read(MAX_RESPONSE_BYTES + 1)
                 if len(data) > MAX_RESPONSE_BYTES:
-                    self.close()
+                    self._drop()
                     raise NodeError("response from node is too large")
                 if resp.getheader("Connection", "").lower() == "close":
-                    self.close()
+                    self._drop()
                 return resp.status, data
             except ssl.SSLCertVerificationError as e:
-                self.close()
+                self._drop()
                 raise NodeUnreachable(
                     f"TLS certificate not trusted ({e.verify_message}). If your node uses its own "
                     "certificate authority (e.g. Start9), set rpc_cafile to its root CA file.") from None
             except (http.client.RemoteDisconnected, http.client.BadStatusLine,
                     BrokenPipeError, ConnectionResetError) as e:
-                self.close()
+                self._drop()
                 if attempt == 0:
                     continue
                 raise NodeUnreachable(f"connection to node lost: {e}") from None
             except (OSError, http.client.HTTPException) as e:
-                self.close()
+                self._drop()
                 raise NodeUnreachable(f"cannot reach node at {self.describe()}: {e}") from None
         raise NodeUnreachable("cannot reach node")

@@ -24,3 +24,20 @@ You can expect an acknowledgement within a few days. Fixes are released as a new
   result in memory only (never in the scan database), and is CSRF-protected, one request at a time with a
   cooldown.
 - No external network requests besides your node.
+
+## Verifying a download
+
+Every release from 0.2.5 on carries a signed build-provenance attestation: a statement, signed with GitHub's
+keyless Sigstore signing, that the file was built by this repository's release workflow from a specific commit.
+With the [GitHub CLI](https://cli.github.com/):
+
+```sh
+# Docker image (covers all architectures)
+gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.2.5 --repo MarkSierra/BitcoinMonetaryView
+
+# StartOS package, after downloading it from the package's GitHub release
+gh attestation verify bitcoinmonetaryview_x86_64.s9pk --repo MarkSierra/BitcoinMonetaryView-startos
+```
+
+A successful check prints the workflow and commit the file was built from. If it fails, do not install the file.
+The Docker images also carry build provenance and an SBOM (list of contained software) from the build itself.

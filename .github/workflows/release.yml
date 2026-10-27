@@ -65,6 +65,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write        # signs the provenance attestation (Sigstore, keyless)
+      attestations: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -85,7 +87,8 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.tag }}
             type=raw,value=latest
             type=sha
-      - uses: docker/build-push-action@v6
+      - id: build
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64,linux/riscv64
@@ -94,3 +97,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: true
           sbom: true
+      - name: Image name in lower case (registry names must be)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      # Signed statement that this exact image (all architectures) was built by this workflow
+      # from this commit. Verify: gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:X.Y.Z
+      #   --repo MarkSierra/BitcoinMonetaryView
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
