@@ -1,7 +1,7 @@
 # BitcoinMonetaryView — base image for Docker and future platform packages (StartOS, Umbrel, …)
-# For reproducible builds, pin the base image by digest, e.g. python:3.12-slim@sha256:<digest>.
-ARG PYTHON_IMAGE=python:3.12-slim
-FROM ${PYTHON_IMAGE}
+# Base image pinned by digest: every build uses exactly this image. Dependabot opens a PR
+# when python:3.12-slim gets a new digest (Python or Debian security updates).
+FROM python:3.12-slim@sha256:12316debbfb86890f6b2d825820612741ba527ad5a44e3902759141d572bfe8f
 
 LABEL org.opencontainers.image.title="BitcoinMonetaryView" \
       org.opencontainers.image.description="Read-only spam analysis for Bitcoin Core/Knots nodes (Monetary Node rules)" \
