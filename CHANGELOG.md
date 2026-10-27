@@ -2,8 +2,28 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] — 2026-10-27
 
+- **Five languages:** the dashboard is now also available in Spanish, French and Polish, besides English and
+  German — the languages of StartOS. It follows the browser's language (English otherwise); the new language
+  menu in the header switches it. Each translation is its own file and only the chosen one is loaded; Polish
+  number-dependent texts use the right plural forms (1 blok, 2 bloki, 5 bloków). The translations are new: the
+  footer links to a form for reporting mistakes. Exports keep English column names.
+- **Trends and records** on the overview: spam in the last 30 days and its yearly pace, the spam share of the
+  last 1,000 blocks compared with a year earlier, and the biggest spam block and month. Computed from the
+  blocks already scanned (no extra requests to the node); a window counts only when 95 % of it is scanned.
+- **Layout on tablets and phones:** on screens up to 1,200 px the tabs get their own row you can swipe, with the
+  current tab in view (on a tablet, "Connection" used to be cut off with no way to reach it). On phones the
+  status figures sit in a tidy grid, and the overview shows the latest four blocks in compact tiles.
+- **Block tiles:** the height, date and spam share no longer overlap the fill, so they stay readable at any share
+  and in the light theme.
+- Placeholders in the shape of the page instead of a bare "Loading…"; the UTXO tile shows "–" instead of "0"
+  before the full scan has counted anything; tidier settings form (range buttons no longer break into two
+  lines, even input widths, "—" for empty values).
+- **Correction:** oversized scriptSigs are counted as spam but, as upstream's coverage audit
+  (`docs/CARRIERS.md`) now states, a Monetary Node keeps them in block storage. The About page and README no
+  longer say they are removed. The figures were already right, since "storage saved" uses upstream's own
+  calculation. Upstream's rule files are unchanged since the pinned commit, so no rescan is needed.
 - Fix: switching between pages no longer shifts the header and page a few pixels sideways. A short page
   without a scrollbar (e.g. UTXO set) was wider than a long one; the scrollbar's space is now always kept.
 - The About page uses the full width for its text, like the other pages.

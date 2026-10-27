@@ -10,7 +10,7 @@ from bitcoinmonetaryview.analytics import Analytics
 from bitcoinmonetaryview.config import Config
 from bitcoinmonetaryview.rules import monetary_rules as mr
 from bitcoinmonetaryview.scanner import Scanner, in_window
-from bitcoinmonetaryview.store import Bloom, Store
+from bitcoinmonetaryview.store import BLOCK_COLS, Bloom, Store
 from tests import blockgen as bg
 from tests.mocknode import MockChain, MockNode
 
@@ -705,3 +705,73 @@ class Misc(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Trends(unittest.TestCase):
+    """Pace and records for the overview, from synthetic block rows."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "x.sqlite")
+        self.st = Store(self.path)
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        self.addCleanup(self.st.close)
+
+    def fill(self, top, spam_at):
+        cols = ",".join(BLOCK_COLS)
+        rows = []
+        for h in range(top + 1):
+            r = dict.fromkeys(BLOCK_COLS, 0)
+            r.update(height=h, hash=h.to_bytes(32, "little"), time=1600000000 + h * 600, size=1000, stored=900,
+                     envelope=spam_at(h))
+            rows.append(tuple(r[c] for c in BLOCK_COLS))
+        self.st.begin()
+        self.st.db.executemany(f"INSERT INTO blocks ({cols}) VALUES ({','.join('?' * len(BLOCK_COLS))})", rows)
+        self.st.commit()
+
+    def test_windows_and_records(self):
+        top = 60000
+        ya = top - 52560
+
+        def spam(h):
+            if h == 1234:
+                return 900                                     # the biggest spam block
+            if h > top - 1000:
+                return 300                                     # last 1,000 blocks: 30 %
+            if ya - 999 <= h <= ya:
+                return 100                                     # same window a year earlier: 10 %
+            return 50
+        self.fill(top, spam)
+        t = Analytics(self.path).trends()
+        self.assertAlmostEqual(t["recent"]["spam_pct"], 30)
+        self.assertAlmostEqual(t["year_ago"]["spam_pct"], 10)
+        self.assertEqual((t["year_ago"]["from"], t["year_ago"]["to"]), (ya - 999, ya))
+        month = 1000 * 300 + 3320 * 50
+        self.assertEqual(t["last_month"]["blocks"], 4320)
+        self.assertEqual(t["last_month"]["spam_bytes"], month)
+        self.assertAlmostEqual(t["last_month"]["per_year_bytes"], month * 365 / 30)
+        self.assertEqual(t["top_block"]["height"], 1234)
+        self.assertAlmostEqual(t["top_block"]["spam_pct"], 90)
+        months = Analytics(self.path).history()["months"]
+        best = max(months, key=lambda m: m["envelope"])
+        self.assertEqual((t["top_month"]["month"], t["top_month"]["spam_bytes"]), (best["month"], best["envelope"]))
+        self.assertFalse(t["complete"])
+
+    def test_half_scanned_window_is_not_a_trend(self):
+        """A window counts only when 95 % of its blocks are scanned."""
+        self.fill(60000, lambda h: 10)
+        self.st.begin()
+        self.st.db.execute("DELETE FROM blocks WHERE height BETWEEN ? AND ?", (60000 - 52560 - 999, 60000 - 52560 - 900))
+        self.st.commit()
+        t = Analytics(self.path).trends()
+        self.assertIsNone(t["year_ago"])                      # 100 of 1,000 blocks missing
+        self.assertIsNotNone(t["recent"])
+
+    def test_short_chain(self):
+        self.fill(500, lambda h: 0)
+        t = Analytics(self.path).trends()
+        self.assertIsNone(t["last_month"])
+        self.assertIsNone(t["recent"])
+        self.assertIsNone(t["top_block"])                     # no spam at all: no record to show
+        self.assertIsNone(t["top_month"])
+        self.assertTrue(Analytics(os.path.join(self.dir, "none.sqlite")).trends()["empty"])

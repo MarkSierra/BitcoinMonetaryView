@@ -1,0 +1,33 @@
+name: Translation mistake
+description: A text in German, Spanish, French or Polish is wrong, unclear or sounds unnatural.
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you! The translations are new, and corrections from native speakers make them better.
+        You can write in English or in the language itself.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - Deutsch
+        - Español
+        - Français
+        - Polski
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where and what does it say now?
+      description: The page (e.g. Overview, Connection) and the current text. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What should it say?
+    validations:
+      required: true

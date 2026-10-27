@@ -33,7 +33,7 @@ With the [GitHub CLI](https://cli.github.com/):
 
 ```sh
 # Docker image (covers all architectures)
-gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.2.5 --repo MarkSierra/BitcoinMonetaryView
+gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.3.0 --repo MarkSierra/BitcoinMonetaryView
 
 # StartOS package, after downloading it from the package's GitHub release
 gh attestation verify bitcoinmonetaryview_x86_64.s9pk --repo MarkSierra/BitcoinMonetaryView-startos

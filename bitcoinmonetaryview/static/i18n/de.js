@@ -1,9 +1,10 @@
 /* BitcoinMonetaryView — SPDX-License-Identifier: AGPL-3.0-or-later
- * Translations of the dashboard. English is the source text in app.js; a missing entry
- * shows the English text. Keep {name} placeholders identical (tests/test_i18n.py checks). */
+ * German translation of the dashboard. English is the source text in app.js and index.html; a
+ * missing entry shows the English text. Keep {name} placeholders identical (tests/test_i18n.py
+ * checks). How to add or correct a language: CONTRIBUTING.md, "Translations". */
 "use strict";
 
-window.BMV_I18N = (() => {
+(window.BMV_I18N = window.BMV_I18N || {}).de = (() => {
   // ---- texts of the dashboard itself (keys: the English text in app.js and index.html)
   const strings = {
     "Monetary data": "Monetäre Daten",
@@ -54,14 +55,14 @@ window.BMV_I18N = (() => {
     "Scanning your node…": "Dein Node wird gescannt …",
     "The first results appear after a few blocks. You can watch the progress in the bar above.": "Die ersten Ergebnisse erscheinen nach wenigen Blöcken. Den Fortschritt siehst du in der Leiste oben.",
     "Spam by carrier": "Spam nach Art",
-    "Bytes a Monetary Node removes from block storage, by type — estimated for the whole chain": "Bytes, die ein Monetary Node aus dem Blockspeicher entfernt, nach Art – geschätzt für die gesamte Chain",
-    "Bytes a Monetary Node removes from block storage, by type": "Bytes, die ein Monetary Node aus dem Blockspeicher entfernt, nach Art",
+    "Spam in your blocks by type — estimated for the whole chain": "Spam in deinen Blöcken nach Art – geschätzt für die gesamte Chain",
+    "Spam in your blocks by type": "Spam in deinen Blöcken nach Art",
     "of block data": "der Blockdaten",
     "Carrier": "Art",
     "Share of spam": "Anteil am Spam",
     "Block storage: today vs. Monetary Node": "Blockspeicher: heute vs. Monetary Node",
-    "Same blocks, same proof-of-work — only the data carriers removed (estimated for the whole chain)": "Dieselben Blöcke, derselbe Proof-of-Work – nur die Datenträger entfernt (geschätzt für die gesamte Chain)",
-    "Same blocks, same proof-of-work — only the data carriers removed": "Dieselben Blöcke, derselbe Proof-of-Work – nur die Datenträger entfernt",
+    "Same blocks, same proof-of-work — only the data carriers removed (estimated for the whole chain)": "Dieselben Blöcke, derselbe Proof-of-Work – nur die eingebetteten Daten entfernt (geschätzt für die gesamte Chain)",
+    "Same blocks, same proof-of-work — only the data carriers removed": "Dieselben Blöcke, derselbe Proof-of-Work – nur die eingebetteten Daten entfernt",
     "Your node (Core/Knots)": "Dein Node (Core/Knots)",
     "The saving is usually larger than the spam itself: in transactions that carry spam, a Monetary Node also drops the witness data (signatures and other data already verified when the block was accepted), and transactions that are only spam are reduced to their txid. Its own bookkeeping (stored txids, a record of removed outputs) is included. Undo files and optional indexes are not.": "Die Ersparnis ist meist größer als der Spam selbst: In Transaktionen mit Spam verwirft ein Monetary Node auch die Witness-Daten (Signaturen und andere Daten, die bei der Annahme des Blocks bereits geprüft wurden), und Transaktionen, die nur aus Spam bestehen, werden auf ihre txid reduziert. Seine eigene Buchführung (gespeicherte txids, ein Verzeichnis der entfernten Outputs) ist eingerechnet. Undo-Dateien und optionale Indizes nicht.",
     "Spam in your blocks": "Spam in deinen Blöcken",
@@ -141,7 +142,7 @@ window.BMV_I18N = (() => {
     "Kept by carrier policy": "Durch Carrier-Policy behalten",
     "{n} payment-protocol OP_RETURN(s)": "{n} Zahlungsprotokoll-OP_RETURN(s)",
     "Spam per month": "Spam pro Monat",
-    "Bytes removed by a Monetary Node, by carrier, for each month of blocks scanned": "Von einem Monetary Node entfernte Bytes, nach Art, für jeden Monat gescannter Blöcke",
+    "Spam by type, for each month of blocks scanned": "Spam nach Art, für jeden Monat gescannter Blöcke",
     "Spam share of block data": "Spam-Anteil an den Blockdaten",
     "Percentage of each month's block bytes that are spam": "Anteil der Block-Bytes jedes Monats, der Spam ist",
     "Spam entries in the UTXO set over time": "Spam-Einträge im UTXO-Set im Zeitverlauf",
@@ -202,17 +203,18 @@ window.BMV_I18N = (() => {
     "What this app shows": "Was diese App zeigt",
     "BitcoinMonetaryView reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.": "BitcoinMonetaryView liest jeden Block von deinem eigenen Bitcoin-Core- oder Knots-Node und wendet die Regeln des Monetary-Node-Projekts darauf an. Die App zeigt, wie viel vom Speicher und UTXO-Set deines Nodes von Daten belegt wird, die kein Geld sind – und was ein Monetary Node stattdessen speichern würde.",
     "It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.": "Sie greift ausschließlich lesend zu: Sie nutzt nur lesende RPC-Aufrufe (eine feste, in der App erzwungene Whitelist), rührt die Dateien deines Nodes nie an und speichert ihre eigenen Ergebnisse in einer separaten Datenbank.",
-    "A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then stores no spam. Inscription witness data, oversized OP_RETURN outputs, Stamps-style fake-key outputs and oversized scriptSigs are removed from block storage after validation. No fork, no confiscation, nobody's permission required.": "Ein Monetary Node ist ein Bitcoin-Node, der jede Konsensregel und jeden Block validiert und danach keinen Spam speichert. Witness-Daten von Inscriptions, übergroße OP_RETURN-Outputs, Fake-Key-Outputs im Stil von Stamps und übergroße scriptSigs werden nach der Validierung aus dem Blockspeicher entfernt. Kein Fork, keine Konfiszierung, niemandes Erlaubnis nötig.",
+    "A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.":
+      "Ein Monetary Node ist ein Bitcoin-Node, der jede Konsensregel und jeden Block prüft und danach den Spam aus seinem Blockspeicher entfernt: Witness-Daten von Inscriptions, übergroße OP_RETURN-Outputs und Fake-Key-Outputs im Stil von Stamps werden nach der Prüfung entfernt. Kein Fork, keine Konfiszierung, niemand muss um Erlaubnis gefragt werden.",
     "The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.": "Die Blöcke lassen sich weiterhin gegen ihre Header und den echten Proof-of-Work prüfen: Die Merkle-Root eines Blocks wird über die txids berechnet, und der Monetary Node behält die 32-Byte-txid jeder Transaktion, die er verändert. Entfernte Outputs behalten einen kleinen Filtereintrag, sodass alles Entfernte weiterhin ausgegeben und lokal validiert werden kann.",
     "What counts as spam": "Was als Spam zählt",
     "Inscriptions: ": "Inscriptions: ",
     "data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.": "Daten in OP_FALSE OP_IF … OP_ENDIF-Envelopes in Taproot-Script-Path- und P2WSH-Witnesses.",
     "OP_RETURN over 83 bytes: ": "OP_RETURN über 83 Bytes: ",
-    "oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.": "übergroße Datenträger. Geprüfte Envelopes von Zahlungsprotokollen (Shielded Bitcoin) bleiben erhalten, wenn die Carrier-Policy aktiv ist.",
+    "oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.": "übergroße Daten-Carrier. Geprüfte Envelopes von Zahlungsprotokollen (Shielded Bitcoin) bleiben erhalten, wenn die Carrier-Policy aktiv ist.",
     "Stamps / fake keys: ": "Stamps / Fake-Keys: ",
     "bare multisig or P2PK outputs whose \"public keys\" are not points on the secp256k1 curve — data disguised as keys.": "Bare-Multisig- oder P2PK-Outputs, deren „Public Keys“ keine Punkte auf der secp256k1-Kurve sind – als Schlüssel getarnte Daten.",
     "Oversized scriptSig: ": "Übergroße scriptSig: ",
-    "input scripts over 1,650 bytes.": "Input-Scripts über 1.650 Bytes.",
+    "input scripts over 1,650 bytes. Counted as spam, but the Monetary Node keeps them in block storage, so they save nothing.": "Input-Scripts über 1.650 Bytes. Sie zählen als Spam, aber der Monetary Node behält sie im Blockspeicher – sie sparen also nichts ein.",
     "Inscription-era P2TR dust: ": "P2TR-Dust aus der Inscription-Ära: ",
     "taproot outputs under 1,000 sats since block 767,430. They stay in block storage but leave the UTXO database.": "Taproot-Outputs unter 1.000 Sats seit Block 767.430. Sie bleiben im Blockspeicher, verlassen aber die UTXO-Datenbank.",
     "Honest limitations": "Ehrliche Grenzen",
@@ -327,6 +329,22 @@ window.BMV_I18N = (() => {
     "Toggle light/dark theme": "Helles/dunkles Design umschalten",
     "Toggle theme": "Design umschalten",
     "Scan status": "Scan-Status",
+    "Spam in the last 30 days": "Spam der letzten 30 Tage",
+    "≈ {size} per year at this pace": "≈ {size} pro Jahr in diesem Tempo",
+    "of the data in the last {n} blocks": "der Daten in den letzten {n} Blöcken",
+    "a year earlier: {pct}": "ein Jahr zuvor: {pct}",
+    "unchanged": "unverändert",
+    "{d} points": "{d} Prozentpunkte",
+    "Spam share of recent blocks": "Spam-Anteil der letzten Blöcke",
+    "Biggest spam block": "Größter Spam-Block",
+    "block {h} · {pct} spam": "Block {h} · {pct} Spam",
+    "Biggest spam month": "Größter Spam-Monat",
+    "{month} · {n} blocks": "{month} · {n} Blöcke",
+    "Trends and records": "Trends und Rekorde",
+    "From the whole chain": "Aus der gesamten Chain",
+    "From the blocks scanned so far — records can still change": "Aus den bisher gescannten Blöcken – Rekorde können sich noch ändern",
+    "New translation — report a mistake": "Neue Übersetzung – Fehler melden",
+    "Language: {name}": "Sprache: {name}",
     "quick": "Schnelldurchlauf",
     "sample": "Stichprobe",
     "default": "Standard",
@@ -417,7 +435,11 @@ window.BMV_I18N = (() => {
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "Die Weboberfläche ist aus deinem Netzwerk ohne Passwort erreichbar. Setze auth_user/auth_password (und idealerweise tls_cert/tls_key).",
   };
-  const N = (x) => x.replace(/[,.]/g, (c) => (c === "," ? "." : ","));     // 1,234.5 -> 1.234,5
+  /** An English-formatted number from the server (1,234.5) in German format (1.234,5). */
+  const N = (x) => {
+    const d = (x.split(".")[1] || "").length;
+    return new Intl.NumberFormat("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d }).format(Number(x.replace(/,/g, "")));
+  };
   const patterns = [
     [/^Connecting to (.+)$/, (m, url) => `Verbinde mit ${url}`],
     [/^Connected to (\S+) node (.*) \(REST (on|off)\)$/, (m, net, v, r) => `Verbunden mit ${net}-Node ${v} (REST ${r === "on" ? "an" : "aus"})`],
@@ -482,5 +504,5 @@ window.BMV_I18N = (() => {
     return msg;
   }
 
-  return { de: { strings, server } };
+  return { strings, server };
 })();

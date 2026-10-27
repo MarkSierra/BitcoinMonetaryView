@@ -3,11 +3,18 @@
  * textContent; HTML strings are never parsed. */
 "use strict";
 
-(() => {
+(async () => {
   // ------------------------------------------------------------------ language
-  // English is the source text; i18n.js holds the translations. The language follows the
-  // browser unless the viewer picked one with the EN/DE switch (remembered in this browser).
-  const LANGS = { en: "English", de: "Deutsch" };
+  // English is the source text; i18n/<lang>.js holds each translation and only the chosen one is
+  // loaded. The language follows the browser unless the viewer picked one in the language menu
+  // (remembered in this browser).
+  const LANGS = {
+    en: { name: "English", locale: "en-US", clock: "en-GB" },
+    de: { name: "Deutsch", locale: "de-DE" },
+    es: { name: "Español", locale: "es-ES" },
+    fr: { name: "Français", locale: "fr-FR" },
+    pl: { name: "Polski", locale: "pl-PL" },
+  };
   function pickLang() {
     let saved = null;
     try { saved = localStorage.getItem("bmv-lang"); } catch (e) { /* storage blocked */ }
@@ -18,12 +25,30 @@
     }
     return "en";
   }
-  const LANG = pickLang();
-  const LOCALE = LANG === "de" ? "de-DE" : "en-US";
-  const I18N = (window.BMV_I18N || {})[LANG] || null;
-  /** Translate an English UI text; {name} placeholders are filled from vars. */
+  /** Load i18n/<lang>.js; if it cannot be loaded the dashboard stays in English. */
+  function loadLang(lang) {
+    if (lang === "en") return Promise.resolve(null);
+    return new Promise((resolve) => {
+      const el = document.createElement("script");
+      el.src = `i18n/${lang}.js`;
+      el.onload = () => resolve((window.BMV_I18N || {})[lang] || null);
+      el.onerror = () => resolve(null);
+      document.head.append(el);
+    });
+  }
+  const I18N = await loadLang(pickLang());
+  const LANG = I18N ? pickLang() : "en";
+  const LOCALE = LANGS[LANG].locale;
+  const PLURAL = new Intl.PluralRules(LOCALE);
+  /** Translate an English UI text; {name} placeholders are filled from vars. A translation can
+   *  also be {one, few, many, other}: the form is chosen by the number in vars.n (Polish needs
+   *  three forms where English has two). */
   function _t(en, vars) {
     let out = (I18N && I18N.strings[en]) || en;
+    if (typeof out === "object") {
+      const n = vars && vars.n != null ? Number(String(vars.n).replace(/[^0-9]/g, "")) : NaN;
+      out = out[isNaN(n) ? "other" : PLURAL.select(n)] || out.other;
+    }
     if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
     return out;
   }
@@ -129,7 +154,7 @@
     return new Date(t * 1000).toISOString().slice(0, 10);
   }
   const fmtDate = (t) => new Date(t * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC";
-  const clock = (t) => new Date(t * 1000).toLocaleTimeString(LANG === "de" ? "de-DE" : "en-GB", { hour12: false });
+  const clock = (t) => new Date(t * 1000).toLocaleTimeString(LANGS[LANG].clock || LOCALE, { hour12: false });
 
   // ------------------------------------------------------------------ api
   async function api(path) {
@@ -546,7 +571,7 @@
     const donutBox = h("div", { class: "chart" });
     const donutCard = h("div", { class: "card" },
       h("h2", { text: _t("Spam by carrier") }),
-      h("p", { class: "sub", text: est ? _t("Bytes a Monetary Node removes from block storage, by type — estimated for the whole chain") : _t("Bytes a Monetary Node removes from block storage, by type") }),
+      h("p", { class: "sub", text: est ? _t("Spam in your blocks by type — estimated for the whole chain") : _t("Spam in your blocks by type") }),
       h("div", { class: "donut-wrap" }, donutBox,
         h("div", { class: "donut-legend" }, items.map((it) => h("div", { class: "row" },
           h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }),
@@ -570,7 +595,7 @@
     const kpis = h("div", { class: "grid grid-4" },
       kpi(_t("Spam in your blocks"), ap + fmtBytes(B.spam_bytes), _t("{pct} of {size} block data", { pct: ap + fmtPct(B.spam_pct), size: ap + fmtBytes(t.size) }), "envelope"),
       kpi(_t("Storage a Monetary Node saves"), saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? _t("{pct} less block storage", { pct: ap + fmtPct(B.saved_pct) }) : _t("No saving in the blocks scanned so far"), "monetary"),
-      kpi(_t("Spam entries in the UTXO set"), fmtCompact(u.count), utxoFoot(u), "p2tr_dust"),
+      kpi(_t("Spam entries in the UTXO set"), u.full_done || u.count ? fmtCompact(u.count) : "–", utxoFoot(u), "p2tr_dust"),
       kpi(_t("Transactions touched"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })));
 
     viewShell(
@@ -593,8 +618,39 @@
           h("a", { class: "btn btn-ghost", href: "#/about", text: _t("What is a Monetary Node?") }))),
       kpis,
       h("div", { class: "grid grid-2", style: { marginTop: "16px" } }, donutCard, compare),
+      trendsCard(S.trends),
       h("div", { class: "section-title", text: _t("Latest blocks") }),
       blockStrip());
+  }
+  /** Pace and records, from the blocks scanned so far (no extra requests to the node). */
+  function trendsCard(tr) {
+    if (!tr || tr.empty) return null;
+    const lm = tr.last_month, rc = tr.recent, ya = tr.year_ago, tb = tr.top_block, tm = tr.top_month;
+    const tiles = [];
+    if (lm) {
+      tiles.push(kpi(_t("Spam in the last 30 days"), fmtBytes(lm.spam_bytes),
+        _t("≈ {size} per year at this pace", { size: fmtBytes(lm.per_year_bytes) }), "envelope"));
+    }
+    if (rc) {
+      let foot = _t("of the data in the last {n} blocks", { n: fmtNum(rc.blocks) });
+      if (ya) {
+        const d = rc.spam_pct - ya.spam_pct;
+        foot = _t("a year earlier: {pct}", { pct: fmtPct(ya.spam_pct) }) + " · " +
+          (Math.abs(d) < 0.05 ? _t("unchanged") : (d > 0 ? "▲ " : "▼ ") + _t("{d} points", { d: fixed(Math.abs(d), 1) }));
+      }
+      tiles.push(kpi(_t("Spam share of recent blocks"), fmtPct(rc.spam_pct), foot));
+    }
+    if (tb) {
+      const t = kpi(_t("Biggest spam block"), fmtBytes(tb.spam_bytes),
+        _t("block {h} · {pct} spam", { h: fmtNum(tb.height), pct: fmtPct(tb.spam_pct, 0) }));
+      tiles.push(h("a", { class: "kpi-link", href: `#/block/${tb.height}` }, t));
+    }
+    if (tm) tiles.push(kpi(_t("Biggest spam month"), fmtBytes(tm.spam_bytes), _t("{month} · {n} blocks", { month: tm.month, n: fmtNum(tm.blocks) })));
+    if (!tiles.length) return null;
+    return h("div", { class: "card trends", style: { marginTop: "16px" } },
+      h("h2", { text: _t("Trends and records") }),
+      h("p", { class: "sub", text: tr.complete ? _t("From the whole chain") : _t("From the blocks scanned so far — records can still change") }),
+      h("div", { class: "grid grid-4 period-kpis" }, tiles));
   }
   function utxoFoot(u) {
     if (!u.full_done) return _t("Exact figure available after the full history scan");
@@ -637,8 +693,8 @@
       }
       fill.style.height = Math.min(100, b.spam_pct) + "%";
       wrap.append(h("a", { class: "blockcard", href: `#/block/${b.height}`, title: _t("Block {h}", { h: fmtNum(b.height) }) },
-        fill,
         h("div", { class: "top" }, h("div", { class: "h", text: fmtNum(b.height) }), h("div", { class: "t", text: timeAgo(b.time) })),
+        h("div", { class: "zone" }, fill),
         h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, 0), h("small", { text: _t("spam · {size}", { size: fmtBytes(b.size, 2) }) })))));
     }
     return wrap;
@@ -823,7 +879,7 @@
     const area = h("div", { class: "chart" }), share = h("div", { class: "chart" }), utxo = h("div", { class: "chart" });
     const note = h("div");
     const c1 = h("div", { class: "card" }, h("h2", { text: _t("Spam per month") }),
-      h("p", { class: "sub", text: _t("Bytes removed by a Monetary Node, by carrier, for each month of blocks scanned") }), legend(CARRIERS), area);
+      h("p", { class: "sub", text: _t("Spam by type, for each month of blocks scanned") }), legend(CARRIERS), area);
     const c2 = h("div", { class: "card" }, h("h2", { text: _t("Spam share of block data") }),
       h("p", { class: "sub", text: _t("Percentage of each month's block bytes that are spam") }), share);
     const c3 = h("div", { class: "card" }, h("h2", { text: _t("Spam entries in the UTXO set over time") }),
@@ -946,7 +1002,7 @@
       h("h2", { text: _t("Custom range") }),
       h("p", { class: "sub", text: _t("Spam statistics for any period — pick a shortcut or enter dates or block heights") }),
       h("div", { class: "period-controls" }, seg, year),
-      h("div", { class: "period-controls" }, mode, a, h("span", { class: "muted", text: _t("to") }), b,
+      h("div", { class: "period-controls period-inputs" }, mode, a, h("span", { class: "muted", text: _t("to") }), b,
         h("button", { class: "btn", type: "button", text: _t("Show"), onclick: apply }), msg),
       S.periodBox);
   }
@@ -1031,14 +1087,14 @@
       P(_t("BitcoinMonetaryView reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
       P(_t("It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.")),
       h("h2", { text: _t("What is a Monetary Node?") }),
-      P(_t("A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then stores no spam. Inscription witness data, oversized OP_RETURN outputs, Stamps-style fake-key outputs and oversized scriptSigs are removed from block storage after validation. No fork, no confiscation, nobody's permission required.")),
+      P(_t("A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.")),
       P(_t("The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.")),
       h("h2", { text: _t("What counts as spam") }),
       h("ul", null,
         h("li", null, h("strong", { text: _t("Inscriptions: ") }), _t("data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.")),
         h("li", null, h("strong", { text: _t("OP_RETURN over 83 bytes: ") }), _t("oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.")),
         h("li", null, h("strong", { text: _t("Stamps / fake keys: ") }), _t("bare multisig or P2PK outputs whose \"public keys\" are not points on the secp256k1 curve — data disguised as keys.")),
-        h("li", null, h("strong", { text: _t("Oversized scriptSig: ") }), _t("input scripts over 1,650 bytes.")),
+        h("li", null, h("strong", { text: _t("Oversized scriptSig: ") }), _t("input scripts over 1,650 bytes. Counted as spam, but the Monetary Node keeps them in block storage, so they save nothing.")),
         h("li", null, h("strong", { text: _t("Inscription-era P2TR dust: ") }), _t("taproot outputs under 1,000 sats since block 767,430. They stay in block storage but leave the UTXO database."))),
       h("h2", { text: _t("Honest limitations") }),
       h("ul", null,
@@ -1132,7 +1188,7 @@
     ctrl.append(
       h("div", { class: "form-row" }, h("label", null, _t("Speed profile"), pinnedNote(prof)), seg,
         h("div", { class: "help", text: _t("Eco is gentlest on your node (default). Full speed uses parallel requests. The scanner also backs off automatically when your node responds slowly.") })),
-      h("div", { class: "form-row" }, h("label", null, _t("Scan window"), pinnedNote(win)), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, winInput, tzInput, saveWin),
+      h("div", { class: "form-row" }, h("label", null, _t("Scan window"), pinnedNote(win)), h("div", { class: "inline-fields" }, winInput, tzInput, saveWin),
         h("div", { class: "help", text: _t("Optional: only scan history during these hours. New blocks are always analysed.") })),
       h("div", { class: "form-row" }, h("label", { text: _t("Scanning") }), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
         st.can_pause ? h("button", { class: "btn", type: "button", text: st.paused ? _t("Resume") : _t("Pause"), onclick: togglePause }) : null,
@@ -1146,7 +1202,7 @@
 
     // all settings (read-only list)
     const setTable = settings ? dataTable([_t("Setting"), _t("Value"), _t("Source")], settings.settings.map((x) => [x.name,
-      Array.isArray(x.value) ? x.value.join(", ") : x.value === "" || x.value == null ? "—" : String(x.value), _t(x.source)])) : h("p", { text: "–" });
+      Array.isArray(x.value) ? x.value.join(", ") || "—" : x.value === "" || x.value == null ? "—" : String(x.value), _t(x.source)])) : h("p", { text: "–" });
     const allCard = h("div", { class: "card" }, h("h2", { text: _t("All settings") }),
       h("p", { class: "sub", text: _t("Set them via command line, environment variables (BMV_…) or settings.json in the data directory. Secrets are never shown.") }), setTable);
 
@@ -1276,6 +1332,11 @@
     document.querySelectorAll(".tabs a").forEach((a) => {
       if (a.dataset.view === S.view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
+    // narrow screens: the tabs are one row you can swipe; keep the current one in view
+    const cur = $(".tabs a[aria-current=page]"), tabs = $(".tabs");
+    if (cur && tabs.scrollWidth > tabs.clientWidth) {
+      tabs.scrollLeft = Math.max(0, cur.offsetLeft - (tabs.clientWidth - cur.offsetWidth) / 2);
+    }
   }
   async function togglePause() {
     const st = S.status;
@@ -1300,12 +1361,13 @@
   }
   async function refreshData() {
     S.lastDataFetch = Date.now();
-    const [sum, latest] = await Promise.all([api("/api/summary").catch(() => null), api("/api/blocks?limit=8").catch(() => [])]);
+    const [sum, latest, trends] = await Promise.all([api("/api/summary").catch(() => null),
+      api("/api/blocks?limit=8").catch(() => []), api("/api/trends").catch(() => null)]);
     // nothing changed (e.g. paused, or no new block): leave the page alone
-    const sig = JSON.stringify([sum, latest]);
+    const sig = JSON.stringify([sum, latest, trends]);
     if (sig === S.dataSig && !S.redrawPending) return;
     S.dataSig = sig;
-    S.summary = sum; S.latestBlocks = latest;
+    S.summary = sum; S.latestBlocks = latest; S.trends = trends;
     redrawDataView();
   }
   // re-render data views only when no dialog is open and the user is not interacting with a form;
@@ -1326,16 +1388,40 @@
     for (const el of document.querySelectorAll("[data-i18n-attr]")) {
       for (const a of el.dataset.i18nAttr.split(" ")) if (el.hasAttribute(a)) el.setAttribute(a, _t(el.getAttribute(a)));
     }
-    const other = LANG === "de" ? "en" : "de";
-    const btn = $("#lang-toggle");
-    btn.textContent = other.toUpperCase();
-    btn.title = LANGS[other];
-    btn.setAttribute("aria-label", LANGS[other]);
-    btn.setAttribute("lang", other);
-    btn.addEventListener("click", () => {
-      try { localStorage.setItem("bmv-lang", other); } catch (e) { /* storage blocked: only this page */ }
-      location.reload();
+    initLangMenu();
+    if (I18N) {         // translations are new: invite corrections
+      $("#footer-lang").append(" · ", h("a", { href: "https://github.com/MarkSierra/BitcoinMonetaryView/issues/new?template=translation.yml",
+        rel: "noopener noreferrer", target: "_blank", text: _t("New translation — report a mistake") }));
+    }
+  }
+  /** The language menu in the header: the current language's code; the list shows each name in its own language. */
+  function initLangMenu() {
+    const btn = $("#lang-toggle"), menu = $("#lang-menu");
+    btn.textContent = LANG.toUpperCase();
+    btn.setAttribute("aria-label", _t("Language: {name}", { name: LANGS[LANG].name }));
+    btn.title = btn.getAttribute("aria-label");
+    for (const [code, l] of Object.entries(LANGS)) {
+      menu.append(h("button", { type: "button", role: "menuitemradio", lang: code, "aria-checked": String(code === LANG), text: l.name,
+        onclick: () => {
+          try { localStorage.setItem("bmv-lang", code); } catch (e) { /* storage blocked: only this page */ }
+          if (code === LANG) close(); else location.reload();
+        } }));
+    }
+    const items = () => [...menu.querySelectorAll("button")];
+    function open() {
+      menu.hidden = false; btn.setAttribute("aria-expanded", "true");
+      (items().find((b) => b.getAttribute("aria-checked") === "true") || items()[0]).focus();
+    }
+    function close(focus) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); if (focus) btn.focus(); }
+    btn.addEventListener("click", () => (menu.hidden ? open() : close()));
+    menu.addEventListener("keydown", (e) => {
+      const list = items(), i = list.indexOf(document.activeElement);
+      if (e.key === "Escape") { e.preventDefault(); close(true); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); list[(i + 1) % list.length].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+      else if (e.key === "Tab") close();
     });
+    document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close(); });
   }
 
   async function init() {

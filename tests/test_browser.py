@@ -163,14 +163,41 @@ class Dashboard(unittest.TestCase):
 
     def test_language(self):
         page = self.open(viewport={"width": 1400, "height": 900})
-        self.assertEqual(page.evaluate("document.documentElement.lang"), self.LOCALE[:2])
-        other = "de" if self.LOCALE.startswith("en") else "en"
-        self.assertEqual(page.inner_text("#lang-toggle").lower(), other)
-        page.click("#lang-toggle")                       # switches, remembers, reloads
+        lang = self.LOCALE[:2]
+        self.assertEqual(page.evaluate("document.documentElement.lang"), lang)
+        self.assertEqual(page.inner_text("#lang-toggle").lower(), lang)
+        # a translation invites corrections in the footer; English needs none
+        self.assertEqual(page.locator("#footer-lang a").count(), 0 if lang == "en" else 1)
+        page.click("#lang-toggle")
+        items = page.locator("#lang-menu button")
+        self.assertEqual(items.all_inner_texts(), ["English", "Deutsch", "Español", "Français", "Polski"])
+        self.assertEqual(page.locator("#lang-menu button[aria-checked=true]").get_attribute("lang"), lang)
+        page.keyboard.press("Escape")
+        self.assertTrue(page.locator("#lang-menu").is_hidden())
+        other = "de" if lang == "en" else "en"
+        page.click("#lang-toggle")
+        page.click(f"#lang-menu button[lang={other}]")      # remembers the choice and reloads
         page.wait_for_selector(f"html[lang={other}]")      # (wait_for_function needs eval, which the CSP forbids)
         page.wait_for_selector(".tabs a[aria-current=page]")
         self.assertEqual(page.inner_text(".tabs a[data-view=overview]"), "Übersicht" if other == "de" else "Overview")
         self.assertEqual(self.problems, [])
+
+    def test_tabs_reachable_at_every_width(self):
+        """Wide screens show every tab; narrower ones put the tabs in a row you can swipe, with the
+        current tab scrolled into view (a tablet once hid 'Connection' with no way to see it)."""
+        for width in (1400, 1201, 1200, 820, PHONE):
+            page = self.open(viewport={"width": width, "height": 900}, is_mobile=width < 1000, has_touch=width < 1000)
+            if width > 1200:
+                self.assertLessEqual(page.evaluate("(t => t.scrollWidth - t.clientWidth)(document.querySelector('.tabs'))"), 0,
+                                     f"tabs cut off at {width}px")
+            for route, heading in self.VIEWS.items():
+                with self.subTest(width=width, route=route):
+                    self.visit(page, route, heading)
+                    box = page.evaluate("(() => { const t = document.querySelector('.tabs').getBoundingClientRect(), "
+                                        "a = document.querySelector('.tabs a[aria-current=page]').getBoundingClientRect(); "
+                                        "return [a.left - t.left, t.right - a.right]; })()")
+                    self.assertGreaterEqual(min(box), -1, f"current tab not fully visible at {width}px")
+            self.assertEqual(self.problems, [])
 
     def test_api_reachable(self):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/health", timeout=5) as r:
@@ -178,7 +205,7 @@ class Dashboard(unittest.TestCase):
 
 
 class DashboardGerman(Dashboard):
-    """The same checks with a German browser: German texts are longer, and every page must still fit."""
+    """The same checks in every language: translations are longer than English, and every page must still fit."""
     LOCALE = "de-DE"
     VIEWS = {
         "#/overview": "Dein Node speichert",
@@ -187,6 +214,42 @@ class DashboardGerman(Dashboard):
         "#/utxo": "Wie alt sie sind",
         "#/about": "Was als Spam zählt",
         "#/connection": "Verbindungstest",
+    }
+
+
+class DashboardSpanish(Dashboard):
+    LOCALE = "es-ES"
+    VIEWS = {
+        "#/overview": "Tu nodo almacena",
+        "#/blocks": "Spam por bloque",
+        "#/history": "Spam por mes",
+        "#/utxo": "Qué antigüedad tienen",
+        "#/about": "Qué cuenta como spam",
+        "#/connection": "Prueba de conexión",
+    }
+
+
+class DashboardFrench(Dashboard):
+    LOCALE = "fr-FR"
+    VIEWS = {
+        "#/overview": "Votre nœud stocke",
+        "#/blocks": "Spam par bloc",
+        "#/history": "Spam par mois",
+        "#/utxo": "Leur ancienneté",
+        "#/about": "Ce qui compte comme spam",
+        "#/connection": "Test de connexion",
+    }
+
+
+class DashboardPolish(Dashboard):
+    LOCALE = "pl-PL"
+    VIEWS = {
+        "#/overview": "Twój węzeł przechowuje",
+        "#/blocks": "Spam na blok",
+        "#/history": "Spam na miesiąc",
+        "#/utxo": "Ile mają lat",
+        "#/about": "Co liczy się jako spam",
+        "#/connection": "Test połączenia",
     }
 
 

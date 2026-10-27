@@ -100,11 +100,24 @@ class Basics(ServerTest):
         html = open(os.path.join(ROOT, "bitcoinmonetaryview", "static", "index.html")).read()
         self.assertIsNone(re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html))
         self.assertNotRegex(html, r"(src|href)=\"https?://(?!github\.com/sambitcoin)")
-        for name in ("app.js", "i18n.js"):
-            js = open(os.path.join(ROOT, "bitcoinmonetaryview", "static", name)).read()
+        static = os.path.join(ROOT, "bitcoinmonetaryview", "static")
+        names = ["app.js"] + [f"i18n/{n}" for n in os.listdir(os.path.join(static, "i18n"))]
+        for name in names:
+            js = open(os.path.join(static, name)).read()
             self.assertNotIn("innerHTML", js, name)
             self.assertNotIn("eval(", js, name)
             self.assertIsNone(re.search(r"fetch\(\s*[\"'`]https?:", js), name)
+
+    def test_every_static_file_is_served(self):
+        """The allowlist and the files on disk match: a new language file is served, nothing else is."""
+        from bitcoinmonetaryview.server import STATIC_FILES
+        static = os.path.join(ROOT, "bitcoinmonetaryview", "static")
+        on_disk = {n for n in os.listdir(static) if os.path.isfile(os.path.join(static, n))}
+        on_disk |= {f"i18n/{n}" for n in os.listdir(os.path.join(static, "i18n"))}
+        self.assertEqual({name for name, _ in STATIC_FILES.values()}, on_disk)
+        for path in STATIC_FILES:
+            r, d = self.req("GET", path)
+            self.assertEqual(r.status, 200, path)
 
     def test_path_traversal_refused(self):
         for p in ("/../server.py", "/static/../server.py", "/%2e%2e/server.py", "/..%2fserver.py",
@@ -157,7 +170,7 @@ class Basics(ServerTest):
             self.assertNotIn(b"rpc-s3cret", d, p)
 
     def test_empty_data_endpoints(self):
-        for p in ("/api/summary", "/api/blocks", "/api/history", "/api/export.csv", "/api/export.json",
+        for p in ("/api/summary", "/api/blocks", "/api/history", "/api/trends", "/api/export.csv", "/api/export.json",
                   "/api/range?from=0&to=10"):
             r, _ = self.req("GET", p)
             self.assertEqual(r.status, 200, p)
