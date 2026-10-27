@@ -2,7 +2,7 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.5] — 2026-10-27
 
 - German dashboard: every page, chart, message and the share card are available in German, with German number
   formats (40,4 GB). The dashboard follows the browser's language; the new EN/DE button in the header switches it
