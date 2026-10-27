@@ -2,8 +2,20 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.1] — 2026-10-27
 
+- **Clearer label:** "Transactions touched" is now "Transactions with spam" (on the overview, in a custom
+  range, on the share card and as the Blocks table column) in all five languages. It is the share of
+  transactions a Monetary Node changes: it removes their spam part or keeps only their txid. The figure itself
+  is unchanged; upstream calls it "transactions modified or stripped".
+- **About page brought up to date:** it now explains "Transactions with spam" and where Trends and records come
+  from (and when a comparison appears), lists the five languages with how to switch and how to report a
+  mistake, and names both inscription envelope forms the rules detect (`OP_FALSE OP_IF` and `OP_TRUE
+  OP_NOTIF`). The README's spam table names both forms too.
+- **Tidier tiles:** the figure tiles no longer carry a coloured square. Only some had one, and the one on
+  "Spam in your blocks" used the inscriptions colour for all carriers; colour keys now appear only in chart
+  legends, where they match a colour in the chart. In Trends and records, the biggest spam block, the one
+  tile you can click, is now last and has an arrow.
 - README: how to compare with upstream's published figures, which are in binary units ("GB" = GiB), with
   the converted values from a full mainnet node and why the storage saving is slightly higher here.
 

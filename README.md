@@ -117,7 +117,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64, ARM64 and, since 0.2.4, RISC-V):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.0`) — use it as `image:` instead
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.1`) — use it as `image:` instead
 of `build: .` in the compose file, or fetch it with `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---
@@ -187,7 +187,7 @@ commit `492539256d43`, see [NOTICE](NOTICE)):
 
 | Carrier | Rule | Effect in a Monetary Node |
 |---|---|---|
-| Inscriptions | data in `OP_FALSE OP_IF … OP_ENDIF` envelopes in taproot script-path / P2WSH witnesses | removed from block storage |
+| Inscriptions | data in `OP_FALSE OP_IF … OP_ENDIF` or `OP_TRUE OP_NOTIF … OP_ENDIF` envelopes in taproot script-path / P2WSH witnesses | removed from block storage |
 | OP_RETURN | scripts over 83 bytes (verified payment-protocol envelopes kept, see below) | removed from block storage |
 | Stamps / fake keys | bare multisig or P2PK whose keys are not points on secp256k1 | removed from blocks and the UTXO set |
 | scriptSig | input scripts over 1,650 bytes | counted as spam but kept in block storage (upstream [`docs/CARRIERS.md`](https://github.com/sambitcoin/BitcoinMonetaryNode/blob/main/docs/CARRIERS.md#oversized-scriptsig--counted-never-removed)), so it saves nothing |
@@ -264,10 +264,10 @@ this app uses decimal units (1 GB = 10⁹ bytes) — reported upstream in
 | Original blocks | 296.2 "GB" | 318.0 GB | 318 GB |
 | Spam (all carriers) | 37.2 "GB", 12.56 % | 39.9 GB | 39.9 GB, 12.5 % |
 | — inscriptions / Stamps / OP_RETURN | 37.1 "GB" / 77.5 "MB" / 12.3 "MB" | 39.8 GB / 81.3 MB / 12.9 MB | 39.8 GB / 81.3 MB / 12.9 MB |
-| Transactions touched | 121,599,701 | | 121,769,368 |
+| Transactions with spam (upstream: "modified or stripped") | 121,599,701 | | 121,769,368 |
 | Storage saved | 48.7 "GB", 16.46 % | 52.3 GB | 54.6 GB, 17.2 % |
 
-The spam figures agree. The storage saving and the number of touched transactions are slightly higher here
+The spam figures agree. The storage saving and the number of transactions with spam are slightly higher here
 because the published run predates three rules upstream added later (`OP_NOTIF` envelopes, envelopes in
 P2WSH witnesses, fake keys in bare P2PK — see its
 [`docs/CARRIERS.md`](https://github.com/sambitcoin/BitcoinMonetaryNode/blob/main/docs/CARRIERS.md#closed-gaps)):

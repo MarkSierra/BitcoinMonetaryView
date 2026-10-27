@@ -80,7 +80,7 @@
     "{pct} less block storage": "{pct} de stockage de blocs en moins",
     "No saving in the blocks scanned so far": "Aucune économie dans les blocs analysés jusqu’ici",
     "Spam entries in the UTXO set": "Entrées de spam dans l’ensemble UTXO",
-    "Transactions touched": "Transactions touchées",
+    "Transactions with spam": "Transactions avec spam",
     "of all transactions modified or reduced to a txid": "de toutes les transactions modifiées ou réduites à un txid",
     "{n} of {total} modified or reduced to a txid": "{n} sur {total} modifiées ou réduites à un txid",
     "Spam makes up {x} of recent blocks.": "Le spam représente {x} des blocs récents.",
@@ -128,7 +128,7 @@
     "Height": "Hauteur",
     "Time (UTC)": "Heure (UTC)",
     "Size": "Taille",
-    "Txs touched": "Tx touchées",
+    "Txs with spam": "Tx avec spam",
     "Load more": "Charger plus",
     "The full history scan will get there.": "L’analyse complète de l’historique y arrivera.",
     "At the current speed the full history scan gets there within about {t}.":
@@ -234,8 +234,8 @@
       "Les blocs se vérifient toujours par rapport à leurs en-têtes et à la vraie preuve de travail : la racine de Merkle d’un bloc est calculée sur les txids, et le Monetary Node garde le txid de 32 octets de chaque transaction qu’il modifie. Les outputs retirés gardent une petite entrée de filtre, donc tout ce qui est retiré peut encore être dépensé et validé localement.",
     "What counts as spam": "Ce qui compte comme spam",
     "Inscriptions: ": "Inscriptions : ",
-    "data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.":
-      "données dans des envelopes OP_FALSE OP_IF … OP_ENDIF dans les witnesses taproot script-path et P2WSH.",
+    "data inside OP_FALSE OP_IF … OP_ENDIF or OP_TRUE OP_NOTIF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.":
+      "données dans des envelopes OP_FALSE OP_IF … OP_ENDIF ou OP_TRUE OP_NOTIF … OP_ENDIF dans les witnesses taproot script-path et P2WSH.",
     "OP_RETURN over 83 bytes: ": "OP_RETURN de plus de 83 octets : ",
     "oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.":
       "porteurs de données surdimensionnés. Les envelopes vérifiées de protocoles de paiement (Shielded Bitcoin) sont conservées quand la politique des porteurs est activée.",
@@ -266,6 +266,14 @@
     "Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures.":
       "N’importe quel bloc peut être ouvert sur la page Blocs par sa hauteur ou son hash. Si l’analyse ne l’a pas encore atteint, « Analyser ce bloc maintenant » lit uniquement ce bloc depuis votre nœud et affiche ses chiffres exacts.",
     "Core, Knots and this app": "Core, Knots et cette application",
+    "“Transactions with spam” is the share of transactions a Monetary Node changes: it removes their spam part, or keeps only the txid of a transaction that is nothing but spam. Upstream's results call them “modified or stripped”.":
+      "« Transactions avec spam » est la part des transactions qu’un Monetary Node modifie : il en retire la partie spam ou, si la transaction n’est que du spam, ne garde que son txid. Les résultats du projet d’origine les appellent « modified or stripped ».",
+    "Trends and records on the overview come from the blocks already scanned, without extra requests to your node. A comparison appears once 95 % of its blocks are scanned: the last 30 days (4,320 blocks), and the last 1,000 blocks against the same 1,000 blocks a year earlier.":
+      "Les tendances et records de la vue d’ensemble proviennent des blocs déjà analysés, sans requête supplémentaire à votre nœud. Une comparaison apparaît dès que 95 % de ses blocs sont analysés : les 30 derniers jours (4 320 blocs) et les 1 000 derniers blocs comparés aux mêmes 1 000 blocs un an plus tôt.",
+    "Languages":
+      "Langues",
+    "The dashboard is available in English, German, Spanish, French and Polish. It follows your browser's language, and the menu in the header switches it. The translations are new: if something reads wrong, please report it with the link at the bottom of the page.":
+      "Le tableau de bord est disponible en anglais, allemand, espagnol, français et polonais. Il suit la langue de votre navigateur, et le menu en haut de la page permet de la changer. Les traductions sont nouvelles : si quelque chose sonne faux, signalez-le avec le lien en bas de la page.",
     "Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both.":
       "Les filtres de mempool de Knots cessent de relayer le spam, mais le spam déjà présent dans les blocs est stocké par chaque nœud complet — Core comme Knots. Les chiffres présentés ici valent pour les deux.",
     "Rules in use": "Règles utilisées",

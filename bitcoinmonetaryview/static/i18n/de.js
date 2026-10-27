@@ -71,7 +71,7 @@
     "{pct} less block storage": "{pct} weniger Blockspeicher",
     "No saving in the blocks scanned so far": "Keine Ersparnis in den bisher gescannten Blöcken",
     "Spam entries in the UTXO set": "Spam-Einträge im UTXO-Set",
-    "Transactions touched": "Betroffene Transaktionen",
+    "Transactions with spam": "Transaktionen mit Spam",
     "of all transactions modified or reduced to a txid": "aller Transaktionen verändert oder auf eine txid reduziert",
     "{n} of {total} modified or reduced to a txid": "{n} von {total} verändert oder auf eine txid reduziert",
     "Spam makes up {x} of recent blocks.": "Spam macht {x} der letzten Blöcke aus.",
@@ -116,7 +116,7 @@
     "Height": "Höhe",
     "Time (UTC)": "Zeit (UTC)",
     "Size": "Größe",
-    "Txs touched": "Betroffene Txs",
+    "Txs with spam": "Txs mit Spam",
     "Load more": "Mehr laden",
     "The full history scan will get there.": "Der vollständige Scan der Historie kommt noch dorthin.",
     "At the current speed the full history scan gets there within about {t}.": "Beim aktuellen Tempo erreicht ihn der vollständige Scan der Historie in etwa {t}.",
@@ -208,7 +208,7 @@
     "The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.": "Die Blöcke lassen sich weiterhin gegen ihre Header und den echten Proof-of-Work prüfen: Die Merkle-Root eines Blocks wird über die txids berechnet, und der Monetary Node behält die 32-Byte-txid jeder Transaktion, die er verändert. Entfernte Outputs behalten einen kleinen Filtereintrag, sodass alles Entfernte weiterhin ausgegeben und lokal validiert werden kann.",
     "What counts as spam": "Was als Spam zählt",
     "Inscriptions: ": "Inscriptions: ",
-    "data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.": "Daten in OP_FALSE OP_IF … OP_ENDIF-Envelopes in Taproot-Script-Path- und P2WSH-Witnesses.",
+    "data inside OP_FALSE OP_IF … OP_ENDIF or OP_TRUE OP_NOTIF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.": "Daten in OP_FALSE OP_IF … OP_ENDIF oder OP_TRUE OP_NOTIF … OP_ENDIF-Envelopes in Taproot-Script-Path- und P2WSH-Witnesses.",
     "OP_RETURN over 83 bytes: ": "OP_RETURN über 83 Bytes: ",
     "oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.": "übergroße Daten-Carrier. Geprüfte Envelopes von Zahlungsprotokollen (Shielded Bitcoin) bleiben erhalten, wenn die Carrier-Policy aktiv ist.",
     "Stamps / fake keys: ": "Stamps / Fake-Keys: ",
@@ -228,6 +228,14 @@
     "The full history scan reads every block in order, which takes hours (days in Eco mode). So that the first impression is not dominated by the early, almost spam-free years, the app first analyses the latest 1,000 blocks and then every 100th block of the rest. From that sample the overview shows an estimate for the whole chain (marked ≈) with its margin of error, next to the exact figure so far. The estimate is replaced by exact figures as the scan proceeds. History, Blocks, the UTXO set, the share card and the exports always show exact figures; parts of the history that are not scanned yet are marked as such.": "Der vollständige Scan der Historie liest jeden Block der Reihe nach, das dauert Stunden (im Eco-Modus Tage). Damit der erste Eindruck nicht von den frühen, fast spamfreien Jahren bestimmt wird, analysiert die App zuerst die neuesten 1.000 Blöcke und dann jeden 100. Block des Rests. Aus dieser Stichprobe zeigt die Übersicht eine Schätzung für die gesamte Chain (mit ≈ markiert) samt Fehlerspanne, neben der bisher exakten Zahl. Die Schätzung wird durch exakte Zahlen ersetzt, während der Scan voranschreitet. Verlauf, Blöcke, UTXO-Set, die Ergebniskarte und die Exporte zeigen immer exakte Zahlen; noch nicht gescannte Teile der Historie sind als solche markiert.",
     "Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures.": "Auf der Seite „Blöcke“ lässt sich jeder Block über seine Höhe oder seinen Hash öffnen. Hat der Scan ihn noch nicht erreicht, liest „Diesen Block jetzt analysieren“ nur diesen Block von deinem Node und zeigt seine exakten Zahlen.",
     "Core, Knots and this app": "Core, Knots und diese App",
+    "“Transactions with spam” is the share of transactions a Monetary Node changes: it removes their spam part, or keeps only the txid of a transaction that is nothing but spam. Upstream's results call them “modified or stripped”.":
+      "„Transaktionen mit Spam“ ist der Anteil der Transaktionen, die ein Monetary Node verändert: Er entfernt ihren Spam-Teil oder behält von einer Transaktion, die nur aus Spam besteht, nur die txid. In den Ergebnissen des Upstream-Projekts heißen sie „modified or stripped“.",
+    "Trends and records on the overview come from the blocks already scanned, without extra requests to your node. A comparison appears once 95 % of its blocks are scanned: the last 30 days (4,320 blocks), and the last 1,000 blocks against the same 1,000 blocks a year earlier.":
+      "Trends und Rekorde in der Übersicht stammen aus den bereits gescannten Blöcken, ohne zusätzliche Anfragen an deinen Node. Ein Vergleich erscheint, sobald 95 % seiner Blöcke gescannt sind: die letzten 30 Tage (4.320 Blöcke) und die letzten 1.000 Blöcke im Vergleich zu denselben 1.000 Blöcken ein Jahr zuvor.",
+    "Languages":
+      "Sprachen",
+    "The dashboard is available in English, German, Spanish, French and Polish. It follows your browser's language, and the menu in the header switches it. The translations are new: if something reads wrong, please report it with the link at the bottom of the page.":
+      "Das Dashboard gibt es auf Englisch, Deutsch, Spanisch, Französisch und Polnisch. Es folgt der Sprache deines Browsers; über das Menü oben lässt sie sich wechseln. Die Übersetzungen sind neu: Wenn etwas falsch klingt, melde es bitte über den Link unten auf der Seite.",
     "Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both.": "Die Mempool-Filter von Knots verhindern die Weiterleitung von Spam, aber Spam, der bereits in Blöcken steht, speichert jeder Full Node – Core genauso wie Knots. Die Zahlen hier gelten für beide.",
     "Rules in use": "Verwendete Regeln",
     "sambitcoin/BitcoinMonetaryNode": "sambitcoin/BitcoinMonetaryNode",
