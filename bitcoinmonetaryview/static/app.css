@@ -433,6 +433,8 @@ textarea.share-text {
 .trends .period-kpis { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .kpi-link { text-decoration: none; color: inherit; display: block; border-radius: var(--radius); }
 .kpi-link:hover .kpi { border-color: var(--accent); }
+.kpi-link .kpi-label::after { content: "→"; margin-left: auto; color: var(--muted); }
+.kpi-link:hover .kpi-label::after { color: var(--accent); }
 .period-legend { margin-top: 14px; max-width: 560px; }
 @media (max-width: 560px) {
   .find-form { flex-basis: 100%; }

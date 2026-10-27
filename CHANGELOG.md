@@ -12,6 +12,10 @@ All notable changes are documented here. This project uses [semantic versioning]
   from (and when a comparison appears), lists the five languages with how to switch and how to report a
   mistake, and names both inscription envelope forms the rules detect (`OP_FALSE OP_IF` and `OP_TRUE
   OP_NOTIF`). The README's spam table names both forms too.
+- **Tidier tiles:** the figure tiles no longer carry a coloured square. Only some had one, and the one on
+  "Spam in your blocks" used the inscriptions colour for all carriers; colour keys now appear only in chart
+  legends, where they match a colour in the chart. In Trends and records, the biggest spam block, the one
+  tile you can click, is now last and has an arrow.
 - README: how to compare with upstream's published figures, which are in binary units ("GB" = GiB), with
   the converted values from a full mainnet node and why the storage saving is slightly higher here.
 

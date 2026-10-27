@@ -593,9 +593,9 @@
 
     const u = sum.utxo;
     const kpis = h("div", { class: "grid grid-4" },
-      kpi(_t("Spam in your blocks"), ap + fmtBytes(B.spam_bytes), _t("{pct} of {size} block data", { pct: ap + fmtPct(B.spam_pct), size: ap + fmtBytes(t.size) }), "envelope"),
-      kpi(_t("Storage a Monetary Node saves"), saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? _t("{pct} less block storage", { pct: ap + fmtPct(B.saved_pct) }) : _t("No saving in the blocks scanned so far"), "monetary"),
-      kpi(_t("Spam entries in the UTXO set"), u.full_done || u.count ? fmtCompact(u.count) : "–", utxoFoot(u), "p2tr_dust"),
+      kpi(_t("Spam in your blocks"), ap + fmtBytes(B.spam_bytes), _t("{pct} of {size} block data", { pct: ap + fmtPct(B.spam_pct), size: ap + fmtBytes(t.size) })),
+      kpi(_t("Storage a Monetary Node saves"), saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? _t("{pct} less block storage", { pct: ap + fmtPct(B.saved_pct) }) : _t("No saving in the blocks scanned so far")),
+      kpi(_t("Spam entries in the UTXO set"), u.full_done || u.count ? fmtCompact(u.count) : "–", utxoFoot(u)),
       kpi(_t("Transactions with spam"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })));
 
     viewShell(
@@ -629,7 +629,7 @@
     const tiles = [];
     if (lm) {
       tiles.push(kpi(_t("Spam in the last 30 days"), fmtBytes(lm.spam_bytes),
-        _t("≈ {size} per year at this pace", { size: fmtBytes(lm.per_year_bytes) }), "envelope"));
+        _t("≈ {size} per year at this pace", { size: fmtBytes(lm.per_year_bytes) })));
     }
     if (rc) {
       let foot = _t("of the data in the last {n} blocks", { n: fmtNum(rc.blocks) });
@@ -640,12 +640,12 @@
       }
       tiles.push(kpi(_t("Spam share of recent blocks"), fmtPct(rc.spam_pct), foot));
     }
+    if (tm) tiles.push(kpi(_t("Biggest spam month"), fmtBytes(tm.spam_bytes), _t("{month} · {n} blocks", { month: tm.month, n: fmtNum(tm.blocks) })));
     if (tb) {
       const t = kpi(_t("Biggest spam block"), fmtBytes(tb.spam_bytes),
         _t("block {h} · {pct} spam", { h: fmtNum(tb.height), pct: fmtPct(tb.spam_pct, 0) }));
       tiles.push(h("a", { class: "kpi-link", href: `#/block/${tb.height}` }, t));
     }
-    if (tm) tiles.push(kpi(_t("Biggest spam month"), fmtBytes(tm.spam_bytes), _t("{month} · {n} blocks", { month: tm.month, n: fmtNum(tm.blocks) })));
     if (!tiles.length) return null;
     return h("div", { class: "card trends", style: { marginTop: "16px" } },
       h("h2", { text: _t("Trends and records") }),
@@ -658,10 +658,10 @@
     if (u.share_of_entries_pct != null) s2 += " · " + _t("{pct} of all UTXOs", { pct: fmtPct(u.share_of_entries_pct) });
     return s2;
   }
-  function kpi(label, value, foot, key) {
+  function kpi(label, value, foot) {
     const parts = String(value).split(" ");
     return h("div", { class: "card kpi" },
-      h("div", { class: "kpi-label" }, key ? h("i", { class: `swatch b-${key}` }) : null, label),
+      h("div", { class: "kpi-label" }, label),
       h("div", { class: "kpi-value" }, parts[0], parts[1] ? h("small", { text: parts.slice(1).join(" ") }) : null),
       h("div", { class: "kpi-foot", text: foot }));
   }
@@ -1028,8 +1028,8 @@
       box.append(notice("warn", _t("About {pct} of this range is scanned so far — the figures cover only the scanned blocks.", { pct: fmtPct(Math.min(99.9, r.coverage_pct)) }), null, "in-card"));
     }
     box.append(h("div", { class: "grid grid-4 period-kpis" },
-      kpi("Spam", fmtBytes(r.spam_bytes), _t("{pct} of {size} block data", { pct: fmtPct(r.spam_pct), size: fmtBytes(r.totals.size) }), "envelope"),
-      kpi(_t("Monetary Node saves"), fmtBytes(Math.max(0, r.saved_bytes)), _t("{pct} less block storage", { pct: fmtPct(Math.max(0, r.saved_pct)) }), "monetary"),
+      kpi("Spam", fmtBytes(r.spam_bytes), _t("{pct} of {size} block data", { pct: fmtPct(r.spam_pct), size: fmtBytes(r.totals.size) })),
+      kpi(_t("Monetary Node saves"), fmtBytes(Math.max(0, r.saved_bytes)), _t("{pct} less block storage", { pct: fmtPct(Math.max(0, r.saved_pct)) })),
       kpi(_t("Transactions with spam"), fmtPct(r.modified_tx_pct), _t("{n} of {total}", { n: fmtNum(r.totals.modified + r.totals.stripped), total: fmtNum(r.totals.tx_count) })),
       kpi(_t("Blocks"), fmtNum(r.blocks_scanned), r.coverage_pct < 99.95 ? _t("scanned of ≈ {n} in this range", { n: fmtNum(r.blocks_total) }) : _t("in this range"))));
     const items = CARRIERS.map((k) => ({ key: k, value: r.by_carrier[k] || 0 }));
@@ -1065,7 +1065,7 @@
     viewShell(
       !u.full_done ? notice("warn", _t("These figures are still being built: every spam output is tracked from the block that created it until it is spent, so the exact current number is known once the full history scan has reached the tip."), null, "page-top") : null,
       h("div", { class: "grid grid-4" },
-        kpi(_t("Spam entries in the UTXO set"), fmtNum(u.count), u.complete ? _t("Exact, current") : _t("So far"), "p2tr_dust"),
+        kpi(_t("Spam entries in the UTXO set"), fmtNum(u.count), u.complete ? _t("Exact, current") : _t("So far")),
         kpi(_t("Chainstate they occupy"), fmtBytes(u.disk_estimate), _t("{size} serialized × 1.35 database overhead", { size: fmtBytes(u.bytes) })),
         kpi(_t("Share of all UTXOs"), u.share_of_entries_pct != null ? fmtPct(u.share_of_entries_pct) : "–",
           nodeU ? _t("of {n} entries in your node's UTXO set", { n: fmtNum(nodeU.txouts) }) : _t("Waiting for the node's UTXO set size")),
