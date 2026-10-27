@@ -16,17 +16,16 @@ Thanks for helping! A few ground rules keep this project trustworthy:
 ## Releases
 
 1. Update the version in `bitcoinmonetaryview/__init__.py` and `pyproject.toml`, and the date in `CHANGELOG.md`.
-2. Merge that change into `main`, then create the release on GitHub (Releases → *Draft a new release* → new
-   tag `vX.Y.Z` on `main` → *Generate release notes* → *Publish*), or tag from the command line:
-   `git tag -a vX.Y.Z -m "BitcoinMonetaryView X.Y.Z" && git push origin vX.Y.Z`.
-3. The *Release image* workflow runs the tests and publishes `ghcr.io/marksierra/bitcoinmonetaryview` for
-   x86_64 and ARM64 (tags `X.Y.Z`, `X.Y`, `latest`). The package is public.
-4. StartOS: in [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos), move the
+2. Merge that change into `main`, then run the *Release image* workflow on `main` (Actions → *Release image* →
+   *Run workflow*). It runs the tests, creates the tag `vX.Y.Z` and the GitHub release with that version's
+   `CHANGELOG.md` section as notes, and publishes `ghcr.io/marksierra/bitcoinmonetaryview` for x86_64 and ARM64
+   (tags `X.Y.Z`, `X.Y`, `latest`). The package is public. Pushing a tag `vX.Y.Z` by hand publishes the image too.
+3. StartOS: in [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos), move the
    `upstream` submodule to the release, bump the package version and release notes in
    `startos/versions/current.ts` (`X.Y.Z:0`, notes in English and German), then publish a GitHub release
    there with tag `vX.Y.Z_0` (Start9's tag convention): its *Release* workflow attaches both `.s9pk` files
    permanently (see its `UPDATING.md`).
-5. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the
+4. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the
    new image by version and digest and bump `version` / `releaseNotes` (see [docs/umbrel.md](docs/umbrel.md)).
 
 By contributing you agree that your contribution is licensed under the AGPL-3.0-or-later.
