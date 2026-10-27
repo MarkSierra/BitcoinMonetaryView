@@ -186,13 +186,24 @@
     if (t) return t;
     return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
+  // the installed app's title bar follows the chosen theme, not only the system's
+  function syncThemeColor() {
+    const t = document.documentElement.getAttribute("data-theme");
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      if (!m.dataset.media) m.dataset.media = m.getAttribute("media") || "";
+      if (t) { m.removeAttribute("media"); m.content = t === "dark" ? "#14161b" : "#fcfcfb"; }
+      else { m.setAttribute("media", m.dataset.media); m.content = m.dataset.media.includes("dark") ? "#14161b" : "#fcfcfb"; }
+    });
+  }
   function initTheme() {
     const saved = storageGet("bmv-theme");
     if (saved === "light" || saved === "dark") document.documentElement.setAttribute("data-theme", saved);
+    syncThemeColor();
     $("#theme-toggle").addEventListener("click", () => {
       const next = currentTheme() === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", next);
       storageSet("bmv-theme", next);
+      syncThemeColor();
     });
   }
 

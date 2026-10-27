@@ -40,6 +40,13 @@ Exports (CSV/JSON) keep English column names, so scripts and spreadsheets work t
 | **Docker** | `ghcr.io/marksierra/bitcoinmonetaryview:latest` — [steps](#docker) |
 | **Any computer with Python** | See the [quick start](#quick-start) below |
 
+**As an app on your computer or phone:** once the dashboard is open, Chrome, Edge and Brave offer
+**Install** in the address bar (on Android: menu → *Add to Home screen*, on iPhone: Share → *Add to Home
+Screen*). It then opens in its own window with its own icon. It is still the dashboard served by your node —
+nothing is downloaded and nothing works offline; each address you install from (LAN, `.local`, Tor) becomes
+its own app. Browsers offer this on HTTPS addresses and on `localhost`; some (like Brave) also on a plain
+LAN address.
+
 ## Quick start
 
 Requirements: Python 3.10+ (standard library only — nothing to install) and a Bitcoin Core or Knots node.
@@ -117,7 +124,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64, ARM64 and, since 0.2.4, RISC-V):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.1`) — use it as `image:` instead
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.2`) — use it as `image:` instead
 of `build: .` in the compose file, or fetch it with `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---

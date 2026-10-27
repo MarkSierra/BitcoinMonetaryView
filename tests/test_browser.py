@@ -225,6 +225,24 @@ class Dashboard(unittest.TestCase):
                                ".closest('.card').getBoundingClientRect().top - 12) < 4", timeout=15000)
         self.assertEqual(self.problems, [])
 
+    def test_installable_as_app(self):
+        """The manifest and its icons load, and Chromium offers to install the dashboard as an app."""
+        page = self.open(viewport={"width": 1400, "height": 900})
+        manifest = page.evaluate("""async () => {
+            const r = await fetch(document.querySelector('link[rel=manifest]').href, { credentials: 'include' });
+            return { type: r.headers.get('content-type'), body: await r.json() };
+        }""")
+        self.assertEqual(manifest["type"], "application/manifest+json")
+        self.assertEqual(manifest["body"]["display"], "standalone")
+        for icon in manifest["body"]["icons"]:
+            ok = page.evaluate("src => new Promise(r => { const i = new Image(); i.onload = () => r(i.naturalWidth > 0); "
+                               "i.onerror = () => r(false); i.src = src; })", icon["src"])
+            self.assertTrue(ok, icon["src"])
+        cdp = page.context.new_cdp_session(page)
+        errors = cdp.send("Page.getInstallabilityErrors")["installabilityErrors"]
+        self.assertEqual(errors, [])
+        self.assertEqual(self.problems, [])
+
     def test_api_reachable(self):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/health", timeout=5) as r:
             self.assertEqual(r.status, 200)

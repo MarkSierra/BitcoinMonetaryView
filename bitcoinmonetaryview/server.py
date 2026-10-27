@@ -50,6 +50,12 @@ STATIC_FILES = {
     "/i18n/pl.js": ("i18n/pl.js", "text/javascript; charset=utf-8"),
     "/app.css": ("app.css", "text/css; charset=utf-8"),
     "/favicon.svg": ("favicon.svg", "image/svg+xml"),
+    # web app manifest and icons: lets browsers offer "Install" (no service worker, nothing cached offline)
+    "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json"),
+    "/icon-192.png": ("icon-192.png", "image/png"),
+    "/icon-512.png": ("icon-512.png", "image/png"),
+    "/icon-maskable-512.png": ("icon-maskable-512.png", "image/png"),
+    "/apple-touch-icon.png": ("apple-touch-icon.png", "image/png"),
 }
 MAX_BODY = 16 * 1024
 LOOKUP_COOLDOWN = 3.0        # seconds between on-demand block analyses
