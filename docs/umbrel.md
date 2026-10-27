@@ -13,6 +13,7 @@ version tag and digest.
 | **Data** | `${APP_DATA_DIR}/data/app` is mounted at `/data`. `storage.dataRoot: data` lets umbrelOS 2.0 move it to another drive. |
 | **Backups** | `backupIgnore` excludes the per-network directories (`data/app/mainnet`, …) with the scan database and the saved spent-output filter; only `settings.json` is backed up. The scan can always be rebuilt from the node. |
 | **User** | The container runs as `1000:1000` (Umbrel's app user), with a read-only root filesystem, `/tmp` as tmpfs, all capabilities dropped and `no-new-privileges`. |
+| **Languages** | The Umbrel app store only takes English for the description and release notes, so those stay in English. The dashboard itself is in English, German, Spanish, French and Polish and follows the browser's language. |
 | **Port** | `8338` (the app's default; not used by any app in the official Umbrel store). |
 
 ## Updating the package

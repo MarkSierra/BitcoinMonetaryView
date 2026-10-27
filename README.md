@@ -11,6 +11,8 @@ shows, in a web dashboard:
 - how many spam and dust entries sit in your UTXO set right now, and how old they are,
 - how all of this developed over the whole history of Bitcoin — or in any period you pick (last 30 days,
   a year, since Ordinals, any dates or block heights),
+- the current pace (spam in the last 30 days, this year's share against last year's) and the records: the
+  biggest spam block and month,
 - the details of any single block, looked up by height or hash.
 
 ![Dashboard overview (a fully scanned mainnet node)](docs/screenshot-overview.png)
@@ -18,8 +20,11 @@ shows, in a web dashboard:
 It is meant for people who run Core or Knots today and are considering a Monetary Node: it shows the
 benefits on *their own* node, with *their own* data.
 
-The dashboard is available in **English and German**. It follows your browser's language; the EN/DE button
-in the header switches it.
+The dashboard is available in **English, German (Deutsch), Spanish (Español), French (Français) and Polish
+(Polski)** — the languages of StartOS. It follows your browser's language (English if yours is not among them);
+the language menu in the header switches it and is remembered in that browser. The translations are new:
+if you spot a mistake, please [report it](https://github.com/MarkSierra/BitcoinMonetaryView/issues/new?template=translation.yml).
+Exports (CSV/JSON) keep English column names, so scripts and spreadsheets work the same in every language.
 
 > **Read-only.** The app never changes anything on your node. It talks to it only through a fixed whitelist
 > of read-only RPC calls, never touches the node's files, and keeps its results in its own separate database.
@@ -112,7 +117,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64, ARM64 and, since 0.2.4, RISC-V):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.2.5`) — use it as `image:` instead
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.0`) — use it as `image:` instead
 of `build: .` in the compose file, or fetch it with `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---
@@ -185,7 +190,7 @@ commit `492539256d43`, see [NOTICE](NOTICE)):
 | Inscriptions | data in `OP_FALSE OP_IF … OP_ENDIF` envelopes in taproot script-path / P2WSH witnesses | removed from block storage |
 | OP_RETURN | scripts over 83 bytes (verified payment-protocol envelopes kept, see below) | removed from block storage |
 | Stamps / fake keys | bare multisig or P2PK whose keys are not points on secp256k1 | removed from blocks and the UTXO set |
-| scriptSig | input scripts over 1,650 bytes | removed from block storage |
+| scriptSig | input scripts over 1,650 bytes | counted as spam but kept in block storage (upstream [`docs/CARRIERS.md`](https://github.com/sambitcoin/BitcoinMonetaryNode/blob/main/docs/CARRIERS.md#oversized-scriptsig--counted-never-removed)), so it saves nothing |
 | P2TR dust | taproot outputs under 1,000 sats since block 767,430 | kept in blocks, removed from the UTXO set |
 
 **Carrier policy** (`--carrier-policy`, default on): upstream's `carrier_policy.py` keeps oversized OP_RETURNs

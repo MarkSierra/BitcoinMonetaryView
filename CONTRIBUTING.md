@@ -15,11 +15,24 @@ Thanks for helping! A few ground rules keep this project trustworthy:
 
 ## Translations
 
-Every text of the dashboard is English in `bitcoinmonetaryview/static/app.js` (wrapped in `_t("…")`) and in
-`index.html` (`data-i18n`), and translated in `bitcoinmonetaryview/static/i18n.js`. Messages the server sends
-(status line, activity, connection test) are translated there too, by exact text or pattern.
-`tests/test_i18n.py` fails if a text or a server message has no German version or a translation has other
-`{placeholders}`; `tests/test_browser.py` opens every page in German as well.
+The dashboard speaks English, German, Spanish, French and Polish (the languages of StartOS). Every text is
+English in `bitcoinmonetaryview/static/app.js` (wrapped in `_t("…")`) and in `index.html` (`data-i18n`); each
+translation is one file, `bitcoinmonetaryview/static/i18n/<code>.js`, and the browser loads only the one it
+needs. Messages the server sends (status line, activity, connection test) are translated there too, by exact
+text or pattern; numbers in them are reformatted for the language.
+
+- **Correcting a translation:** edit the text on the right-hand side in that language's file. Keep the
+  `{placeholders}` exactly as they are. Native speakers' corrections are very welcome — the translations are new.
+- **Texts that depend on a number** use `{n}` for it and can have one form per plural category instead of a
+  single text, e.g. Polish `{"one": "{n} blok", "few": "{n} bloki", "many": "{n} bloków", "other": "{n} bloki"}`.
+  The browser picks the form (`Intl.PluralRules`).
+- **Adding a language:** copy a file to `i18n/<code>.js` and translate it, add the language to `LANGS` in
+  `app.js` and the file to `STATIC_FILES` in `server.py`, and add it to `LANGS`/`PLURAL_FORMS` in
+  `tests/test_i18n.py` and a `Dashboard…` class in `tests/test_browser.py`.
+
+`tests/test_i18n.py` fails if a text or a server message has no translation in some language, a translation
+has other `{placeholders}`, or a plural text lacks a form; `tests/test_browser.py` opens every page in every
+language at desktop, tablet and phone width.
 
 ## Releases
 
@@ -32,7 +45,7 @@ Every text of the dashboard is English in `bitcoinmonetaryview/static/app.js` (w
    `vX.Y.Z` by hand publishes the image too.
 3. StartOS: in [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos), move the
    `upstream` submodule to the release, bump the package version and release notes in
-   `startos/versions/current.ts` (`X.Y.Z:0`, notes in English and German), merge, then run its *Release*
+   `startos/versions/current.ts` (`X.Y.Z:0`, notes in all five languages), merge, then run its *Release*
    workflow on `main`. It creates the tag `vX.Y.Z_0` (Start9's tag convention) and the release, and attaches
    both `.s9pk` files permanently (see its `UPDATING.md`).
 4. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the

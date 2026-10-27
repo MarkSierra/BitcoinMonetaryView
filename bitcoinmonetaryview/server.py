@@ -44,7 +44,10 @@ STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-    "/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
+    "/i18n/de.js": ("i18n/de.js", "text/javascript; charset=utf-8"),
+    "/i18n/es.js": ("i18n/es.js", "text/javascript; charset=utf-8"),
+    "/i18n/fr.js": ("i18n/fr.js", "text/javascript; charset=utf-8"),
+    "/i18n/pl.js": ("i18n/pl.js", "text/javascript; charset=utf-8"),
     "/app.css": ("app.css", "text/css; charset=utf-8"),
     "/favicon.svg": ("favicon.svg", "image/svg+xml"),
 }
@@ -358,6 +361,8 @@ def make_handler(app):
                     return self.send_json(a.range(int(q["from"]), int(q["to"]), int(q.get("points", 400))))
                 if path == "/api/history":
                     return self.send_json(a.history() if a else {"months": []})
+                if path == "/api/trends":
+                    return self.send_json(a.trends() if a else {"empty": True})
                 if path == "/api/export.csv":
                     return self.stream((a or Analytics("")).iter_csv(), "text/csv; charset=utf-8",
                                        "bitcoinmonetaryview-blocks.csv")

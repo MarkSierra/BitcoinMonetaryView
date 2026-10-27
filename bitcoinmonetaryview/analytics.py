@@ -356,6 +356,58 @@ class Analytics:
             {"from": r[1], "to": r[2], "blocks": r[3], "size": r[4], "stored": r[5],
              "envelope": r[6], "op_return": r[7], "multisig": r[8], "scriptsig": r[9]} for r in rows]}
 
+    # ------------------------------------------------------------------ trends
+    def trends(self):
+        return self.cached("trends", 30, self._trends)
+
+    def _trends(self):
+        db = self.db()
+        if db is None:
+            return {"empty": True}
+        with self.snapshot(db):
+            return self._trends_in(db)
+
+    def _trends_in(self, db):
+        """
+        Pace and records from the blocks scanned so far: spam of the last ~30 days (4,320
+        blocks) and its yearly pace, the spam share of the last 1,000 blocks against the same
+        window a year earlier, and the biggest spam block and month. A window counts only
+        when at least 95 % of its blocks are scanned, so a half-scanned window is never
+        presented as a trend.
+        """
+        hi = db.execute("SELECT MAX(height) FROM blocks").fetchone()[0]
+        if hi is None:
+            return {"empty": True}
+        spam = "+".join(mr.CARRIERS)
+
+        def window(lo, top):
+            if lo < 0:
+                return None
+            r = db.execute(f"SELECT COUNT(*), COALESCE(SUM({spam}),0), COALESCE(SUM(size),0) "
+                           "FROM blocks WHERE height BETWEEN ? AND ?", (lo, top)).fetchone()
+            want = top - lo + 1
+            if r[0] < want * 0.95 or not r[2]:
+                return None
+            return {"from": lo, "to": top, "blocks": r[0], "spam_bytes": r[1], "size": r[2],
+                    "spam_pct": r[1] / r[2] * 100}
+
+        month = window(hi - 4319, hi)
+        recent = window(hi - 999, hi)
+        year_ago = window(hi - BLOCKS_PER_YEAR - 999, hi - BLOCKS_PER_YEAR)
+        b = db.execute(f"SELECT height, time, size, {spam} AS s FROM blocks ORDER BY s DESC, height LIMIT 1").fetchone()
+        months = self._history_in(db)["months"]
+        worst = max(months, key=lambda mo: sum(mo[k] for k in mr.CARRIERS), default=None)
+        return {
+            "empty": False,
+            "complete": self.meta(db).get("full_done") == "1",
+            "last_month": dict(month, per_year_bytes=month["spam_bytes"] * 365 / 30) if month else None,
+            "recent": recent, "year_ago": year_ago,
+            "top_block": {"height": b[0], "time": b[1], "spam_bytes": b[3],
+                          "spam_pct": b[3] / b[2] * 100 if b[2] else 0} if b and b[3] else None,
+            "top_month": {"month": worst["month"], "spam_bytes": sum(worst[k] for k in mr.CARRIERS),
+                          "blocks": worst["blocks"]} if worst and any(worst[k] for k in mr.CARRIERS) else None,
+        }
+
     def history(self):
         return self.cached("history", 30, self._history)
 
