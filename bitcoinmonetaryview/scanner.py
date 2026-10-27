@@ -189,7 +189,7 @@ class Scanner(threading.Thread):
 
     def reset_results(self, message, level="warning"):
         """Delete this app's results and every in-memory value derived from them."""
-        self.store.reset()
+        self.store.reset()                      # also discards a saved filter
         self.bloom = None                       # free the old filter before allocating a new one
         self.bloom = Bloom(self.config.bloom_mb)
         self.processed_bytes = 0
@@ -301,6 +301,7 @@ class Scanner(threading.Thread):
                 if self.node is not None:
                     self.node.close()
         if self.store:
+            self.save_bloom()
             self.store.close()
 
     def session(self):
@@ -359,6 +360,13 @@ class Scanner(threading.Thread):
     def load_bloom(self):
         if self.bloom is not None:
             return
+        self.status.set(phase="loading_filter", detail="Loading spent-output filter")
+        saved = self.store.take_saved_bloom(self.config.bloom_mb)
+        if saved is not None:
+            self.bloom = saved
+            self.status.event("info", f"Spent-output filter loaded from its saved copy "
+                                      f"({saved.count:,} entries)")
+            return
         self.status.set(phase="loading_filter", detail="Loading spent-output filter from the database")
         bloom = Bloom(self.config.bloom_mb)
         n = 0
@@ -372,6 +380,16 @@ class Scanner(threading.Thread):
         self.bloom = bloom
         if n:
             self.status.event("info", f"Spent-output filter loaded ({n:,} spam outputs)")
+
+    def save_bloom(self):
+        """On a clean stop: save the filter so the next start can skip the rebuild."""
+        if self.bloom is None or self.store is None or self.store.in_tx:
+            return
+        try:
+            self.store.save_bloom(self.bloom)
+            log.info("Spent-output filter saved for a fast restart")
+        except Exception as e:
+            log.warning("Could not save the spent-output filter (the next start rebuilds it): %s", e)
 
     # ------------------------------------------------------------- scheduling
     def loop(self):

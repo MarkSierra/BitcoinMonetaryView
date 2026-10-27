@@ -45,7 +45,7 @@ Umbrel has no settings screen for apps.
 | `sample_every` | 100 | Before the full scan, analyse every Nth block of the history for an early whole-chain estimate (0 = off; values below 10 count as 10). Runs once; changing it later has no effect until a rescan. |
 | `carrier_policy` | true | Keep oversized OP_RETURNs that are verified payment-protocol envelopes (upstream carrier policy). |
 | `dust_start_height` | auto | Height from which P2TR dust counts (auto: 767430 on mainnet, 0 on test networks). |
-| `bloom_mb` | 256 | Memory for the spent-output filter (MB). |
+| `bloom_mb` | 256 | Memory for the spent-output filter (MB). The filter is also saved to disk at this size when the app stops, for a fast restart. |
 
 ## Web interface
 

@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- Faster restarts: the spent-output filter is saved when the app stops and loaded back in seconds on the next
+  start, instead of being rebuilt from the database (about 4 minutes on a fully scanned mainnet node). The saved
+  copy is only used while the database is unchanged since it was written and is checked for damage; otherwise
+  the filter is rebuilt as before. Like the database, it is excluded from StartOS and Umbrel backups.
+
 ## [0.2.2] — 2026-10-05
 
 - Umbrel: new platform mode (`BMV_MANAGED_BY=umbrel`) for the Umbrel package in the
