@@ -12,6 +12,10 @@ All notable changes are documented here. This project uses [semantic versioning]
   scan faster. The first start after this update rebuilds the filter once, because its saved format changed.
 - Tested against more nodes: every change is now checked against a real regtest node running Bitcoin Core 29.1,
   Bitcoin Core 31.1 and Bitcoin Knots 29.4.1.
+- Dashboard on phones: the Connection page no longer scrolls sideways (the settings table widened the whole
+  page); wide content now scrolls inside its card, also on tablets.
+- Tested in a real browser: every change now opens every dashboard page in Chromium, at desktop, tablet and
+  phone width, and fails on JavaScript errors, failed requests, requests leaving the app, or sideways scrolling.
 - GitHub: a bug report form that asks for platform, version, node and logs.
 
 ## [0.2.3] — 2026-10-27
