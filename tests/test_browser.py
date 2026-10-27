@@ -199,6 +199,32 @@ class Dashboard(unittest.TestCase):
                     self.assertGreaterEqual(min(box), -1, f"current tab not fully visible at {width}px")
             self.assertEqual(self.problems, [])
 
+    def test_biggest_spam_month_opens_as_custom_range(self):
+        page = self.open(viewport={"width": 1400, "height": 900})
+        self.visit(page, "#/overview", self.VIEWS["#/overview"])
+        link = page.locator('a.kpi-link[href^="#/history/"]')
+        link.wait_for(timeout=15000)
+        month = link.get_attribute("href").rsplit("/", 1)[1]
+        link.click()
+        page.locator("#main").get_by_text(self.VIEWS["#/history"], exact=False).first.wait_for(timeout=15000)
+        page.wait_for_load_state("networkidle")
+        self.assertEqual(page.evaluate("location.hash"), "#/history")
+        dates = page.locator(".period-inputs input")
+        self.assertEqual(dates.nth(0).input_value(), month + "-01")
+        self.assertTrue(dates.nth(1).input_value().startswith(month + "-"))
+        page.locator(".period-result .period-kpis").wait_for(timeout=15000)
+        # the range card is scrolled into view, below the sticky header and status bar
+        top = page.evaluate("document.querySelector('.period-result').closest('.card').getBoundingClientRect().top")
+        bar = page.evaluate("document.querySelector('.statusbar').getBoundingClientRect().bottom")
+        self.assertGreaterEqual(top, bar)
+        self.assertLess(top, bar + 60)
+        # on a phone the header and status bar scroll away, so the card goes to the top of the screen
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.evaluate("location.hash = '#/history/' + arguments[0]".replace("arguments[0]", repr(month)))
+        page.wait_for_function("() => location.hash === '#/history' && Math.abs(document.querySelector('.period-result')"
+                               ".closest('.card').getBoundingClientRect().top - 12) < 4", timeout=15000)
+        self.assertEqual(self.problems, [])
+
     def test_api_reachable(self):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/health", timeout=5) as r:
             self.assertEqual(r.status, 200)

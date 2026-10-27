@@ -640,7 +640,10 @@
       }
       tiles.push(kpi(_t("Spam share of recent blocks"), fmtPct(rc.spam_pct), foot));
     }
-    if (tm) tiles.push(kpi(_t("Biggest spam month"), fmtBytes(tm.spam_bytes), _t("{month} · {n} blocks", { month: tm.month, n: fmtNum(tm.blocks) })));
+    if (tm) {
+      const t = kpi(_t("Biggest spam month"), fmtBytes(tm.spam_bytes), _t("{month} · {n} blocks", { month: tm.month, n: fmtNum(tm.blocks) }));
+      tiles.push(h("a", { class: "kpi-link", href: `#/history/${tm.month}` }, t));
+    }
     if (tb) {
       const t = kpi(_t("Biggest spam block"), fmtBytes(tb.spam_bytes),
         _t("block {h} · {pct} spam", { h: fmtNum(tb.height), pct: fmtPct(tb.spam_pct, 0) }));
@@ -887,7 +890,9 @@
     const rangeCard = periodCard();
     viewShell(note, c1, h("div", { style: { height: "16px" } }), rangeCard, h("div", { style: { height: "16px" } }),
       h("div", { class: "grid grid-2" }, c2, c3));
-    loadPeriod();
+    const focusRange = S.focusRange;
+    S.focusRange = false;
+    const periodLoaded = loadPeriod();
     const data = await api("/api/history").catch(() => ({ months: [] }));
     const byMonth = new Map(data.months.map((mo) => [mo.month, mo]));
     const mainnet = S.status && S.status.network === "mainnet";
@@ -936,6 +941,13 @@
       return { label: mk, title: mk, value: mo && (!pFrom || mk <= pFrom) ? mo.utxo_count : null };
     }), "p2tr_dust", { yFmt: fmtNum, axisFmt: fmtCompact, seriesLabel: _t("Spam UTXO entries"), pending,
       empty: full.length ? undefined : _t("Available once the full history scan has progressed") });
+    if (focusRange) {
+      // opened for one month (e.g. from the overview): show the range card below the sticky header and status bar
+      await periodLoaded;
+      const covered = [".topbar", ".statusbar"].map((q) => $(q)).filter((el) => el && getComputedStyle(el).position === "sticky")
+        .reduce((sum, el) => sum + el.offsetHeight, 0);
+      window.scrollTo({ top: rangeCard.getBoundingClientRect().top + window.scrollY - covered - 12 });
+    }
   }
 
   // ------------------------------------------------------------------ custom range
@@ -977,6 +989,10 @@
       a.placeholder = t === "number" ? _t("From height") : ""; b.placeholder = t === "number" ? _t("To height") : "";
       if (t === "number") { a.min = b.min = "0"; a.inputMode = b.inputMode = "numeric"; }
     });
+    if (S.period.id === "custom" && S.period.q.start != null) {
+      const day = (t) => new Date(t * 1000).toISOString().slice(0, 10);
+      a.value = day(S.period.q.start); b.value = day(S.period.q.end);
+    }
     const msg = h("span", { class: "find-msg", role: "status" });
     const apply = () => {
       msg.textContent = "";
@@ -1321,6 +1337,15 @@
     if (m) {
       if (S.view !== "blocks") { S.view = "blocks"; markNav(); viewBlocks(); }
       openBlock(m[1]);
+      return;
+    }
+    const hm = hash.match(/^#\/history\/(\d{4})-(\d{2})$/);
+    if (hm && +hm[2] >= 1 && +hm[2] <= 12) {
+      const y = +hm[1], mo = +hm[2];
+      S.period = { id: "custom", q: { start: Date.UTC(y, mo - 1, 1) / 1000, end: Date.UTC(y, mo, 1) / 1000 - 1 } };
+      S.focusRange = true;
+      history.replaceState(null, "", "#/history");
+      S.view = "history"; markNav(); viewHistory();
       return;
     }
     const v = (hash.match(/^#\/(\w+)/) || [])[1];
