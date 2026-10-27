@@ -2,10 +2,17 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.4] — 2026-10-27
 
-- The Docker image is also published for RISC-V (`linux/riscv64`). The StartOS package builds for riscv64 since
-  package version 0.2.3:1.
+- RISC-V: the Docker image is now also published for `linux/riscv64`, next to x86_64 and ARM64. The StartOS
+  package builds for riscv64 as well (since package version 0.2.3:1).
+- Faster filter rebuild: when no saved spent-output filter can be used (first start after an update, after a crash),
+  rebuilding it takes about half as long as before (about 2 instead of 4 minutes for ~48 million spam outputs).
+  The filter now keeps all bits of an entry in one 64-byte block, which also makes the spend check during the
+  scan faster. The first start after this update rebuilds the filter once, because its saved format changed.
+- Tested against more nodes: every change is now checked against a real regtest node running Bitcoin Core 29.1,
+  Bitcoin Core 31.1 and Bitcoin Knots 29.4.1.
+- GitHub: a bug report form that asks for platform, version, node and logs.
 
 ## [0.2.3] — 2026-10-27
 

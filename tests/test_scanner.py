@@ -625,6 +625,24 @@ class Misc(unittest.TestCase):
         fp = sum(b.maybe(_os.urandom(32), 0) for _ in range(20000))
         self.assertLess(fp, 200)
 
+    def test_bloom_add_many_matches_add(self):
+        items = [(os.urandom(32), i % 9) for i in range(20000)]
+        for mb in (1, 64):
+            a, b = Bloom(mb), Bloom(mb)
+            for t, v in items:
+                a.add(t, v)
+            b.add_many(items)
+            self.assertEqual((a.arr, a.count), (b.arr, b.count))
+            self.assertTrue(all(b.maybe(t, v) for t, v in items))
+
+    def test_bloom_false_positive_rate_at_mainnet_load(self):
+        # ~48 million spam outputs in the default 256 MB filter is ~11.4 entries per
+        # 512-bit block; the same load in a 1 MB filter (16,384 blocks).
+        b = Bloom(1)
+        b.add_many((os.urandom(32), 0) for _ in range(187_000))
+        fp = sum(b.maybe(os.urandom(32), 0) for _ in range(200_000))
+        self.assertLess(fp / 200_000, 1e-4)      # each one only costs a SQLite lookup
+
     def test_bloom_save_and_load(self):
         d = tempfile.mkdtemp()
         try:

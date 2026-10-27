@@ -70,37 +70,67 @@ OP_ADD, OP_SPEND = 1, 2
 
 class Bloom:
     """
-    Bloom filter over outpoints. Txids are uniformly random, so bit indices are
-    taken straight from txid bytes (mixed with vout) instead of re-hashing.
-    False positives only cost one SQLite lookup; false negatives cannot occur.
+    Blocked Bloom filter over outpoints: all K bits of an entry lie in one 512-bit
+    (64-byte) block, so adding or checking an entry touches one cache line instead of
+    K random places in a large array. Txids are uniformly random, so the block and the
+    bit positions are taken straight from txid bytes (mixed with vout) instead of
+    re-hashing. False positives only cost one SQLite lookup; false negatives cannot occur.
     """
 
     K = 7
+    _MIX = 0x9E3779B97F4A7C15
 
     def __init__(self, mbytes):
-        bits = max(1 << 16, int(mbytes) * 8 * 1024 * 1024)
-        self.bits = 1 << (bits.bit_length() - 1)        # power of two -> mask
-        self.mask = self.bits - 1
+        self._size(mbytes)
         self.arr = bytearray(self.bits >> 3)
         self.count = 0
 
-    def _idx(self, txid, vout):
-        # One big-int conversion, then K 32-bit windows (txids are uniformly random).
-        x = int.from_bytes(txid[:28], "little") ^ ((vout + 1) * 0x9E3779B97F4A7C15)
-        m = self.mask
-        return [(x >> (32 * i)) & m for i in range(self.K)]
+    def _size(self, mbytes):
+        bits = max(1 << 16, int(mbytes) * 8 * 1024 * 1024)
+        self.bits = 1 << (bits.bit_length() - 1)        # power of two -> masks
+        self.bshift = (self.bits >> 9).bit_length() - 1  # bits that select the block
+        self.bmask = (1 << self.bshift) - 1
 
     def add(self, txid, vout):
+        x = int.from_bytes(txid[:28], "little") ^ ((vout + 1) * self._MIX)
+        b = (x & self.bmask) << 6                        # byte offset of the entry's block
+        x >>= self.bshift
         a = self.arr
-        for i in self._idx(txid, vout):
-            a[i >> 3] |= 1 << (i & 7)
+        for _ in range(self.K):                          # K 9-bit positions within the block
+            i = x & 511
+            a[b | (i >> 3)] |= 1 << (i & 7)
+            x >>= 9
         self.count += 1
 
+    def add_many(self, outpoints):
+        """add() for many (txid, vout) pairs; the same bits, about twice as fast."""
+        assert self.K == 7
+        a, bm, bs, mix, fb = self.arr, self.bmask, self.bshift, self._MIX, int.from_bytes
+        n = 0
+        for txid, vout in outpoints:
+            x = fb(txid[:28], "little") ^ ((vout + 1) * mix)
+            b = (x & bm) << 6
+            x >>= bs
+            i = x & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            i = (x >> 9) & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            i = (x >> 18) & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            i = (x >> 27) & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            i = (x >> 36) & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            i = (x >> 45) & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            i = (x >> 54) & 511; a[b | (i >> 3)] |= 1 << (i & 7)
+            n += 1
+        self.count += n
+
     def maybe(self, txid, vout):
+        x = int.from_bytes(txid[:28], "little") ^ ((vout + 1) * self._MIX)
+        b = (x & self.bmask) << 6
+        x >>= self.bshift
         a = self.arr
-        for i in self._idx(txid, vout):
-            if not a[i >> 3] & (1 << (i & 7)):
+        for _ in range(self.K):
+            i = x & 511
+            if not a[b | (i >> 3)] & (1 << (i & 7)):
                 return False
+            x >>= 9
         return True
 
     # ------------------------------------------------------------- saved copy
@@ -109,9 +139,9 @@ class Bloom:
     # right after writing it, and Store.take_saved_bloom erases before anything can
     # change the database again: the file is only used while both tokens match,
     # i.e. while the database is unchanged since the save.
-    # Bump FILE_VERSION whenever _idx or K changes.
+    # Bump FILE_VERSION whenever the bit layout (_pos, add_many) or K changes.
     FILE_MAGIC = b"BMVSPENT"
-    FILE_VERSION = 1
+    FILE_VERSION = 2                               # 2: blocked layout (0.2.4)
     _HEADER = struct.Struct("<8sIIQQ16s32s")       # magic, version, K, bits, count, token, digest
 
     def save(self, path, token):
@@ -147,9 +177,7 @@ class Bloom:
     def load(cls, path, mbytes, token):
         """The saved filter if it is intact, has this size and carries `token`; else None."""
         b = cls.__new__(cls)
-        size = max(1 << 16, int(mbytes) * 8 * 1024 * 1024)
-        b.bits = 1 << (size.bit_length() - 1)
-        b.mask = b.bits - 1
+        b._size(mbytes)
         try:
             with open(path, "rb") as f:
                 head = f.read(cls._HEADER.size)
@@ -377,13 +405,14 @@ class Store:
         bloom.save(self.bloom_path(), token)
         self.set_meta("bloom_token", token.hex())
 
-    def iter_spam_outpoints(self, batch=100_000):
+    def iter_spam_outpoint_batches(self, batch=50_000):
+        """All (txid, vout) of the spam UTXO table, in lists of up to `batch` rows."""
         cur = self.db.execute("SELECT txid, vout FROM spam_utxo")
         while True:
             rows = cur.fetchmany(batch)
             if not rows:
                 return
-            yield from rows
+            yield rows
 
     def spam_utxo_count(self):
         r = self.db.execute("SELECT COALESCE(SUM(count),0) FROM utxo_hist").fetchone()

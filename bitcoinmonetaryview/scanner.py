@@ -369,15 +369,14 @@ class Scanner(threading.Thread):
             return
         self.status.set(phase="loading_filter", detail="Loading spent-output filter from the database")
         bloom = Bloom(self.config.bloom_mb)
-        n = 0
-        for txid, vout in self.store.iter_spam_outpoints():
-            bloom.add(bytes(txid), vout)
-            n += 1
-            if n % 1_000_000 == 0:
-                self.status.set(detail=f"Loading spent-output filter: {n:,} entries")
+        for k, rows in enumerate(self.store.iter_spam_outpoint_batches(), 1):
+            bloom.add_many(rows)
+            if k % 20 == 0:
+                self.status.set(detail=f"Loading spent-output filter: {bloom.count:,} entries")
                 if self.stop_event.is_set():
                     return
         self.bloom = bloom
+        n = bloom.count
         if n:
             self.status.event("info", f"Spent-output filter loaded ({n:,} spam outputs)")
 
