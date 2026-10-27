@@ -1,0 +1,17 @@
+{
+  "name": "Monetary View",
+  "short_name": "Monetary View",
+  "description": "How much spam your Bitcoin node stores, analysed with the Monetary Node rules. Read-only.",
+  "id": "./",
+  "start_url": "./#/overview",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0f13",
+  "theme_color": "#14161b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

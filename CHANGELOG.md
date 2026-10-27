@@ -2,6 +2,16 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.2] — 2026-10-27
+
+- **Install as an app:** the dashboard has a web app manifest and icons, so Chrome, Edge and Brave offer
+  "Install" and phones "Add to Home Screen". It opens in its own window with its own icon; the window's title
+  bar follows the light or dark theme. Nothing is cached offline (no service worker): it always shows your
+  node's live figures. The manifest is also loaded behind the app's own login.
+- **Biggest spam month opens its range:** in Trends and records, the "Biggest spam month" tile now links to the
+  History page with that month loaded as a custom range (the dates filled in) and scrolls the range card into
+  view. Like the biggest spam block, it is marked with an arrow.
+
 ## [0.3.1] — 2026-10-27
 
 - **Clearer label:** "Transactions touched" is now "Transactions with spam" (on the overview, in a custom
