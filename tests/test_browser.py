@@ -138,6 +138,29 @@ class Dashboard(unittest.TestCase):
                     self.assertLessEqual(overflow, 0, f"{route} scrolls sideways by {overflow}px at {width}px")
             self.assertEqual(self.problems, [])
 
+    def test_layout_is_the_same_on_every_page(self):
+        """A short page without a scrollbar must not shift the centred layout (headless Chromium
+        hides scrollbars by default, so this needs a browser that shows them)."""
+        exe = os.environ.get("BMV_CHROMIUM")
+        browser = self.pw.chromium.launch(executable_path=exe, ignore_default_args=["--hide-scrollbars"])
+        self.addCleanup(browser.close)
+        saved, self.browser = self.browser, browser
+        try:
+            page = self.open(viewport={"width": 1400, "height": 900})
+        finally:
+            self.browser = saved
+        spots, scrolls, widths = {}, set(), {}
+        for route, heading in self.VIEWS.items():
+            self.visit(page, route, heading)
+            spots[route] = page.evaluate("[...document.querySelectorAll('.brand, .tabs, #theme-toggle, main')]"
+                                         ".map(e => Math.round(e.getBoundingClientRect().left * 10) / 10)")
+            scrolls.add(page.evaluate("document.documentElement.scrollHeight > innerHeight"))
+            widths[route] = page.evaluate("document.querySelector('main .card').getBoundingClientRect().width")
+        self.assertEqual(scrolls, {True, False}, "needs pages with and without a scrollbar")
+        self.assertEqual(len(set(map(tuple, spots.values()))), 1, spots)
+        self.assertEqual(widths["#/about"], widths["#/blocks"], "the About text uses the full width like other pages")
+        self.assertEqual(self.problems, [])
+
     def test_language(self):
         page = self.open(viewport={"width": 1400, "height": 900})
         self.assertEqual(page.evaluate("document.documentElement.lang"), self.LOCALE[:2])
