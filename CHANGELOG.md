@@ -2,6 +2,11 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- The Docker image is also published for RISC-V (`linux/riscv64`). The StartOS package builds for riscv64 since
+  package version 0.2.3:1.
+
 ## [0.2.3] — 2026-10-27
 
 - Faster restarts: the spent-output filter is saved when the app stops and loaded back in seconds on the next

@@ -63,3 +63,21 @@ jobs:
             -p 127.0.0.1:8338:8338 bitcoinmonetaryview:ci
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8338/api/health && exit 0; sleep 1; done
           docker logs bmv; exit 1
+
+  docker-riscv64:
+    # The released image includes linux/riscv64; check that it builds and serves under emulation.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image for riscv64
+        run: docker buildx build --platform linux/riscv64 --load -t bitcoinmonetaryview:riscv64 .
+      - name: Image starts and reports healthy API (emulated)
+        run: |
+          docker run -d --name bmv --platform linux/riscv64 --read-only --tmpfs /tmp --cap-drop ALL \
+            -e BMV_RPC_URL=http://127.0.0.1:1 -e BMV_RPC_USER=u -e BMV_RPC_PASSWORD=p \
+            -p 127.0.0.1:8338:8338 bitcoinmonetaryview:riscv64
+          docker exec bmv python3 -c "import platform; print(platform.machine())" | grep -qx riscv64
+          for i in $(seq 1 120); do curl -fsS http://127.0.0.1:8338/api/health && exit 0; sleep 1; done
+          docker logs bmv; exit 1

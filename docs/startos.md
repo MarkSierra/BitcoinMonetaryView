@@ -17,7 +17,7 @@ Based on the [StartOS 0.4.0.x packaging guide](https://docs.start9.com/packaging
 | **Logs** | Plain lines on stdout. |
 | **Volumes & backups** | One volume (`/data`). Back up `settings.json`; the per-network directories (`/data/<network>/`: the database `bmv.sqlite*` and the saved spent-output filter `spent-filter.bin`) can be rebuilt by rescanning and may be excluded to keep backups small. |
 | **Stopping** | On SIGTERM the app finishes its current batch and saves the spent-output filter for a fast next start; give it up to 60 s (the StartOS default). If it is killed sooner, the next start rebuilds the filter (a few minutes on mainnet). |
-| **Architectures** | Pure Python: `x86_64`, `aarch64` (and `riscv64` where the base image exists). |
+| **Architectures** | Pure Python: `x86_64`, `aarch64` and `riscv64` (all three built by the StartOS package). |
 
 Recommended action set for the wrapper: *Node connection* (Core or Knots dependency), *Scan speed*
 (`speed_profile`), *Scan window* (`scan_window`, `timezone`), *Carrier policy* (`carrier_policy` — changing it

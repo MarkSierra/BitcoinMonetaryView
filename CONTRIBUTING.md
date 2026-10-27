@@ -19,8 +19,8 @@ Thanks for helping! A few ground rules keep this project trustworthy:
 2. Merge that change into `main`, then run the *Release image* workflow on `main` (Actions → *Release image* →
    *Run workflow*). It runs the tests, creates the tag `vX.Y.Z` and the GitHub release (that version's
    `CHANGELOG.md` section as "Highlights", then GitHub's list of merged pull requests), and publishes
-   `ghcr.io/marksierra/bitcoinmonetaryview` for x86_64 and ARM64 (tags `X.Y.Z`, `X.Y`, `latest`). The package
-   is public. To refresh the notes of a published release only, run it with *notes only*. Pushing a tag
+   `ghcr.io/marksierra/bitcoinmonetaryview` for x86_64, ARM64 and RISC-V (tags `X.Y.Z`, `X.Y`, `latest`). The
+   package is public. To refresh the notes of a published release only, run it with *notes only*. Pushing a tag
    `vX.Y.Z` by hand publishes the image too.
 3. StartOS: in [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos), move the
    `upstream` submodule to the release, bump the package version and release notes in
