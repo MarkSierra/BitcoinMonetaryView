@@ -28,19 +28,21 @@ from tests.demo import era_maker
 from tests.mocknode import MockChain, MockNode
 from tests.test_server import free_port
 
-VIEWS = {  # route -> a heading only that page shows
-    "#/overview": "Your node stores",
-    "#/blocks": "Spam per block",
-    "#/history": "Spam per month",
-    "#/utxo": "How old they are",
-    "#/about": "What counts as spam",
-    "#/connection": "Connection test",
-}
 PHONE = 375
 
 
 @unittest.skipUnless(sync_playwright, "playwright not installed")
 class Dashboard(unittest.TestCase):
+    LOCALE = "en-US"            # the browser's language; the dashboard follows it
+    VIEWS = {  # route -> a heading only that page shows
+        "#/overview": "Your node stores",
+        "#/blocks": "Spam per block",
+        "#/history": "Spam per month",
+        "#/utxo": "How old they are",
+        "#/about": "What counts as spam",
+        "#/connection": "Connection test",
+    }
+
     @classmethod
     def setUpClass(cls):
         cls.chain = MockChain()
@@ -80,7 +82,7 @@ class Dashboard(unittest.TestCase):
     def open(self, **ctx):
         """A fresh page that records every problem in self.problems."""
         self.problems = []
-        context = self.browser.new_context(**ctx)
+        context = self.browser.new_context(locale=self.LOCALE, **ctx)
         self.addCleanup(context.close)
         page = context.new_page()
         base = f"http://127.0.0.1:{self.port}"
@@ -110,11 +112,11 @@ class Dashboard(unittest.TestCase):
 
     def test_every_page_without_errors(self):
         page = self.open(viewport={"width": 1400, "height": 900})
-        for route, heading in VIEWS.items():
+        for route, heading in self.VIEWS.items():
             with self.subTest(route):
                 self.visit(page, route, heading)
         # block detail dialog, opened from the blocks page like a user would
-        self.visit(page, "#/blocks", "Spam per block")
+        self.visit(page, "#/blocks", self.VIEWS["#/blocks"])
         page.evaluate("location.hash = '#/block/100'")
         page.locator("#dialog[open]").wait_for(timeout=15000)
         self.assertIn("100", page.inner_text("#dialog"))
@@ -128,7 +130,7 @@ class Dashboard(unittest.TestCase):
     def test_phone_and_tablet_width_have_no_horizontal_scroll(self):
         for width, mobile in ((PHONE, True), (820, True)):
             page = self.open(viewport={"width": width, "height": 800}, is_mobile=mobile, has_touch=mobile)
-            for route, heading in VIEWS.items():
+            for route, heading in self.VIEWS.items():
                 with self.subTest(width=width, route=route):
                     self.visit(page, route, heading)
                     # a phone widens its layout to fit too-wide content, so compare with the screen width
@@ -136,9 +138,33 @@ class Dashboard(unittest.TestCase):
                     self.assertLessEqual(overflow, 0, f"{route} scrolls sideways by {overflow}px at {width}px")
             self.assertEqual(self.problems, [])
 
+    def test_language(self):
+        page = self.open(viewport={"width": 1400, "height": 900})
+        self.assertEqual(page.evaluate("document.documentElement.lang"), self.LOCALE[:2])
+        other = "de" if self.LOCALE.startswith("en") else "en"
+        self.assertEqual(page.inner_text("#lang-toggle").lower(), other)
+        page.click("#lang-toggle")                       # switches, remembers, reloads
+        page.wait_for_selector(f"html[lang={other}]")      # (wait_for_function needs eval, which the CSP forbids)
+        page.wait_for_selector(".tabs a[aria-current=page]")
+        self.assertEqual(page.inner_text(".tabs a[data-view=overview]"), "Übersicht" if other == "de" else "Overview")
+        self.assertEqual(self.problems, [])
+
     def test_api_reachable(self):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/health", timeout=5) as r:
             self.assertEqual(r.status, 200)
+
+
+class DashboardGerman(Dashboard):
+    """The same checks with a German browser: German texts are longer, and every page must still fit."""
+    LOCALE = "de-DE"
+    VIEWS = {
+        "#/overview": "Dein Node speichert",
+        "#/blocks": "Spam pro Block",
+        "#/history": "Spam pro Monat",
+        "#/utxo": "Wie alt sie sind",
+        "#/about": "Was als Spam zählt",
+        "#/connection": "Verbindungstest",
+    }
 
 
 if __name__ == "__main__":

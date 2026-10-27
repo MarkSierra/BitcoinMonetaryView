@@ -13,6 +13,14 @@ Thanks for helping! A few ground rules keep this project trustworthy:
 4. **Tests**: `python3 -m unittest discover -s tests -t .` must pass. Add tests for new behaviour.
 5. **English** for code, UI, docs and commit messages.
 
+## Translations
+
+Every text of the dashboard is English in `bitcoinmonetaryview/static/app.js` (wrapped in `_t("…")`) and in
+`index.html` (`data-i18n`), and translated in `bitcoinmonetaryview/static/i18n.js`. Messages the server sends
+(status line, activity, connection test) are translated there too, by exact text or pattern.
+`tests/test_i18n.py` fails if a text or a server message has no German version or a translation has other
+`{placeholders}`; `tests/test_browser.py` opens every page in German as well.
+
 ## Releases
 
 1. Update the version in `bitcoinmonetaryview/__init__.py` and `pyproject.toml`, and the date in `CHANGELOG.md`.
