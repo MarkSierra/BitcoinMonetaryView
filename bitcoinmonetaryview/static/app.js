@@ -596,7 +596,7 @@
       kpi(_t("Spam in your blocks"), ap + fmtBytes(B.spam_bytes), _t("{pct} of {size} block data", { pct: ap + fmtPct(B.spam_pct), size: ap + fmtBytes(t.size) }), "envelope"),
       kpi(_t("Storage a Monetary Node saves"), saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? _t("{pct} less block storage", { pct: ap + fmtPct(B.saved_pct) }) : _t("No saving in the blocks scanned so far"), "monetary"),
       kpi(_t("Spam entries in the UTXO set"), u.full_done || u.count ? fmtCompact(u.count) : "–", utxoFoot(u), "p2tr_dust"),
-      kpi(_t("Transactions touched"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })));
+      kpi(_t("Transactions with spam"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })));
 
     viewShell(
       h("section", { class: "hero" },
@@ -792,7 +792,7 @@
       tbody.append(tr);
     }
     box.append(h("div", { class: "table-wrap" }, h("table", null,
-      h("thead", null, h("tr", null, [_t("Height"), _t("Time (UTC)"), _t("Size"), "Spam", ...CARRIERS.map((k) => SHORT[k]), "Monetary Node", _t("Txs touched")]
+      h("thead", null, h("tr", null, [_t("Height"), _t("Time (UTC)"), _t("Size"), "Spam", ...CARRIERS.map((k) => SHORT[k]), "Monetary Node", _t("Txs with spam")]
         .map((x, i) => h("th", { class: i ? null : "l", text: x })))), tbody)));
     const last = rows[rows.length - 1];
     if (last && last.height > (S.summary ? S.summary.lowest : 0)) {
@@ -1030,7 +1030,7 @@
     box.append(h("div", { class: "grid grid-4 period-kpis" },
       kpi("Spam", fmtBytes(r.spam_bytes), _t("{pct} of {size} block data", { pct: fmtPct(r.spam_pct), size: fmtBytes(r.totals.size) }), "envelope"),
       kpi(_t("Monetary Node saves"), fmtBytes(Math.max(0, r.saved_bytes)), _t("{pct} less block storage", { pct: fmtPct(Math.max(0, r.saved_pct)) }), "monetary"),
-      kpi(_t("Transactions touched"), fmtPct(r.modified_tx_pct), _t("{n} of {total}", { n: fmtNum(r.totals.modified + r.totals.stripped), total: fmtNum(r.totals.tx_count) })),
+      kpi(_t("Transactions with spam"), fmtPct(r.modified_tx_pct), _t("{n} of {total}", { n: fmtNum(r.totals.modified + r.totals.stripped), total: fmtNum(r.totals.tx_count) })),
       kpi(_t("Blocks"), fmtNum(r.blocks_scanned), r.coverage_pct < 99.95 ? _t("scanned of ≈ {n} in this range", { n: fmtNum(r.blocks_total) }) : _t("in this range"))));
     const items = CARRIERS.map((k) => ({ key: k, value: r.by_carrier[k] || 0 }));
     box.append(h("div", { class: "donut-legend period-legend" }, items.map((it) => h("div", { class: "row" },
@@ -1091,7 +1091,7 @@
       P(_t("The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.")),
       h("h2", { text: _t("What counts as spam") }),
       h("ul", null,
-        h("li", null, h("strong", { text: _t("Inscriptions: ") }), _t("data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.")),
+        h("li", null, h("strong", { text: _t("Inscriptions: ") }), _t("data inside OP_FALSE OP_IF … OP_ENDIF or OP_TRUE OP_NOTIF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.")),
         h("li", null, h("strong", { text: _t("OP_RETURN over 83 bytes: ") }), _t("oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.")),
         h("li", null, h("strong", { text: _t("Stamps / fake keys: ") }), _t("bare multisig or P2PK outputs whose \"public keys\" are not points on the secp256k1 curve — data disguised as keys.")),
         h("li", null, h("strong", { text: _t("Oversized scriptSig: ") }), _t("input scripts over 1,650 bytes. Counted as spam, but the Monetary Node keeps them in block storage, so they save nothing.")),
@@ -1104,11 +1104,15 @@
         h("li", { text: _t("Monetary Node is early-stage software. This app informs your decision; it does not make it for you.") })),
       h("h2", { text: _t("Spam vs. storage saved") }),
       P(_t("“Spam” counts only the data itself: inscription content, oversized OP_RETURN data, fake keys and oversized scriptSigs. “Storage saved” is the real difference in disk space, and it is usually larger: in a transaction that carries spam, a Monetary Node also drops the witness data (signatures already verified when the block arrived), and a transaction that is nothing but spam is reduced to its 32-byte txid. The Monetary Node's own bookkeeping is subtracted. Undo files and optional indexes are not counted on either side.")),
+      P(_t("“Transactions with spam” is the share of transactions a Monetary Node changes: it removes their spam part, or keeps only the txid of a transaction that is nothing but spam. Upstream's results call them “modified or stripped”.")),
       h("h2", { text: _t("While the scan is running") }),
       P(_t("The full history scan reads every block in order, which takes hours (days in Eco mode). So that the first impression is not dominated by the early, almost spam-free years, the app first analyses the latest 1,000 blocks and then every 100th block of the rest. From that sample the overview shows an estimate for the whole chain (marked ≈) with its margin of error, next to the exact figure so far. The estimate is replaced by exact figures as the scan proceeds. History, Blocks, the UTXO set, the share card and the exports always show exact figures; parts of the history that are not scanned yet are marked as such.")),
       P(_t("Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures.")),
+      P(_t("Trends and records on the overview come from the blocks already scanned, without extra requests to your node. A comparison appears once 95 % of its blocks are scanned: the last 30 days (4,320 blocks), and the last 1,000 blocks against the same 1,000 blocks a year earlier.")),
       h("h2", { text: _t("Core, Knots and this app") }),
       P(_t("Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both.")),
+      h("h2", { text: _t("Languages") }),
+      P(_t("The dashboard is available in English, German, Spanish, French and Polish. It follows your browser's language, and the menu in the header switches it. The translations are new: if something reads wrong, please report it with the link at the bottom of the page.")),
       h("h2", { text: _t("Rules in use") }),
       h("dl", { class: "kv" },
         h("dt", { text: "Upstream" }), h("dd", null, h("a", { href: (st.upstream || {}).repo || "#", rel: "noopener noreferrer", target: "_blank", text: _t("sambitcoin/BitcoinMonetaryNode") }), ` @ ${(r.upstream_commit || "").slice(0, 12)}`),
@@ -1238,7 +1242,7 @@
     const stats = [
       [_t("A Monetary Node saves"), sum.saved_bytes > 0 ? `${fmtBytes(sum.saved_bytes)} (${fmtPct(sum.saved_pct)})` : "—"],
       [_t("Spam UTXO entries"), sum.utxo.count ? fmtNum(sum.utxo.count) : "—"],
-      [_t("Transactions touched"), fmtPct(sum.modified_tx_pct)],
+      [_t("Transactions with spam"), fmtPct(sum.modified_tx_pct)],
     ];
     stats.forEach(([l, v], i) => {
       const y = 350 + i * 78;
