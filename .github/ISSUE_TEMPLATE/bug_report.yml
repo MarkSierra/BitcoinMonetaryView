@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in Monetary View does not work or shows wrong numbers.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Security problems please **not** here, but privately via
+        [Report a vulnerability](https://github.com/MarkSierra/BitcoinMonetaryView/security/advisories/new).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you see, and what did you expect instead? Screenshots help.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: How do you run it?
+      options:
+        - StartOS
+        - Umbrel
+        - Docker / Docker Compose
+        - Python directly
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Monetary View version
+      description: Shown at the bottom of every dashboard page, e.g. 0.2.4.
+      placeholder: "0.2.4"
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Bitcoin node and version
+      description: The Connection page shows it, e.g. "Bitcoin Core 31.1" or "Bitcoin Knots 29.4.1".
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Hardware
+      options:
+        - x86_64 (most PCs and servers)
+        - ARM64 (e.g. Raspberry Pi)
+        - RISC-V
+        - Don't know
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log excerpt
+      description: |
+        The app's log around the problem (StartOS: Logs; Umbrel: the app's Troubleshoot view; Docker: `docker logs`), or
+        the Activity list on the Connection page. The app never logs passwords, but check before posting anyway.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before you submit
+      options:
+        - label: I checked that what I paste contains no passwords, RPC credentials or other private data.
+          required: true
