@@ -250,9 +250,30 @@ The test suite checks byte-for-byte parity with upstream's `strip_block`, runs u
 against the vendored files, uses real blocks from Bitcoin Core's test data, fuzzes the parser, simulates
 reorgs, restarts and tampered blocks, and verifies the web server's security properties.
 
-**Validation against upstream's published figures:** on a full mainnet node, scan with
-`--carrier-policy false` and compare the totals for blocks 767,430–962,292 with upstream's
-[results](https://github.com/sambitcoin/BitcoinMonetaryNode#the-result) (37.2 GB spam removed).
+**Validation against upstream's published figures:** on a full mainnet node, open History → Custom range
+→ Block heights, enter 767430 to 962292 and compare with upstream's
+[results](https://github.com/sambitcoin/BitcoinMonetaryNode#the-result) (also
+[`docs/STRIP_RESULTS.md`](https://github.com/sambitcoin/BitcoinMonetaryNode/blob/main/docs/STRIP_RESULTS.md)).
+Upstream's tools divide by 1024 but label the result "GB", so its figures are in binary units (GiB, MiB);
+this app uses decimal units (1 GB = 10⁹ bytes) — reported upstream in
+[issue #3](https://github.com/sambitcoin/BitcoinMonetaryNode/issues/3). Converted, a full mainnet node shows:
+
+| Range 767,430–962,292 | Upstream (binary units) | Converted to decimal | This app |
+|---|---|---|---|
+| Blocks / transactions | 194,863 / 628,773,234 | | 194,863 / 628,773,234 |
+| Original blocks | 296.2 "GB" | 318.0 GB | 318 GB |
+| Spam (all carriers) | 37.2 "GB", 12.56 % | 39.9 GB | 39.9 GB, 12.5 % |
+| — inscriptions / Stamps / OP_RETURN | 37.1 "GB" / 77.5 "MB" / 12.3 "MB" | 39.8 GB / 81.3 MB / 12.9 MB | 39.8 GB / 81.3 MB / 12.9 MB |
+| Transactions touched | 121,599,701 | | 121,769,368 |
+| Storage saved | 48.7 "GB", 16.46 % | 52.3 GB | 54.6 GB, 17.2 % |
+
+The spam figures agree. The storage saving and the number of touched transactions are slightly higher here
+because the published run predates three rules upstream added later (`OP_NOTIF` envelopes, envelopes in
+P2WSH witnesses, fake keys in bare P2PK — see its
+[`docs/CARRIERS.md`](https://github.com/sambitcoin/BitcoinMonetaryNode/blob/main/docs/CARRIERS.md#closed-gaps)):
+every transaction they flag in addition loses its witness data in the store. This app uses the current
+rules, and its storage calculation is upstream's own `strip_block` (checked byte for byte in the tests). The
+carrier policy makes no visible difference in this range.
 
 ## License
 

@@ -2,6 +2,11 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- README: how to compare with upstream's published figures, which are in binary units ("GB" = GiB), with
+  the converted values from a full mainnet node and why the storage saving is slightly higher here.
+
 ## [0.3.0] — 2026-10-27
 
 - **Five languages:** the dashboard is now also available in Spanish, French and Polish, besides English and
