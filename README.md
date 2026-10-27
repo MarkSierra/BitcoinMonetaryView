@@ -255,7 +255,8 @@ reorgs, restarts and tampered blocks, and verifies the web server's security pro
 [results](https://github.com/sambitcoin/BitcoinMonetaryNode#the-result) (also
 [`docs/STRIP_RESULTS.md`](https://github.com/sambitcoin/BitcoinMonetaryNode/blob/main/docs/STRIP_RESULTS.md)).
 Upstream's tools divide by 1024 but label the result "GB", so its figures are in binary units (GiB, MiB);
-this app uses decimal units (1 GB = 10⁹ bytes). Converted, a full mainnet node shows:
+this app uses decimal units (1 GB = 10⁹ bytes) — reported upstream in
+[issue #3](https://github.com/sambitcoin/BitcoinMonetaryNode/issues/3). Converted, a full mainnet node shows:
 
 | Range 767,430–962,292 | Upstream (binary units) | Converted to decimal | This app |
 |---|---|---|---|
