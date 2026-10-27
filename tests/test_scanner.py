@@ -157,6 +157,92 @@ class ScannerTest(unittest.TestCase):
         self.assertEqual(utxo, brute_force_utxo(self.chain))
         self.assertEqual(hist, len(utxo))
 
+    # ---- saved spent-output filter
+    def filter_file(self):
+        return os.path.join(self.dir, "regtest", "spent-filter.bin")   # Store.bloom_path
+
+    def meta(self, key):
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        r = db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        db.close()
+        return None if r is None else r[0]
+
+    def events(self, s):
+        return [e["message"] for e in s.status.snapshot()["activity"]]
+
+    def run_to_tip_and_stop(self, **kw):
+        s = self.start(**kw)
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        s.stop()
+        s.join(10)
+        return s
+
+    def restart_and_spend_old_outputs(self, **kw):
+        """Restart, then mine blocks that spend spam outputs created before the restart."""
+        s = self.start(**kw)
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        mk = spending_maker(self.chain)
+        for _ in range(3):
+            self.chain.append(mk)
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        time.sleep(0.3)
+        utxo, hist = self.db_utxo()
+        self.assertEqual(utxo, brute_force_utxo(self.chain))
+        self.assertEqual(hist, len(utxo))
+        return s
+
+    def test_saved_filter_used_after_clean_stop(self):
+        self.run_to_tip_and_stop()
+        self.assertTrue(os.path.exists(self.filter_file()))
+        self.assertIsNotNone(self.meta("bloom_token"))
+        s = self.restart_and_spend_old_outputs()
+        self.assertTrue(any("from its saved copy" in m for m in self.events(s)))
+        # used once: invalidated before the database changes again
+        self.assertIsNone(self.meta("bloom_token"))
+        self.assertFalse(os.path.exists(self.filter_file()))
+
+    def test_saved_filter_not_used_after_crash(self):
+        self.run_to_tip_and_stop()
+        s = self.start()
+        s.save_bloom = lambda: None            # a crash: no save at the end
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        self.chain.append(spending_maker(self.chain))
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        s.stop()
+        s.join(10)
+        s2 = self.restart_and_spend_old_outputs()
+        msgs = self.events(s2)
+        self.assertFalse(any("from its saved copy" in m for m in msgs))
+        self.assertTrue(any(m.startswith("Spent-output filter loaded (") for m in msgs))
+
+    def test_damaged_or_resized_saved_filter_is_rebuilt(self):
+        for change in ("damage", "resize"):
+            with self.subTest(change):
+                self.run_to_tip_and_stop()
+                kw = {}
+                if change == "damage":
+                    with open(self.filter_file(), "r+b") as f:
+                        f.seek(-1, os.SEEK_END)
+                        b = f.read(1)
+                        f.seek(-1, os.SEEK_END)
+                        f.write(bytes([b[0] ^ 0xFF]))
+                else:
+                    kw["bloom_mb"] = "16"
+                s = self.restart_and_spend_old_outputs(**kw)
+                self.assertFalse(any("from its saved copy" in m for m in self.events(s)))
+                s.stop()
+                s.join(10)
+
+    def test_rescan_discards_saved_filter(self):
+        self.run_to_tip_and_stop()
+        s = self.start()
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        s.request_rescan()
+        self.wait_phase(s, "live", cond=lambda: self.meta("full_done") == "1"
+                        and s.status.get("tip") == len(self.chain.blocks) - 1)
+        utxo, _ = self.db_utxo()
+        self.assertEqual(utxo, brute_force_utxo(self.chain))
+
     def test_tampered_block_stops_scan(self):
         self.node.tamper_heights = {7}
         s = self.start(quick_pass_blocks="0")
@@ -538,6 +624,30 @@ class Misc(unittest.TestCase):
         self.assertTrue(all(b.maybe(t, v) for t, v in items))
         fp = sum(b.maybe(_os.urandom(32), 0) for _ in range(20000))
         self.assertLess(fp, 200)
+
+    def test_bloom_save_and_load(self):
+        d = tempfile.mkdtemp()
+        try:
+            path = os.path.join(d, "f.bin")
+            b = Bloom(1)
+            items = [(os.urandom(32), i % 5) for i in range(5000)]
+            for t, v in items:
+                b.add(t, v)
+            tok = os.urandom(16)
+            b.save(path, tok)
+            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+            c = Bloom.load(path, 1, tok)
+            self.assertEqual((c.arr, c.count, c.bits), (b.arr, b.count, b.bits))
+            self.assertTrue(all(c.maybe(t, v) for t, v in items))
+            self.assertIsNone(Bloom.load(path, 1, os.urandom(16)))      # other token
+            self.assertIsNone(Bloom.load(path, 2, tok))                 # other size
+            self.assertIsNone(Bloom.load(os.path.join(d, "none"), 1, tok))
+            with open(path, "r+b") as f:
+                f.truncate(os.path.getsize(path) - 1)
+            self.assertIsNone(Bloom.load(path, 1, tok))                 # truncated
+            self.assertFalse(os.path.exists(path + ".tmp"))
+        finally:
+            shutil.rmtree(d)
 
     def test_config_self_healing(self):
         d = tempfile.mkdtemp()

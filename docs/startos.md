@@ -15,10 +15,11 @@ Based on the [StartOS 0.4.0.x packaging guide](https://docs.start9.com/packaging
 | **Web UI interface** | Bind the app's port (8338) as a `ui` interface. Authentication can be enforced by the StartOS reverse proxy (`addSsl.auth`); the app's own basic auth can stay off in managed mode. The Host-header check is delegated to the proxy in managed mode. |
 | **Health checks** | Daemon readiness: `GET /api/health` (cheap). Standalone check "Scan progress": read `GET /api/status` → `phase` (`quick`/`sample`/`full` → `loading` with `progress` %, `live` → `success`, `error` → `failure`). Use a cooldown trigger (e.g. 30 s). |
 | **Logs** | Plain lines on stdout. |
-| **Volumes & backups** | One volume (`/data`). Back up `settings.json`; the per-network databases (`/data/<network>/bmv.sqlite*`) can be rebuilt by rescanning and may be excluded to keep backups small. |
+| **Volumes & backups** | One volume (`/data`). Back up `settings.json`; the per-network directories (`/data/<network>/`: the database `bmv.sqlite*` and the saved spent-output filter `spent-filter.bin`) can be rebuilt by rescanning and may be excluded to keep backups small. |
+| **Stopping** | On SIGTERM the app finishes its current batch and saves the spent-output filter for a fast next start; give it up to 60 s (the StartOS default). If it is killed sooner, the next start rebuilds the filter (a few minutes on mainnet). |
 | **Architectures** | Pure Python: `x86_64`, `aarch64` (and `riscv64` where the base image exists). |
 
 Recommended action set for the wrapper: *Node connection* (Core or Knots dependency), *Scan speed*
 (`speed_profile`), *Scan window* (`scan_window`, `timezone`), *Carrier policy* (`carrier_policy` — changing it
-triggers a rescan; say so in the action description), *Rescan* (deletes `/data/<network>/bmv.sqlite*` while
-the service is stopped).
+triggers a rescan; say so in the action description), *Rescan* (deletes the `/data/<network>/` directories
+while the service is stopped).

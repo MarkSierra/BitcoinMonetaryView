@@ -166,6 +166,11 @@ network add to that:
 Over Wi-Fi it is slower; over Tor a full scan is impractical (days to weeks) — use the LAN or run the app on
 the node's machine. The app's own database grows to roughly 4–8 GB after a full mainnet scan.
 
+When the app stops, it saves its spent-output filter next to the database (as large as `bloom_mb`, 256 MB by
+default), so the next start takes seconds instead of rebuilding the filter from the database (several minutes
+with ~50 million spam outputs). The saved copy is only used if the database has not changed since it was
+written; after a crash, or if anything does not match, the app rebuilds the filter as before.
+
 ---
 
 ## What counts as spam

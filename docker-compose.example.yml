@@ -4,6 +4,8 @@ services:
     build: .
     container_name: bitcoinmonetaryview
     restart: unless-stopped
+    # time to finish the current batch and save the spent-output filter (Docker's default is 10 s)
+    stop_grace_period: 1m
     ports:
       - "127.0.0.1:8338:8338"        # change to "8338:8338" for LAN access (then set BMV_AUTH_* below)
     environment:

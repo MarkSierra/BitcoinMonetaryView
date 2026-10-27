@@ -86,7 +86,7 @@ def main(argv=None):
         server.serve_forever(poll_interval=0.5)
     finally:
         scanner.stop()
-        scanner.join(15)
+        scanner.join(45)         # within the 60 s StartOS and Umbrel give on stop
         server.server_close()
     return 0
 

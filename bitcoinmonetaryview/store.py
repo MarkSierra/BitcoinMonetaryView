@@ -14,8 +14,10 @@ Spam UTXO tracking:
               used only for the early whole-chain estimate (never mixed into `blocks`)
 """
 
+import hashlib
 import os
 import sqlite3
+import struct
 import threading
 import time
 
@@ -100,6 +102,73 @@ class Bloom:
             if not a[i >> 3] & (1 << (i & 7)):
                 return False
         return True
+
+    # ------------------------------------------------------------- saved copy
+    # A saved filter lets a restart skip the rebuild from the database. The file
+    # carries a random token that Store.save_bloom also records in the database
+    # right after writing it, and Store.take_saved_bloom erases before anything can
+    # change the database again: the file is only used while both tokens match,
+    # i.e. while the database is unchanged since the save.
+    # Bump FILE_VERSION whenever _idx or K changes.
+    FILE_MAGIC = b"BMVSPENT"
+    FILE_VERSION = 1
+    _HEADER = struct.Struct("<8sIIQQ16s32s")       # magic, version, K, bits, count, token, digest
+
+    def save(self, path, token):
+        """Write the filter atomically (temporary file, fsync, rename)."""
+        digest = hashlib.blake2b(self.arr, digest_size=32).digest()
+        header = self._HEADER.pack(self.FILE_MAGIC, self.FILE_VERSION, self.K, self.bits, self.count,
+                                   token, digest)
+        tmp = path + ".tmp"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(header)
+                f.write(self.arr)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+        try:
+            dfd = os.open(os.path.dirname(path) or ".", os.O_RDONLY)
+            try:
+                os.fsync(dfd)
+            finally:
+                os.close(dfd)
+        except OSError:
+            pass
+
+    @classmethod
+    def load(cls, path, mbytes, token):
+        """The saved filter if it is intact, has this size and carries `token`; else None."""
+        b = cls.__new__(cls)
+        size = max(1 << 16, int(mbytes) * 8 * 1024 * 1024)
+        b.bits = 1 << (size.bit_length() - 1)
+        b.mask = b.bits - 1
+        try:
+            with open(path, "rb") as f:
+                head = f.read(cls._HEADER.size)
+                if len(head) != cls._HEADER.size:
+                    return None
+                magic, ver, k, bits, count, tok, digest = cls._HEADER.unpack(head)
+                if (magic, ver, k, bits, tok) != (cls.FILE_MAGIC, cls.FILE_VERSION, cls.K, b.bits, token):
+                    return None
+                if os.fstat(f.fileno()).st_size != cls._HEADER.size + (b.bits >> 3):
+                    return None
+                b.arr = bytearray(b.bits >> 3)
+                if f.readinto(b.arr) != len(b.arr):
+                    return None
+        except OSError:
+            return None
+        if hashlib.blake2b(b.arr, digest_size=32).digest() != digest:
+            return None
+        b.count = count
+        return b
 
 
 class Store:
@@ -276,6 +345,38 @@ class Store:
     def prune_undo(self, below_height):
         self.db.execute("DELETE FROM utxo_undo WHERE height < ?", (below_height,))
 
+    # ----------------------------------------------------------------- saved spent-output filter
+    def bloom_path(self):
+        return os.path.join(os.path.dirname(self.path), "spent-filter.bin")
+
+    def take_saved_bloom(self, mbytes):
+        """The filter saved by the last clean stop if it still matches this database, else None.
+        Either way the saved copy is invalidated first, before anything can change the
+        database again; after a crash from here on, the next start rebuilds."""
+        token = self.get_meta("bloom_token")
+        saved = None
+        if token:
+            try:
+                saved = Bloom.load(self.bloom_path(), mbytes, bytes.fromhex(token))
+            except ValueError:
+                saved = None
+        self.discard_saved_bloom()
+        return saved
+
+    def discard_saved_bloom(self):
+        self.db.execute("DELETE FROM meta WHERE key='bloom_token'")
+        for p in (self.bloom_path(), self.bloom_path() + ".tmp"):    # .tmp: a save cut short
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+    def save_bloom(self, bloom):
+        """Save the filter; the token goes into the database only after the file is complete."""
+        token = os.urandom(16)
+        bloom.save(self.bloom_path(), token)
+        self.set_meta("bloom_token", token.hex())
+
     def iter_spam_outpoints(self, batch=100_000):
         cur = self.db.execute("SELECT txid, vout FROM spam_utxo")
         while True:
@@ -297,6 +398,7 @@ class Store:
                   "utxo_complete", "utxo_info", "utxo_info_time", "sample_done", "sample_top",
                   "sample_every"):
             self.db.execute("DELETE FROM meta WHERE key=?", (k,))
+        self.discard_saved_bloom()
         self.commit()
 
     def size_on_disk(self):
