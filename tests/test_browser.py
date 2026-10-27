@@ -243,6 +243,20 @@ class Dashboard(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(self.problems, [])
 
+    def test_reloads_once_after_an_update(self):
+        """An open page (or installed app) reloads itself when the server reports a new version."""
+        page = self.open(viewport={"width": 1400, "height": 900})
+        page.evaluate("window.__marker = 1")
+        old = self.scanner.status.get("version")
+        self.addCleanup(self.scanner.status.set, version=old)
+        self.scanner.status.set(version=old + "-update")
+        page.wait_for_function("() => window.__marker === undefined", timeout=15000)
+        page.wait_for_selector(".tabs a[aria-current=page]")
+        page.evaluate("window.__marker = 2")
+        page.wait_for_timeout(5000)                      # two more status polls: no second reload
+        self.assertEqual(page.evaluate("window.__marker"), 2)
+        self.assertEqual(self.problems, [])
+
     def test_api_reachable(self):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/health", timeout=5) as r:
             self.assertEqual(r.status, 200)

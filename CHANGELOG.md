@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.3] — 2026-10-27
+
+- **Open pages update themselves:** a dashboard tab or installed app window that stays open used to keep
+  running the code it was loaded with after the app was updated, until it was reloaded by hand. It now notices
+  the new version in its regular status update and reloads once, on the same page. (The files themselves were
+  never cached: the server already makes the browser fetch them fresh on every page load.)
+
 ## [0.3.2] — 2026-10-27
 
 - **Install as an app:** the dashboard has a web app manifest and icons, so Chrome, Edge and Brave offer

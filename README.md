@@ -124,7 +124,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64, ARM64 and, since 0.2.4, RISC-V):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.2`) — use it as `image:` instead
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.3`) — use it as `image:` instead
 of `build: .` in the compose file, or fetch it with `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---

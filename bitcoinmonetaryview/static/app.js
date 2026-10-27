@@ -1383,9 +1383,23 @@
     try { await post("/api/control", { action: st && st.paused ? "resume" : "pause" }); await pollStatus(); }
     catch (e) { alert(_ts(e.message)); }
   }
+  // An open tab or installed app keeps running the code it was loaded with. When the server reports a
+  // different version (the app was updated), reload once so the page matches the server again.
+  function reloadIfUpdated(version) {
+    if (!version) return false;
+    if (!S.loadedVersion) { S.loadedVersion = version; return false; }
+    if (version === S.loadedVersion) return false;
+    let done = null;
+    try { done = sessionStorage.getItem("bmv-reloaded-for"); } catch (e) { /* ignore */ }
+    if (done === version) return false;   // reloaded once already: never loop
+    try { sessionStorage.setItem("bmv-reloaded-for", version); } catch (e) { /* ignore */ }
+    location.reload();
+    return true;
+  }
   async function pollStatus() {
     try {
       S.status = await api("/api/status");
+      if (reloadIfUpdated(S.status.version)) return;
       renderStatus();
       const h0 = S.status.height;
       const stale = Date.now() - S.lastDataFetch > (["full", "quick", "sample"].includes(S.status.phase) ? 15000 : 60000);
