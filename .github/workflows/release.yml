@@ -2,12 +2,19 @@ name: Release image
 
 # Publishes a multi-arch Docker image to GitHub Container Registry.
 # - "Run workflow" on main: tags the version from bitcoinmonetaryview/__init__.py (vX.Y.Z), creates the
-#   GitHub release with that version's CHANGELOG.md section as notes, then publishes the image.
+#   GitHub release (that version's CHANGELOG.md section as "Highlights", then GitHub's generated list of
+#   merged pull requests), then publishes the image. If the release exists, its notes are refreshed;
+#   with "notes only" nothing else happens.
 # - Pushing a version tag (vX.Y.Z) by hand publishes the image for that tag.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      notes_only:
+        description: "Only refresh the release notes of the current version (no image)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,13 +44,14 @@ jobs:
             [ "$GITHUB_REF_NAME" = "$tag" ] || { echo "::error::Tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
           else
             [ "$GITHUB_REF" = "refs/heads/main" ] || { echo "::error::Run this workflow on main"; exit 1; }
-            # The changelog section "## [X.Y.Z] — date" becomes the release notes.
-            awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {on=1; next} on && /^## \[/ {exit} on' CHANGELOG.md > notes.md
-            [ -s notes.md ] || { echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
+            python3 .github/scripts/release_notes.py "$version" > notes.md
+            printf '\n' >> notes.md
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$tag" \
+              -f target_commitish="$GITHUB_SHA" --jq .body >> notes.md
             if gh release view "$tag" >/dev/null 2>&1; then
-              echo "Release $tag exists already; publishing its image again."
+              gh release edit "$tag" --title "$tag" --notes-file notes.md
             else
-              gh release create "$tag" --target "$GITHUB_SHA" --title "BitcoinMonetaryView $version" --notes-file notes.md
+              gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md
             fi
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -52,6 +60,7 @@ jobs:
 
   image:
     needs: release
+    if: ${{ !inputs.notes_only }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
