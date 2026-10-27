@@ -100,10 +100,11 @@ class Basics(ServerTest):
         html = open(os.path.join(ROOT, "bitcoinmonetaryview", "static", "index.html")).read()
         self.assertIsNone(re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html))
         self.assertNotRegex(html, r"(src|href)=\"https?://(?!github\.com/sambitcoin)")
-        js = open(os.path.join(ROOT, "bitcoinmonetaryview", "static", "app.js")).read()
-        self.assertNotIn("innerHTML", js)
-        self.assertNotIn("eval(", js)
-        self.assertIsNone(re.search(r"fetch\(\s*[\"'`]https?:", js))
+        for name in ("app.js", "i18n.js"):
+            js = open(os.path.join(ROOT, "bitcoinmonetaryview", "static", name)).read()
+            self.assertNotIn("innerHTML", js, name)
+            self.assertNotIn("eval(", js, name)
+            self.assertIsNone(re.search(r"fetch\(\s*[\"'`]https?:", js), name)
 
     def test_path_traversal_refused(self):
         for p in ("/../server.py", "/static/../server.py", "/%2e%2e/server.py", "/..%2fserver.py",

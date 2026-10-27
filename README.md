@@ -18,6 +18,9 @@ shows, in a web dashboard:
 It is meant for people who run Core or Knots today and are considering a Monetary Node: it shows the
 benefits on *their own* node, with *their own* data.
 
+The dashboard is available in **English and German**. It follows your browser's language; the EN/DE button
+in the header switches it.
+
 > **Read-only.** The app never changes anything on your node. It talks to it only through a fixed whitelist
 > of read-only RPC calls, never touches the node's files, and keeps its results in its own separate database.
 

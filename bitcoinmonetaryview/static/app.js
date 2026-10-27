@@ -4,30 +4,58 @@
 "use strict";
 
 (() => {
+  // ------------------------------------------------------------------ language
+  // English is the source text; i18n.js holds the translations. The language follows the
+  // browser unless the viewer picked one with the EN/DE switch (remembered in this browser).
+  const LANGS = { en: "English", de: "Deutsch" };
+  function pickLang() {
+    let saved = null;
+    try { saved = localStorage.getItem("bmv-lang"); } catch (e) { /* storage blocked */ }
+    if (saved && LANGS[saved]) return saved;
+    for (const l of navigator.languages || [navigator.language || "en"]) {
+      const base = String(l).toLowerCase().split("-")[0];
+      if (LANGS[base]) return base;
+    }
+    return "en";
+  }
+  const LANG = pickLang();
+  const LOCALE = LANG === "de" ? "de-DE" : "en-US";
+  const I18N = (window.BMV_I18N || {})[LANG] || null;
+  /** Translate an English UI text; {name} placeholders are filled from vars. */
+  function _t(en, vars) {
+    let out = (I18N && I18N.strings[en]) || en;
+    if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+    return out;
+  }
+  /** Translate a text the server sent (status, activity, connection test); unknown ones stay English. */
+  const _ts = (msg) => (I18N && msg ? I18N.server(String(msg)) : msg);
+
   // ------------------------------------------------------------------ constants
   const PLATFORM_NAMES = { startos: "StartOS", umbrel: "Umbrel" };
   const CARRIERS = ["envelope", "op_return", "multisig", "scriptsig"];
   const LABEL = {
-    monetary: "Monetary data",
-    envelope: "Inscriptions (witness envelopes)",
-    op_return: "OP_RETURN over 83 bytes",
-    multisig: "Fake-key outputs (Stamps)",
-    scriptsig: "Oversized scriptSig",
-    data_key: "Fake-key outputs (Stamps)",
-    p2tr_dust: "Inscription-era P2TR dust",
+    monetary: _t("Monetary data"),
+    envelope: _t("Inscriptions (witness envelopes)"),
+    op_return: _t("OP_RETURN over 83 bytes"),
+    multisig: _t("Fake-key outputs (Stamps)"),
+    scriptsig: _t("Oversized scriptSig"),
+    data_key: _t("Fake-key outputs (Stamps)"),
+    p2tr_dust: _t("Inscription-era P2TR dust"),
   };
   const SHORT = {
-    monetary: "Monetary", envelope: "Inscriptions", op_return: "OP_RETURN", multisig: "Stamps",
-    scriptsig: "scriptSig", data_key: "Stamps", p2tr_dust: "P2TR dust",
+    monetary: _t("Monetary"), envelope: _t("Inscriptions"), op_return: "OP_RETURN", multisig: "Stamps",
+    scriptsig: "scriptSig", data_key: "Stamps", p2tr_dust: _t("P2TR dust"),
   };
   const MILESTONES = [
-    { month: "2014-01", label: "Counterparty" },
-    { month: "2017-08", label: "SegWit" },
-    { month: "2021-11", label: "Taproot" },
-    { month: "2022-12", label: "Ordinals" },
-    { month: "2023-03", label: "Stamps" },
+    { month: "2014-01", label: _t("Counterparty") },
+    { month: "2017-08", label: _t("SegWit") },
+    { month: "2021-11", label: _t("Taproot") },
+    { month: "2022-12", label: _t("Ordinals") },
+    { month: "2023-03", label: _t("Stamps") },
   ];
-  const NF = new Intl.NumberFormat("en-US");
+  const NF = new Intl.NumberFormat(LOCALE);
+  const DEC = [0, 1, 2, 3].map((d) => new Intl.NumberFormat(LOCALE, { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false }));
+  const fixed = (v, d) => DEC[d].format(v);
   const SVGNS = "http://www.w3.org/2000/svg";
 
   // ------------------------------------------------------------------ state
@@ -72,36 +100,36 @@
     let i = 0;
     while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; }
     const d = digits != null ? digits : (b >= 100 || i === 0 ? 0 : b >= 10 ? 1 : 2);
-    return (neg ? "−" : "") + b.toFixed(d) + " " + u[i];
+    return (neg ? "−" : "") + fixed(b, d) + " " + u[i];
   }
   const fmtNum = (n) => (n == null || isNaN(n) ? "–" : NF.format(Math.round(n)));
   function fmtCompact(n) {
     if (n == null) return "–";
     const a = Math.abs(n);
-    if (a >= 1e9) return (n / 1e9).toFixed(a >= 1e10 ? 0 : 1) + "B";
-    if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1) + "M";
-    if (a >= 1e3) return (n / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k";
+    if (a >= 1e9) return fixed(n / 1e9, a >= 1e10 ? 0 : 1) + _t("B");
+    if (a >= 1e6) return fixed(n / 1e6, a >= 1e7 ? 0 : 1) + _t("M");
+    if (a >= 1e3) return fixed(n / 1e3, a >= 1e4 ? 0 : 1) + _t("k");
     return String(Math.round(n));
   }
-  function fmtPct(p, d = 1) { return p == null || isNaN(p) ? "–" : p.toFixed(d) + " %"; }
+  function fmtPct(p, d = 1) { return p == null || isNaN(p) ? "–" : fixed(p, d) + " %"; }
   function fmtDur(sec) {
     if (sec == null || !isFinite(sec)) return "–";
     sec = Math.max(0, Math.round(sec));
     const d = Math.floor(sec / 86400), hh = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
-    if (d) return `${d}d ${hh}h`;
-    if (hh) return `${hh}h ${m}m`;
-    if (m) return `${m}m ${sec % 60}s`;
-    return `${sec}s`;
+    if (d) return _t("{d}d {h}h", { d, h: hh });
+    if (hh) return _t("{h}h {m}m", { h: hh, m });
+    if (m) return _t("{m}m {s}s", { m, s: sec % 60 });
+    return _t("{s}s", { s: sec });
   }
   function timeAgo(t) {
     const d = Date.now() / 1000 - t;
-    if (d < 60) return "just now";
-    if (d < 3600) return `${Math.floor(d / 60)} min ago`;
-    if (d < 86400) return `${Math.floor(d / 3600)} h ago`;
+    if (d < 60) return _t("just now");
+    if (d < 3600) return _t("{n} min ago", { n: Math.floor(d / 60) });
+    if (d < 86400) return _t("{n} h ago", { n: Math.floor(d / 3600) });
     return new Date(t * 1000).toISOString().slice(0, 10);
   }
   const fmtDate = (t) => new Date(t * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC";
-  const clock = (t) => new Date(t * 1000).toLocaleTimeString("en-GB", { hour12: false });
+  const clock = (t) => new Date(t * 1000).toLocaleTimeString(LANG === "de" ? "de-DE" : "en-GB", { hour12: false });
 
   // ------------------------------------------------------------------ api
   async function api(path) {
@@ -180,12 +208,12 @@
   /** Vertical stacked bars. rows: [{label, title, values:{key:n}}], keys bottom→top. */
   function stackedBars(container, rows, keys, opts = {}) {
     clear(container);
-    if (!rows.length) { container.append(h("div", { class: "chart-empty", text: opts.empty || "No data yet" })); return; }
+    if (!rows.length) { container.append(h("div", { class: "chart-empty", text: opts.empty || _t("No data yet") })); return; }
     const W = chartWidth(container), H = opts.height || 260, m = { l: 52, r: 8, t: 10, b: 26 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const totals = rows.map((r) => keys.reduce((a, k) => a + (r.values[k] || 0), 0));
     const max = niceMax(Math.max(...totals));
-    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || "Stacked bar chart" });
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || _t("Stacked bar chart") });
     for (let i = 0; i <= 4; i++) {
       const y = m.t + ih - (ih * i) / 4;
       svg.append(s("line", { class: i ? "grid-line" : "baseline", x1: m.l, x2: W - m.r, y1: y, y2: y }));
@@ -239,14 +267,14 @@
     svg.append(s("rect", { class: "pending-band", x: x0, y: top, width: Math.max(2, x1 - x0), height }));
     if (x1 - x0 > 70) {
       const t = s("text", { class: "pending-label", x: (x0 + x1) / 2, y: top + height / 2, "text-anchor": "middle" });
-      t.textContent = "Not scanned yet";
+      t.textContent = _t("Not scanned yet");
       svg.append(t);
     }
   }
 
   function stackedArea(container, rows, keys, opts = {}) {
     clear(container);
-    if (rows.length < 2) { container.append(h("div", { class: "chart-empty", text: opts.empty || "Not enough data yet" })); return; }
+    if (rows.length < 2) { container.append(h("div", { class: "chart-empty", text: opts.empty || _t("Not enough data yet") })); return; }
     const W = chartWidth(container), H = opts.height || 280, m = { l: 56, r: 12, t: 34, b: 26 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const totals = rows.map((r) => keys.reduce((a, k) => a + (r.values[k] || 0), 0));
@@ -254,7 +282,7 @@
     const X = (i) => m.l + (rows.length === 1 ? iw / 2 : (iw * i) / (rows.length - 1));
     const Y = (v) => m.t + ih - (v / max) * ih;
     const fmt = opts.yFmt || ((v) => fmtBytes(v, 0));
-    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || "Area chart" });
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || _t("Area chart") });
     for (let i = 0; i <= 4; i++) {
       const y = m.t + ih - (ih * i) / 4;
       svg.append(s("line", { class: i ? "grid-line" : "baseline", x1: m.l, x2: W - m.r, y1: y, y2: y }));
@@ -322,14 +350,14 @@
   /** Single-series line with crosshair. */
   function lineChart(container, rows, key, opts = {}) {
     clear(container);
-    if (rows.length < 2) { container.append(h("div", { class: "chart-empty", text: opts.empty || "Not enough data yet" })); return; }
+    if (rows.length < 2) { container.append(h("div", { class: "chart-empty", text: opts.empty || _t("Not enough data yet") })); return; }
     const W = chartWidth(container), H = opts.height || 220, m = { l: 56, r: 12, t: 12, b: 26 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const max = niceMax(Math.max(0, ...rows.filter((r) => r.value != null).map((r) => r.value)));
     const X = (i) => m.l + (iw * i) / (rows.length - 1);
     const Y = (v) => m.t + ih - (v / max) * ih;
     const fmt = opts.yFmt || fmtNum;
-    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || "Line chart" });
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || _t("Line chart") });
     for (let i = 0; i <= 4; i++) {
       const y = m.t + ih - (ih * i) / 4;
       svg.append(s("line", { class: i ? "grid-line" : "baseline", x1: m.l, x2: W - m.r, y1: y, y2: y }));
@@ -362,7 +390,7 @@
       cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
       if (rows[i].value == null) {
         dot.setAttribute("visibility", "hidden");
-        showTip(e, rows[i].title || rows[i].label, [{ label: "Not scanned yet", value: "" }]);
+        showTip(e, rows[i].title || rows[i].label, [{ label: _t("Not scanned yet"), value: "" }]);
         return;
       }
       dot.setAttribute("cx", X(i)); dot.setAttribute("cy", Y(rows[i].value)); dot.setAttribute("visibility", "visible");
@@ -377,7 +405,7 @@
     clear(container);
     const total = items.reduce((a, b) => a + b.value, 0);
     const R = 90, r = 62, C = 100;
-    const svg = s("svg", { viewBox: "0 0 200 200", role: "img", "aria-label": "Donut chart" });
+    const svg = s("svg", { viewBox: "0 0 200 200", role: "img", "aria-label": _t("Donut chart") });
     if (!total) {
       svg.append(s("circle", { cx: C, cy: C, r: (R + r) / 2, fill: "none", class: "grid-line", "stroke-width": R - r }));
     } else {
@@ -394,7 +422,7 @@
           ? `M${C},${C - R}A${R},${R} 0 1 1 ${C - 0.01},${C - R}L${C - 0.01},${C - r}A${r},${r} 0 1 0 ${C},${C - r}Z`
           : `M${p(R, s0)}A${R},${R} 0 ${large} 1 ${p(R, s1)}L${p(r, s1)}A${r},${r} 0 ${large} 0 ${p(r, s0)}Z`;
         const path = s("path", { class: `f-${it.key}`, d });
-        path.addEventListener("mousemove", (e) => showTip(e, LABEL[it.key], [{ key: it.key, label: "Bytes", value: fmtBytes(it.value) }, { label: "Share", value: fmtPct(frac * 100) }]));
+        path.addEventListener("mousemove", (e) => showTip(e, LABEL[it.key], [{ key: it.key, label: _t("Bytes"), value: fmtBytes(it.value) }, { label: _t("Share"), value: fmtPct(frac * 100) }]));
         path.addEventListener("mouseleave", hideTip);
         svg.append(path);
         a0 = a1;
@@ -415,11 +443,11 @@
   }
   function withTableToggle(card, makeTable) {
     let shown = false, tableEl = null;
-    const btn = h("button", { class: "toggle-table", type: "button", text: "Show as table" });
+    const btn = h("button", { class: "toggle-table", type: "button", text: _t("Show as table") });
     btn.addEventListener("click", () => {
       shown = !shown;
-      if (shown) { tableEl = makeTable(); card.append(tableEl); btn.textContent = "Hide table"; }
-      else { tableEl && tableEl.remove(); btn.textContent = "Show as table"; }
+      if (shown) { tableEl = makeTable(); card.append(tableEl); btn.textContent = _t("Hide table"); }
+      else { tableEl && tableEl.remove(); btn.textContent = _t("Show as table"); }
     });
     card.append(btn);
   }
@@ -437,21 +465,21 @@
     const pill = $("#phase-pill");
     pill.dataset.tone = st.phase === "live" ? "live" : st.phase === "error" ? "error"
       : ["waiting_node", "paused", "window"].includes(st.phase) ? "warn" : BUSY.has(st.phase) ? "busy" : "";
-    $("#phase-label").textContent = st.phase_label || st.phase;
-    $("#status-detail").textContent = st.detail || "";
-    $("#status-detail").title = st.detail || "";
+    $("#phase-label").textContent = _ts(st.phase_label || st.phase);
+    $("#status-detail").textContent = _ts(st.detail || "");
+    $("#status-detail").title = _ts(st.detail || "");
     const prog = st.phase === "live" ? 100 : st.progress != null ? st.progress : 0;
     $("#progress-fill").style.transform = `scaleX(${Math.max(0, Math.min(100, prog)) / 100})`;
     $("#progress").setAttribute("aria-valuenow", String(Math.round(prog)));
     $("#m-height").textContent = st.height != null ? `${fmtNum(st.height)} / ${fmtNum(st.tip)}` : "–";
-    $("#m-progress").textContent = ["quick", "sample"].includes(st.phase) ? `${fmtPct(prog)} (${st.phase})` : st.progress != null ? fmtPct(prog, 2) : "–";
+    $("#m-progress").textContent = ["quick", "sample"].includes(st.phase) ? `${fmtPct(prog)} (${_t(st.phase)})` : st.progress != null ? fmtPct(prog, 2) : "–";
     $("#m-speed").textContent = ["full", "quick", "sample"].includes(st.phase) && st.bytes_per_s
-      ? `${fmtBytes(st.bytes_per_s)}/s · ${st.blocks_per_s.toFixed(1)} blk/s` : "–";
+      ? `${fmtBytes(st.bytes_per_s)}/s · ${fixed(st.blocks_per_s, 1)} ${_t("blk/s")}` : "–";
     $("#m-elapsed").textContent = fmtDur(st.now - (st.full_started_at || st.started_at));
-    $("#m-eta").textContent = st.phase === "live" ? "done" : st.eta_seconds ? "~" + fmtDur(st.eta_seconds) : "–";
+    $("#m-eta").textContent = st.phase === "live" ? _t("done") : st.eta_seconds ? "~" + fmtDur(st.eta_seconds) : "–";
     const pb = $("#pause-btn");
     pb.hidden = !st.can_pause || st.phase === "live";
-    pb.textContent = st.paused ? "Resume" : "Pause";
+    pb.textContent = st.paused ? _t("Resume") : _t("Pause");
     $("#app-version").textContent = st.version || "";
     renderBanners();
   }
@@ -459,10 +487,10 @@
     const st = S.status, box = clear($("#banners"));
     const add = (kind, text) => box.append(h("div", { class: `banner ${kind}` },
       h("span", { class: "ico", text: kind === "info" ? "i" : "!" }), h("div", { text })));
-    if (st.node && st.node.plaintext_remote) add("warn", "Your RPC connection uses plain HTTP to another machine, so the RPC password travels unencrypted. Prefer an https:// URL, Tor or an SSH tunnel.");
-    if (st.node && st.node.pruned) add("warn", `Your node is pruned: only blocks from ${fmtNum(st.node.prune_height)} on can be analysed, and the spam UTXO figure will be incomplete.`);
-    for (const w of st.warnings || []) add("warn", w);
-    if (st.phase === "error" && st.last_error) add("error", st.last_error);
+    if (st.node && st.node.plaintext_remote) add("warn", _t("Your RPC connection uses plain HTTP to another machine, so the RPC password travels unencrypted. Prefer an https:// URL, Tor or an SSH tunnel."));
+    if (st.node && st.node.pruned) add("warn", _t("Your node is pruned: only blocks from {h} on can be analysed, and the spam UTXO figure will be incomplete.", { h: fmtNum(st.node.prune_height) }));
+    for (const w of st.warnings || []) add("warn", _ts(w));
+    if (st.phase === "error" && st.last_error) add("error", _ts(st.last_error));
   }
 
   // ------------------------------------------------------------------ views
@@ -474,30 +502,34 @@
     return h("div", { class: `banner ${kind}${extraClass ? " " + extraClass : ""}` },
       h("span", { class: "ico", text: icon || (kind === "info" ? "i" : "!") }), h("div", { text }));
   }
+  /** A translated sentence with one highlighted value: "{x}" marks where the value goes. */
+  function highlight(sentence, value) {
+    const [a, b = ""] = sentence.split("{x}");
+    return [a, h("span", { class: "hl", text: value }), b];
+  }
   function partialNote(sum) {
     const st = S.status || {};
     if (sum.meta && sum.meta.full_done === "1") return null;
     const est = sum.estimate;
     if (est) {
       const m = est.spam_margin_pct != null && est.spam_margin_pct >= 0.1 ? ` ±${fmtPct(est.spam_margin_pct)}` : "";
-      return notice("warn",
-        `Estimate for the whole chain${m}, from ${fmtNum(est.samples)} sample blocks spread across its history. ` +
-        `Exact so far: ${fmtBytes(sum.spam_bytes)} of spam in ${fmtPct(est.exact_share_pct)} of the data — ` +
-        "the estimate is replaced by exact figures as the full history scan proceeds.", null, "in-card");
+      return notice("warn", _t("Estimate for the whole chain{m}, from {n} sample blocks spread across its history. " +
+        "Exact so far: {spam} of spam in {share} of the data — the estimate is replaced by exact figures as the full history scan proceeds.",
+        { m, n: fmtNum(est.samples), spam: fmtBytes(sum.spam_bytes), share: fmtPct(est.exact_share_pct) }), null, "in-card");
     }
     if (sum.estimate_pending) {
-      return notice("warn",
-        `Based on the ${fmtNum(sum.blocks_scanned)} blocks scanned so far, mostly the latest ones. ` +
-        "The estimate for the whole chain follows in a few minutes, once the sample pass is done.", null, "in-card");
+      return notice("warn", _t("Based on the {n} blocks scanned so far, mostly the latest ones. " +
+        "The estimate for the whole chain follows in a few minutes, once the sample pass is done.", { n: fmtNum(sum.blocks_scanned) }), null, "in-card");
     }
     const tipH = st.tip != null ? st.tip + 1 : null;
-    return notice("warn",
-      `Based on ${fmtNum(sum.blocks_scanned)}${tipH ? " of " + fmtNum(tipH) : ""} blocks scanned so far — the full history scan is still running`, null, "in-card");
+    return notice("warn", tipH
+      ? _t("Based on {n} of {total} blocks scanned so far — the full history scan is still running", { n: fmtNum(sum.blocks_scanned), total: fmtNum(tipH) })
+      : _t("Based on {n} blocks scanned so far — the full history scan is still running", { n: fmtNum(sum.blocks_scanned) }), null, "in-card");
   }
   function emptyState(text) {
     return h("div", { class: "card", style: { textAlign: "center", padding: "48px 20px" } },
-      h("h2", { text: "Scanning your node…" }),
-      h("p", { class: "sub", text: text || "The first results appear after a few blocks. You can watch the progress in the bar above." }));
+      h("h2", { text: _t("Scanning your node…") }),
+      h("p", { class: "sub", text: text || _t("The first results appear after a few blocks. You can watch the progress in the bar above.") }));
   }
 
   function viewOverview() {
@@ -513,59 +545,61 @@
     const items = CARRIERS.map((k) => ({ key: k, value: B.by_carrier[k] || 0 }));
     const donutBox = h("div", { class: "chart" });
     const donutCard = h("div", { class: "card" },
-      h("h2", { text: "Spam by carrier" }),
-      h("p", { class: "sub", text: est ? "Bytes a Monetary Node removes from block storage, by type — estimated for the whole chain" : "Bytes a Monetary Node removes from block storage, by type" }),
+      h("h2", { text: _t("Spam by carrier") }),
+      h("p", { class: "sub", text: est ? _t("Bytes a Monetary Node removes from block storage, by type — estimated for the whole chain") : _t("Bytes a Monetary Node removes from block storage, by type") }),
       h("div", { class: "donut-wrap" }, donutBox,
         h("div", { class: "donut-legend" }, items.map((it) => h("div", { class: "row" },
           h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }),
           h("span", { class: "v num", text: fmtBytes(it.value) }),
           h("span", { class: "p num", text: fmtPct(B.spam_bytes ? (it.value / B.spam_bytes) * 100 : 0) }))))));
-    donut(donutBox, items, [ap + fmtPct(B.spam_pct), "of block data"]);
-    withTableToggle(donutCard, () => dataTable(["Carrier", "Bytes", "Share of spam"],
+    donut(donutBox, items, [ap + fmtPct(B.spam_pct), _t("of block data")]);
+    withTableToggle(donutCard, () => dataTable([_t("Carrier"), _t("Bytes"), _t("Share of spam")],
       items.map((it) => [LABEL[it.key], ap + fmtBytes(it.value), fmtPct(B.spam_bytes ? (it.value / B.spam_bytes) * 100 : 0)])));
 
     const maxB = Math.max(t.size, t.stored) || 1;
     const compare = h("div", { class: "card" },
-      h("h2", { text: "Block storage: today vs. Monetary Node" }),
-      h("p", { class: "sub", text: est ? "Same blocks, same proof-of-work — only the data carriers removed (estimated for the whole chain)" : "Same blocks, same proof-of-work — only the data carriers removed" }),
+      h("h2", { text: _t("Block storage: today vs. Monetary Node") }),
+      h("p", { class: "sub", text: est ? _t("Same blocks, same proof-of-work — only the data carriers removed (estimated for the whole chain)") : _t("Same blocks, same proof-of-work — only the data carriers removed") }),
       h("div", { class: "compare" },
-        compareRow("Your node (Core/Knots)", t.size, maxB, [["monetary", t.size - B.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
+        compareRow(_t("Your node (Core/Knots)"), t.size, maxB, [["monetary", t.size - B.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
         compareRow("Monetary Node", t.stored, maxB, [["monetary", t.stored]])),
       h("p", { class: "sub", style: { marginTop: "14px", marginBottom: 0 },
-        text: "The saving is usually larger than the spam itself: in transactions that carry spam, a Monetary Node also drops the witness data (signatures and other data already verified when the block was accepted), and transactions that are only spam are reduced to their txid. Its own bookkeeping (stored txids, a record of removed outputs) is included. Undo files and optional indexes are not." }));
+        text: _t("The saving is usually larger than the spam itself: in transactions that carry spam, a Monetary Node also drops the witness data (signatures and other data already verified when the block was accepted), and transactions that are only spam are reduced to their txid. Its own bookkeeping (stored txids, a record of removed outputs) is included. Undo files and optional indexes are not.") }));
 
     const u = sum.utxo;
     const kpis = h("div", { class: "grid grid-4" },
-      kpi("Spam in your blocks", ap + fmtBytes(B.spam_bytes), `${ap}${fmtPct(B.spam_pct)} of ${ap}${fmtBytes(t.size)} block data`, "envelope"),
-      kpi("Storage a Monetary Node saves", saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? `${ap}${fmtPct(B.saved_pct)} less block storage` : "No saving in the blocks scanned so far", "monetary"),
-      kpi("Spam entries in the UTXO set", fmtCompact(u.count), utxoFoot(u), "p2tr_dust"),
-      kpi("Transactions touched", ap + fmtPct(B.modified_tx_pct), est ? "of all transactions modified or reduced to a txid" : `${fmtNum(t.modified + t.stripped)} of ${fmtNum(t.tx_count)} modified or reduced to a txid`));
+      kpi(_t("Spam in your blocks"), ap + fmtBytes(B.spam_bytes), _t("{pct} of {size} block data", { pct: ap + fmtPct(B.spam_pct), size: ap + fmtBytes(t.size) }), "envelope"),
+      kpi(_t("Storage a Monetary Node saves"), saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? _t("{pct} less block storage", { pct: ap + fmtPct(B.saved_pct) }) : _t("No saving in the blocks scanned so far"), "monetary"),
+      kpi(_t("Spam entries in the UTXO set"), fmtCompact(u.count), utxoFoot(u), "p2tr_dust"),
+      kpi(_t("Transactions touched"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })));
 
     viewShell(
       h("section", { class: "hero" },
         sum.estimate_pending && !est
-          ? h("h1", null, "Spam makes up ", h("span", { class: "hl", text: fmtPct(sum.spam_pct) }), " of recent blocks.")
-          : h("h1", null, "Your node stores ", h("span", { class: "hl", text: (est ? "≈ " : "") + fmtBytes(B.spam_bytes) }), " of spam."),
+          ? h("h1", null, ...highlight(_t("Spam makes up {x} of recent blocks."), fmtPct(sum.spam_pct)))
+          : h("h1", null, ...highlight(_t("Your node stores {x} of spam."), (est ? "≈ " : "") + fmtBytes(B.spam_bytes))),
         h("p", { text: est
-          ? `Estimated for the whole chain (${fmtNum(est.blocks)} blocks): a Monetary Node would store about ${fmtBytes(t.stored)} instead of ${fmtBytes(t.size)} — ${fmtBytes(Math.max(0, saved))} (${fmtPct(Math.max(0, est.saved_pct))}) less.`
+          ? _t("Estimated for the whole chain ({n} blocks): a Monetary Node would store about {stored} instead of {size} — {saved} ({pct}) less.",
+            { n: fmtNum(est.blocks), stored: fmtBytes(t.stored), size: fmtBytes(t.size), saved: fmtBytes(Math.max(0, saved)), pct: fmtPct(Math.max(0, est.saved_pct)) })
           : saved > 0
-          ? `A Monetary Node validating the same ${fmtNum(sum.blocks_scanned)} blocks would store ${fmtBytes(t.stored)} instead of ${fmtBytes(t.size)} — ${fmtBytes(saved)} (${fmtPct(sum.saved_pct)}) less — and keep ${fmtNum(u.count)} spam entries out of its UTXO set.`
-          : `In the ${fmtNum(sum.blocks_scanned)} blocks scanned so far, spam makes up ${fmtPct(sum.spam_pct)} of the data.` }),
+          ? _t("A Monetary Node validating the same {n} blocks would store {stored} instead of {size} — {saved} ({pct}) less — and keep {utxo} spam entries out of its UTXO set.",
+            { n: fmtNum(sum.blocks_scanned), stored: fmtBytes(t.stored), size: fmtBytes(t.size), saved: fmtBytes(saved), pct: fmtPct(sum.saved_pct), utxo: fmtNum(u.count) })
+          : _t("In the {n} blocks scanned so far, spam makes up {pct} of the data.", { n: fmtNum(sum.blocks_scanned), pct: fmtPct(sum.spam_pct) }) }),
         partialNote(sum),
         h("div", { class: "hero-actions" },
-          h("button", { class: "btn btn-primary", type: "button", onclick: openShare, text: "Share my results" }),
-          h("a", { class: "btn", href: "/api/export.csv", text: "Download CSV" }),
-          h("a", { class: "btn", href: "/api/export.json", text: "Download JSON" }),
-          h("a", { class: "btn btn-ghost", href: "#/about", text: "What is a Monetary Node?" }))),
+          h("button", { class: "btn btn-primary", type: "button", onclick: openShare, text: _t("Share my results") }),
+          h("a", { class: "btn", href: "/api/export.csv", text: _t("Download CSV") }),
+          h("a", { class: "btn", href: "/api/export.json", text: _t("Download JSON") }),
+          h("a", { class: "btn btn-ghost", href: "#/about", text: _t("What is a Monetary Node?") }))),
       kpis,
       h("div", { class: "grid grid-2", style: { marginTop: "16px" } }, donutCard, compare),
-      h("div", { class: "section-title", text: "Latest blocks" }),
+      h("div", { class: "section-title", text: _t("Latest blocks") }),
       blockStrip());
   }
   function utxoFoot(u) {
-    if (!u.full_done) return "Exact figure available after the full history scan";
-    let s2 = `≈ ${fmtBytes(u.disk_estimate)} of chainstate`;
-    if (u.share_of_entries_pct != null) s2 += ` · ${fmtPct(u.share_of_entries_pct)} of all UTXOs`;
+    if (!u.full_done) return _t("Exact figure available after the full history scan");
+    let s2 = _t("≈ {size} of chainstate", { size: fmtBytes(u.disk_estimate) });
+    if (u.share_of_entries_pct != null) s2 += " · " + _t("{pct} of all UTXOs", { pct: fmtPct(u.share_of_entries_pct) });
     return s2;
   }
   function kpi(label, value, foot, key) {
@@ -591,7 +625,7 @@
   function blockStrip() {
     const wrap = h("div", { class: "strip" });
     const blocks = (S.latestBlocks || []).slice(0, 8);
-    if (!blocks.length) wrap.append(h("div", { class: "muted", text: "No blocks yet." }));
+    if (!blocks.length) wrap.append(h("div", { class: "muted", text: _t("No blocks yet.") }));
     for (const b of blocks) {
       const fill = h("div", { class: "fill" });
       const spamTotal = b.spam_bytes || 1;
@@ -602,10 +636,10 @@
         fill.append(d);
       }
       fill.style.height = Math.min(100, b.spam_pct) + "%";
-      wrap.append(h("a", { class: "blockcard", href: `#/block/${b.height}`, title: `Block ${fmtNum(b.height)}` },
+      wrap.append(h("a", { class: "blockcard", href: `#/block/${b.height}`, title: _t("Block {h}", { h: fmtNum(b.height) }) },
         fill,
         h("div", { class: "top" }, h("div", { class: "h", text: fmtNum(b.height) }), h("div", { class: "t", text: timeAgo(b.time) })),
-        h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, 0), h("small", { text: `spam · ${fmtBytes(b.size, 2)}` })))));
+        h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, 0), h("small", { text: _t("spam · {size}", { size: fmtBytes(b.size, 2) }) })))));
     }
     return wrap;
   }
@@ -613,9 +647,10 @@
   function coverageText(cov) {
     if (!cov || cov.complete || !cov.ranges || !cov.ranges.length) return null;
     const parts = cov.ranges.map(([a, b]) => (a === b ? fmtNum(a) : `${fmtNum(a)}–${fmtNum(b)}`));
-    const list = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
-    return `Scanned so far: block${cov.ranges.length > 1 || cov.ranges[0][0] !== cov.ranges[0][1] ? "s" : ""} ${list}.` +
-      (cov.gap ? ` The full history scan continues from block ${fmtNum(cov.gap.from)}.` : "");
+    const list = parts.length > 1 ? parts.slice(0, -1).join(", ") + _t(" and ") + parts[parts.length - 1] : parts[0];
+    const several = cov.ranges.length > 1 || cov.ranges[0][0] !== cov.ranges[0][1];
+    return (several ? _t("Scanned so far: blocks {list}.", { list }) : _t("Scanned so far: block {list}.", { list })) +
+      (cov.gap ? " " + _t("The full history scan continues from block {h}.", { h: fmtNum(cov.gap.from) }) : "");
   }
   function goToBlock(q) {
     q = String(q || "").trim();
@@ -625,31 +660,31 @@
 
   async function viewBlocks() {
     const chartBox = h("div", { class: "chart" });
-    const seg = h("div", { class: "seg", role: "group", "aria-label": "Range" });
-    const ranges = [["144", "1 day"], ["1008", "1 week"], ["4320", "1 month"], ["all", "All scanned"]];
+    const seg = h("div", { class: "seg", role: "group", "aria-label": _t("Range") });
+    const ranges = [["144", _t("1 day")], ["1008", _t("1 week")], ["4320", _t("1 month")], ["all", _t("All scanned")]];
     for (const [v, l] of ranges) {
       seg.append(h("button", { type: "button", "aria-pressed": String(S.range === v), text: l,
         onclick: () => { S.range = v; viewBlocks(); } }));
     }
     const chartCard = h("div", { class: "card" },
       h("div", { class: "card-head" },
-        h("div", null, h("h2", { text: "Spam per block" }), h("p", { class: "sub", text: "Block bytes by type. Click a bar to open the block." })), seg),
+        h("div", null, h("h2", { text: _t("Spam per block") }), h("p", { class: "sub", text: _t("Block bytes by type. Click a bar to open the block.") })), seg),
       legend(["monetary", ...CARRIERS]), chartBox);
     const tableBox = h("div");
     const tableCard = h("div", { class: "card" },
-      h("div", { class: "card-head" }, h("div", null, h("h2", { text: "Analysed blocks" }), h("p", { class: "sub", text: "Newest first" }))),
+      h("div", { class: "card-head" }, h("div", null, h("h2", { text: _t("Analysed blocks") }), h("p", { class: "sub", text: _t("Newest first") }))),
       tableBox);
-    const search = h("input", { type: "text", class: "find-input", placeholder: "Block height or hash", "aria-label": "Block height or hash",
+    const search = h("input", { type: "text", class: "find-input", placeholder: _t("Block height or hash"), "aria-label": _t("Block height or hash"),
       autocomplete: "off", spellcheck: "false" });
     const findMsg = h("span", { class: "find-msg", role: "status" });
-    const find = () => { findMsg.textContent = goToBlock(search.value) ? "" : "Enter a block height or a 64-character block hash."; };
+    const find = () => { findMsg.textContent = goToBlock(search.value) ? "" : _t("Enter a block height or a 64-character block hash."); };
     search.addEventListener("keydown", (e) => { if (e.key === "Enter") find(); });
     const cov = coverageText(S.summary && S.summary.coverage);
     const findCard = h("div", { class: "card find-card" },
       h("div", { class: "find-row" },
-        h("div", null, h("h2", { text: "Find a block" }),
-          h("p", { class: "sub", text: "Look at any block by its height or hash — also blocks the scan has not reached yet." })),
-        h("div", { class: "find-form" }, search, h("button", { class: "btn btn-primary", type: "button", text: "Show block", onclick: find }))),
+        h("div", null, h("h2", { text: _t("Find a block") }),
+          h("p", { class: "sub", text: _t("Look at any block by its height or hash — also blocks the scan has not reached yet.") })),
+        h("div", { class: "find-form" }, search, h("button", { class: "btn btn-primary", type: "button", text: _t("Show block"), onclick: find }))),
       findMsg,
       cov ? notice("info", cov, null, "in-card") : null);
     viewShell(findCard, h("div", { style: { height: "16px" } }), blockStrip(), h("div", { style: { height: "16px" } }), chartCard,
@@ -668,14 +703,14 @@
           CARRIERS.forEach((k) => { vals[k] = (b[k] || 0) / per; });
           return {
             label: fmtNum(b.from), height: b.from,
-            title: b.from === b.to ? `Block ${fmtNum(b.from)}` : `Blocks ${fmtNum(b.from)}–${fmtNum(b.to)} (average)`,
-            values: vals, extra: [{ label: "Spam share", value: fmtPct(b.size ? (spam / b.size) * 100 : 0) }],
+            title: b.from === b.to ? _t("Block {h}", { h: fmtNum(b.from) }) : _t("Blocks {a}–{b} (average)", { a: fmtNum(b.from), b: fmtNum(b.to) }),
+            values: vals, extra: [{ label: _t("Spam share"), value: fmtPct(b.size ? (spam / b.size) * 100 : 0) }],
           };
         });
         stackedBars(chartBox, rows, ["monetary", ...CARRIERS], {
-          aria: "Bytes per block by type", onClick: (row) => { location.hash = `#/block/${row.height}`; },
+          aria: _t("Bytes per block by type"), onClick: (row) => { location.hash = `#/block/${row.height}`; },
         });
-        withTableToggle(chartCard, () => dataTable(["Blocks", "Monetary", ...CARRIERS.map((k) => SHORT[k])],
+        withTableToggle(chartCard, () => dataTable([_t("Blocks"), SHORT.monetary, ...CARRIERS.map((k) => SHORT[k])],
           rows.map((r) => [r.title, fmtBytes(r.values.monetary), ...CARRIERS.map((k) => fmtBytes(r.values[k]))])));
       } catch (e) { chartBox.append(h("div", { class: "chart-empty", text: String(e.message) })); }
     }
@@ -685,7 +720,7 @@
   function renderBlockTable(box) {
     clear(box);
     const rows = S.tableBlocks;
-    if (!rows.length) { box.append(h("div", { class: "chart-empty", text: "No blocks analysed yet" })); return; }
+    if (!rows.length) { box.append(h("div", { class: "chart-empty", text: _t("No blocks analysed yet") })); return; }
     const tbody = h("tbody");
     for (const b of rows) {
       const bar = h("span", { class: "pctbar" }, h("i"));
@@ -701,11 +736,11 @@
       tbody.append(tr);
     }
     box.append(h("div", { class: "table-wrap" }, h("table", null,
-      h("thead", null, h("tr", null, ["Height", "Time (UTC)", "Size", "Spam", ...CARRIERS.map((k) => SHORT[k]), "Monetary Node", "Txs touched"]
+      h("thead", null, h("tr", null, [_t("Height"), _t("Time (UTC)"), _t("Size"), "Spam", ...CARRIERS.map((k) => SHORT[k]), "Monetary Node", _t("Txs touched")]
         .map((x, i) => h("th", { class: i ? null : "l", text: x })))), tbody)));
     const last = rows[rows.length - 1];
     if (last && last.height > (S.summary ? S.summary.lowest : 0)) {
-      box.append(h("button", { class: "btn", type: "button", style: { marginTop: "12px" }, text: "Load more",
+      box.append(h("button", { class: "btn", type: "button", style: { marginTop: "12px" }, text: _t("Load more"),
         onclick: async () => {
           const more = await api(`/api/blocks?limit=50&before=${last.height}`).catch(() => []);
           S.tableBlocks = S.tableBlocks.concat(more);
@@ -720,32 +755,32 @@
     // Blocks get bigger towards the tip, so a block count divided by the current rate is far too
     // optimistic; the scan's own byte-based ETA for the whole history is an honest upper bound.
     const eta = st.phase === "full" && st.total_bytes_estimate ? st.eta_seconds : null;
-    if (!eta) return " The full history scan will get there.";
-    return ` At the current speed the full history scan gets there within about ${fmtDur(eta)}.`;
+    if (!eta) return " " + _t("The full history scan will get there.");
+    return " " + _t("At the current speed the full history scan gets there within about {t}.", { t: fmtDur(eta) });
   }
   async function openBlock(key) {
     let b = null;
     try { b = await api(`/api/block/${key}`); } catch (e) { b = null; }
     const dlg = $("#dialog"), body = clear($("#dialog-body"));
-    const close = h("button", { class: "icon-btn", type: "button", "aria-label": "Close", text: "✕", onclick: () => { dlg.close(); } });
+    const close = h("button", { class: "icon-btn", type: "button", "aria-label": _t("Close"), text: "✕", onclick: () => { dlg.close(); } });
     const isHeight = /^\d+$/.test(String(key));
-    const title = isHeight ? `Block ${fmtNum(parseInt(key, 10))}` : `Block ${String(key).slice(0, 12)}…`;
+    const title = _t("Block {h}", { h: isHeight ? fmtNum(parseInt(key, 10)) : String(key).slice(0, 12) + "…" });
     if (b) renderBlockDetail(body, b, close);
     else {
       const msg = h("p", { class: "find-msg", role: "status" });
-      const btn = h("button", { class: "btn btn-primary", type: "button", text: "Analyse this block now" });
+      const btn = h("button", { class: "btn btn-primary", type: "button", text: _t("Analyse this block now") });
       btn.addEventListener("click", async () => {
-        btn.disabled = true; msg.textContent = "Fetching the block from your node and analysing it…";
+        btn.disabled = true; msg.textContent = _t("Fetching the block from your node and analysing it…");
         try {
           const res = await post("/api/lookup", { q: String(key) });
           // the dialog may have been closed or reused for another block or the share card meanwhile
           if (!dlg.open || !body.contains(btn)) return;
           renderBlockDetail(clear(body), res, close);
-        } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+        } catch (e) { msg.textContent = _ts(e.message); btn.disabled = false; }
       });
       body.append(h("div", { class: "dlg" }, h("div", { class: "dlg-head" }, h("h2", { text: title }), close),
-        h("p", { class: "muted", text: "This block has not been scanned yet." + (isHeight ? blockEta(parseInt(key, 10)) : "") }),
-        h("p", { class: "muted", text: "You can analyse it right now: the app reads this one block from your node (read-only) and shows its exact figures." }),
+        h("p", { class: "muted", text: _t("This block has not been scanned yet.") + (isHeight ? blockEta(parseInt(key, 10)) : "") }),
+        h("p", { class: "muted", text: _t("You can analyse it right now: the app reads this one block from your node (read-only) and shows its exact figures.") }),
         h("div", { class: "hero-actions" }, btn), msg));
     }
     if (!dlg.open) dlg.showModal();
@@ -754,25 +789,25 @@
   function renderBlockDetail(body, b, close) {
       const items = CARRIERS.map((k) => ({ key: k, value: b[k] || 0 }));
       const dn = h("div", { class: "chart" });
-      donut(dn, [{ key: "monetary", value: b.size - b.spam_bytes }, ...items], [fmtPct(b.spam_pct), "spam"]);
+      donut(dn, [{ key: "monetary", value: b.size - b.spam_bytes }, ...items], [fmtPct(b.spam_pct), _t("spam")]);
       body.append(h("div", { class: "dlg" },
-        h("div", { class: "dlg-head" }, h("h2", { text: `Block ${fmtNum(b.height)}` }), close),
-        b.on_demand ? notice("info", "Analysed on demand — the figures are exact. The full history scan will add it to the totals when it gets there.", "✓", "in-card") : null,
+        h("div", { class: "dlg-head" }, h("h2", { text: _t("Block {h}", { h: fmtNum(b.height) }) }), close),
+        b.on_demand ? notice("info", _t("Analysed on demand — the figures are exact. The full history scan will add it to the totals when it gets there."), "✓", "in-card") : null,
         h("div", { class: "donut-wrap" }, dn, h("div", { class: "donut-legend" },
           [{ key: "monetary", value: b.size - b.spam_bytes }, ...items].map((it) => h("div", { class: "row" },
             h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }), h("span", { class: "v", text: fmtBytes(it.value) }),
             h("span", { class: "p", text: fmtPct(b.size ? (it.value / b.size) * 100 : 0) }))))),
         h("dl", { class: "kv", style: { marginTop: "18px" } },
-          h("dt", { text: "Hash" }), h("dd", { class: "num", text: b.hash }),
-          h("dt", { text: "Time" }), h("dd", { text: fmtDate(b.time) }),
-          h("dt", { text: "Size / weight" }), h("dd", { text: `${fmtBytes(b.size, 3)} · ${fmtNum(b.weight)} WU` }),
-          h("dt", { text: "Monetary Node stores" }), h("dd", { text: `${fmtBytes(b.stored, 3)} (${b.size - b.stored >= 0 ? fmtBytes(b.size - b.stored) + " less" : fmtBytes(b.stored - b.size) + " more — format overhead"})` }),
-          h("dt", { text: "Transactions" }), h("dd", { text: `${fmtNum(b.tx_count)} total · ${fmtNum(b.whole)} kept whole · ${fmtNum(b.modified)} modified · ${fmtNum(b.stripped)} reduced to a txid` }),
-          h("dt", { text: "Outputs" }), h("dd", { text: `${fmtNum(b.filter_entries)} data outputs dropped (filter entry kept) · ${fmtNum(b.dust_outputs)} P2TR dust` }),
-          b.utxo_done ? h("dt", { text: "Spam UTXO change" }) : null,
-          b.utxo_done ? h("dd", { text: `+${fmtNum(b.utxo_added)} created · −${fmtNum(b.utxo_spent)} spent` }) : null,
-          b.retained_protocol ? h("dt", { text: "Kept by carrier policy" }) : null,
-          b.retained_protocol ? h("dd", { text: `${fmtNum(b.retained_protocol)} payment-protocol OP_RETURN(s)` }) : null)));
+          h("dt", { text: _t("Hash") }), h("dd", { class: "num", text: b.hash }),
+          h("dt", { text: _t("Time") }), h("dd", { text: fmtDate(b.time) }),
+          h("dt", { text: _t("Size / weight") }), h("dd", { text: `${fmtBytes(b.size, 3)} · ${fmtNum(b.weight)} WU` }),
+          h("dt", { text: _t("Monetary Node stores") }), h("dd", { text: `${fmtBytes(b.stored, 3)} (${b.size - b.stored >= 0 ? _t("{size} less", { size: fmtBytes(b.size - b.stored) }) : _t("{size} more — format overhead", { size: fmtBytes(b.stored - b.size) })})` }),
+          h("dt", { text: _t("Transactions") }), h("dd", { text: _t("{n} total · {whole} kept whole · {mod} modified · {stripped} reduced to a txid", { n: fmtNum(b.tx_count), whole: fmtNum(b.whole), mod: fmtNum(b.modified), stripped: fmtNum(b.stripped) }) }),
+          h("dt", { text: _t("Outputs") }), h("dd", { text: _t("{n} data outputs dropped (filter entry kept) · {dust} P2TR dust", { n: fmtNum(b.filter_entries), dust: fmtNum(b.dust_outputs) }) }),
+          b.utxo_done ? h("dt", { text: _t("Spam UTXO change") }) : null,
+          b.utxo_done ? h("dd", { text: _t("+{a} created · −{s} spent", { a: fmtNum(b.utxo_added), s: fmtNum(b.utxo_spent) }) }) : null,
+          b.retained_protocol ? h("dt", { text: _t("Kept by carrier policy") }) : null,
+          b.retained_protocol ? h("dd", { text: _t("{n} payment-protocol OP_RETURN(s)", { n: fmtNum(b.retained_protocol) }) }) : null)));
   }
 
   const monthOf = (t) => new Date(t * 1000).toISOString().slice(0, 7);
@@ -787,12 +822,12 @@
   async function viewHistory() {
     const area = h("div", { class: "chart" }), share = h("div", { class: "chart" }), utxo = h("div", { class: "chart" });
     const note = h("div");
-    const c1 = h("div", { class: "card" }, h("h2", { text: "Spam per month" }),
-      h("p", { class: "sub", text: "Bytes removed by a Monetary Node, by carrier, for each month of blocks scanned" }), legend(CARRIERS), area);
-    const c2 = h("div", { class: "card" }, h("h2", { text: "Spam share of block data" }),
-      h("p", { class: "sub", text: "Percentage of each month's block bytes that are spam" }), share);
-    const c3 = h("div", { class: "card" }, h("h2", { text: "Spam entries in the UTXO set over time" }),
-      h("p", { class: "sub", text: "Unspent spam and dust outputs, built up block by block during the full history scan" }), utxo);
+    const c1 = h("div", { class: "card" }, h("h2", { text: _t("Spam per month") }),
+      h("p", { class: "sub", text: _t("Bytes removed by a Monetary Node, by carrier, for each month of blocks scanned") }), legend(CARRIERS), area);
+    const c2 = h("div", { class: "card" }, h("h2", { text: _t("Spam share of block data") }),
+      h("p", { class: "sub", text: _t("Percentage of each month's block bytes that are spam") }), share);
+    const c3 = h("div", { class: "card" }, h("h2", { text: _t("Spam entries in the UTXO set over time") }),
+      h("p", { class: "sub", text: _t("Unspent spam and dust outputs, built up block by block during the full history scan") }), utxo);
     const rangeCard = periodCard();
     viewShell(note, c1, h("div", { style: { height: "16px" } }), rangeCard, h("div", { style: { height: "16px" } }),
       h("div", { class: "grid grid-2" }, c2, c3));
@@ -818,32 +853,33 @@
     }
     const inGap = (mo) => pFrom && mo >= pFrom && mo <= pTo;
     if (pFrom) {
-      note.append(notice("warn",
-        `The full history scan has not reached ${pFrom === pTo ? pFrom : `${pFrom} – ${pTo}`} yet. That period is greyed out below; ` +
-        "its spam appears as the scan proceeds. The overview shows an estimate for the whole chain in the meantime.", null, "page-top"));
+      note.append(notice("warn", _t("The full history scan has not reached {period} yet. That period is greyed out below; " +
+        "its spam appears as the scan proceeds. The overview shows an estimate for the whole chain in the meantime.",
+        { period: pFrom === pTo ? pFrom : `${pFrom} – ${pTo}` }), null, "page-top"));
     }
     const rows = seq.map((mk) => {
       const mo = byMonth.get(mk);
       const vals = {}; CARRIERS.forEach((k) => { vals[k] = mo ? mo[k] || 0 : 0; });
       return { key: mk, label: mk, values: vals,
-        title: mo ? `${mk} · blocks ${fmtNum(mo.from)}–${fmtNum(mo.to)}${inGap(mk) ? " (partly scanned)" : ""}` : `${mk} · not scanned yet`,
-        extra: mo ? [{ label: "Block data", value: fmtBytes(mo.size) }] : [] };
+        title: mo ? `${mk} · ` + _t("blocks {a}–{b}", { a: fmtNum(mo.from), b: fmtNum(mo.to) }) + (inGap(mk) ? " " + _t("(partly scanned)") : "")
+          : `${mk} · ` + _t("not scanned yet"),
+        extra: mo ? [{ label: _t("Block data"), value: fmtBytes(mo.size) }] : [] };
     });
-    stackedArea(area, rows, CARRIERS, { milestones: mainnet ? MILESTONES : null, aria: "Spam bytes per month by carrier", pending });
-    withTableToggle(c1, () => dataTable(["Month", "Blocks", "Block data", ...CARRIERS.map((k) => SHORT[k])],
+    stackedArea(area, rows, CARRIERS, { milestones: mainnet ? MILESTONES : null, aria: _t("Spam bytes per month by carrier"), pending });
+    withTableToggle(c1, () => dataTable([_t("Month"), _t("Blocks"), _t("Block data"), ...CARRIERS.map((k) => SHORT[k])],
       data.months.map((mo) => [mo.month, fmtNum(mo.blocks), fmtBytes(mo.size), ...CARRIERS.map((k) => fmtBytes(mo[k]))])));
     const shareRows = seq.map((mk) => {
       const mo = byMonth.get(mk);
       return { label: mk, title: mk, value: mo && mo.size ? (CARRIERS.reduce((a, k) => a + (mo[k] || 0), 0) / mo.size) * 100 : (mo ? 0 : null) };
     });
-    lineChart(share, shareRows, "spam", { yFmt: (v) => fmtPct(v), axisFmt: (v) => v.toFixed(0) + " %", seriesLabel: "Spam share", pending });
+    lineChart(share, shareRows, "spam", { yFmt: (v) => fmtPct(v), axisFmt: (v) => fixed(v, 0) + " %", seriesLabel: _t("Spam share"), pending });
     const full = data.months.filter((mo) => mo.utxo_count !== 0 || mo.utxo_bytes !== 0);
     lineChart(utxo, seq.map((mk) => {
       const mo = byMonth.get(mk);
       // the spam UTXO set is only known for the chronologically scanned part of the history
       return { label: mk, title: mk, value: mo && (!pFrom || mk <= pFrom) ? mo.utxo_count : null };
-    }), "p2tr_dust", { yFmt: fmtNum, axisFmt: fmtCompact, seriesLabel: "Spam UTXO entries", pending,
-      empty: full.length ? undefined : "Available once the full history scan has progressed" });
+    }), "p2tr_dust", { yFmt: fmtNum, axisFmt: fmtCompact, seriesLabel: _t("Spam UTXO entries"), pending,
+      empty: full.length ? undefined : _t("Available once the full history scan has progressed") });
   }
 
   // ------------------------------------------------------------------ custom range
@@ -852,23 +888,23 @@
     const now = Math.floor(Date.now() / 1000), day = 86400;
     const yearStart = Date.UTC(new Date().getUTCFullYear(), 0, 1) / 1000;
     const p = [
-      { id: "24h", label: "24 hours", q: { start: now - day, end: now } },
-      { id: "7d", label: "7 days", q: { start: now - 7 * day, end: now } },
-      { id: "30d", label: "30 days", q: { start: now - 30 * day, end: now } },
-      { id: "ytd", label: "This year", q: { start: yearStart, end: now } },
+      { id: "24h", label: _t("24 hours"), q: { start: now - day, end: now } },
+      { id: "7d", label: _t("7 days"), q: { start: now - 7 * day, end: now } },
+      { id: "30d", label: _t("30 days"), q: { start: now - 30 * day, end: now } },
+      { id: "ytd", label: _t("This year"), q: { start: yearStart, end: now } },
     ];
-    if (S.status && S.status.network === "mainnet") p.push({ id: "ord", label: "Since Ordinals", q: { from: ORDINALS_HEIGHT, to: 1e9 } });
-    p.push({ id: "all", label: "All time", q: { from: 0, to: 1e9 } });
+    if (S.status && S.status.network === "mainnet") p.push({ id: "ord", label: _t("Since Ordinals"), q: { from: ORDINALS_HEIGHT, to: 1e9 } });
+    p.push({ id: "all", label: _t("All time"), q: { from: 0, to: 1e9 } });
     return p;
   }
   function periodCard() {
     if (!S.period) S.period = { id: "30d" };
-    const seg = h("div", { class: "seg seg-wrap", role: "group", "aria-label": "Range shortcuts" });
+    const seg = h("div", { class: "seg seg-wrap", role: "group", "aria-label": _t("Range shortcuts") });
     for (const p of periodPresets()) {
       seg.append(h("button", { type: "button", "aria-pressed": String(S.period.id === p.id), text: p.label,
         onclick: () => { S.period = { id: p.id }; refreshPeriodButtons(); loadPeriod(); } }));
     }
-    const year = h("select", { "aria-label": "Year" }, h("option", { value: "", text: "Year…" }));
+    const year = h("select", { "aria-label": _t("Year") }, h("option", { value: "", text: _t("Year…") }));
     for (let y = new Date().getUTCFullYear(); y >= 2009; y--) year.append(h("option", { value: String(y), text: String(y) }));
     if (isYearPeriod(S.period.id)) year.value = S.period.id.slice(1);
     year.addEventListener("change", () => {
@@ -877,12 +913,12 @@
       S.period = { id: "y" + y, q: { start: Date.UTC(y, 0, 1) / 1000, end: Date.UTC(y + 1, 0, 1) / 1000 - 1 } };
       refreshPeriodButtons(); loadPeriod();
     });
-    const mode = h("select", { "aria-label": "Range type" }, h("option", { value: "date", text: "Dates" }), h("option", { value: "height", text: "Block heights" }));
-    const a = h("input", { type: "date", "aria-label": "From" }), b = h("input", { type: "date", "aria-label": "To" });
+    const mode = h("select", { "aria-label": _t("Range type") }, h("option", { value: "date", text: _t("Dates") }), h("option", { value: "height", text: _t("Block heights") }));
+    const a = h("input", { type: "date", "aria-label": _t("From") }), b = h("input", { type: "date", "aria-label": _t("To") });
     mode.addEventListener("change", () => {
       const t = mode.value === "date" ? "date" : "number";
       a.type = b.type = t; a.value = b.value = "";
-      a.placeholder = t === "number" ? "From height" : ""; b.placeholder = t === "number" ? "To height" : "";
+      a.placeholder = t === "number" ? _t("From height") : ""; b.placeholder = t === "number" ? _t("To height") : "";
       if (t === "number") { a.min = b.min = "0"; a.inputMode = b.inputMode = "numeric"; }
     });
     const msg = h("span", { class: "find-msg", role: "status" });
@@ -890,11 +926,11 @@
       msg.textContent = "";
       if (mode.value === "date") {
         const t0 = Date.parse(a.value + "T00:00:00Z") / 1000, t1 = Date.parse(b.value + "T23:59:59Z") / 1000;
-        if (!isFinite(t0) || !isFinite(t1)) { msg.textContent = "Choose a start and an end date."; return; }
+        if (!isFinite(t0) || !isFinite(t1)) { msg.textContent = _t("Choose a start and an end date."); return; }
         S.period = { id: "custom", q: { start: Math.min(t0, t1), end: Math.max(t0, t1) } };
       } else {
         const x = parseInt(a.value, 10), y = parseInt(b.value, 10);
-        if (!(x >= 0) || !(y >= 0)) { msg.textContent = "Enter two block heights."; return; }
+        if (!(x >= 0) || !(y >= 0)) { msg.textContent = _t("Enter two block heights."); return; }
         S.period = { id: "custom", q: { from: Math.min(x, y), to: Math.max(x, y) } };
       }
       year.value = ""; refreshPeriodButtons(); loadPeriod();
@@ -907,11 +943,11 @@
     }
     S.periodBox = h("div", { class: "period-result", "aria-live": "polite" });
     return h("div", { class: "card" },
-      h("h2", { text: "Custom range" }),
-      h("p", { class: "sub", text: "Spam statistics for any period — pick a shortcut or enter dates or block heights" }),
+      h("h2", { text: _t("Custom range") }),
+      h("p", { class: "sub", text: _t("Spam statistics for any period — pick a shortcut or enter dates or block heights") }),
       h("div", { class: "period-controls" }, seg, year),
-      h("div", { class: "period-controls" }, mode, a, h("span", { class: "muted", text: "to" }), b,
-        h("button", { class: "btn", type: "button", text: "Show", onclick: apply }), msg),
+      h("div", { class: "period-controls" }, mode, a, h("span", { class: "muted", text: _t("to") }), b,
+        h("button", { class: "btn", type: "button", text: _t("Show"), onclick: apply }), msg),
       S.periodBox);
   }
   const isYearPeriod = (id) => /^y\d{4}$/.test(String(id));
@@ -927,19 +963,19 @@
     let r, err = null;
     try { r = await api(`/api/period?${qs}`); } catch (e) { err = e; }
     if (seq !== S.periodSeq || box !== S.periodBox) return;      // a newer choice was made meanwhile
-    if (err) { clear(box).append(h("p", { class: "muted", text: err.message })); return; }
+    if (err) { clear(box).append(h("p", { class: "muted", text: _ts(err.message) })); return; }
     clear(box);
-    if (r.empty) { box.append(h("p", { class: "muted", text: "No scanned blocks in this range yet." + (r.blocks_total ? " The full history scan will get there." : "") })); return; }
-    const span = `Blocks ${fmtNum(r.first)}–${fmtNum(r.last)} · ${fmtDate(r.first_time).slice(0, 10)} – ${fmtDate(r.last_time).slice(0, 10)}`;
+    if (r.empty) { box.append(h("p", { class: "muted", text: _t("No scanned blocks in this range yet.") + (r.blocks_total ? " " + _t("The full history scan will get there.") : "") })); return; }
+    const span = _t("Blocks {a}–{b}", { a: fmtNum(r.first), b: fmtNum(r.last) }) + ` · ${fmtDate(r.first_time).slice(0, 10)} – ${fmtDate(r.last_time).slice(0, 10)}`;
     box.append(h("p", { class: "sub", text: span }));
     if (r.coverage_pct < 99.95) {
-      box.append(notice("warn", `About ${fmtPct(Math.min(99.9, r.coverage_pct))} of this range is scanned so far — the figures cover only the scanned blocks.`, null, "in-card"));
+      box.append(notice("warn", _t("About {pct} of this range is scanned so far — the figures cover only the scanned blocks.", { pct: fmtPct(Math.min(99.9, r.coverage_pct)) }), null, "in-card"));
     }
     box.append(h("div", { class: "grid grid-4 period-kpis" },
-      kpi("Spam", fmtBytes(r.spam_bytes), `${fmtPct(r.spam_pct)} of ${fmtBytes(r.totals.size)} block data`, "envelope"),
-      kpi("Monetary Node saves", fmtBytes(Math.max(0, r.saved_bytes)), `${fmtPct(Math.max(0, r.saved_pct))} less block storage`, "monetary"),
-      kpi("Transactions touched", fmtPct(r.modified_tx_pct), `${fmtNum(r.totals.modified + r.totals.stripped)} of ${fmtNum(r.totals.tx_count)}`),
-      kpi("Blocks", fmtNum(r.blocks_scanned), r.coverage_pct < 99.95 ? `scanned of ≈ ${fmtNum(r.blocks_total)} in this range` : "in this range")));
+      kpi("Spam", fmtBytes(r.spam_bytes), _t("{pct} of {size} block data", { pct: fmtPct(r.spam_pct), size: fmtBytes(r.totals.size) }), "envelope"),
+      kpi(_t("Monetary Node saves"), fmtBytes(Math.max(0, r.saved_bytes)), _t("{pct} less block storage", { pct: fmtPct(Math.max(0, r.saved_pct)) }), "monetary"),
+      kpi(_t("Transactions touched"), fmtPct(r.modified_tx_pct), _t("{n} of {total}", { n: fmtNum(r.totals.modified + r.totals.stripped), total: fmtNum(r.totals.tx_count) })),
+      kpi(_t("Blocks"), fmtNum(r.blocks_scanned), r.coverage_pct < 99.95 ? _t("scanned of ≈ {n} in this range", { n: fmtNum(r.blocks_total) }) : _t("in this range"))));
     const items = CARRIERS.map((k) => ({ key: k, value: r.by_carrier[k] || 0 }));
     box.append(h("div", { class: "donut-legend period-legend" }, items.map((it) => h("div", { class: "row" },
       h("i", { class: `swatch b-${it.key}` }), h("span", { text: LABEL[it.key] }),
@@ -967,23 +1003,23 @@
     for (const b of u.age_bands) {
       const track = h("div", { class: "bar-track" }, h("div", { class: "b-p2tr_dust" }));
       track.firstChild.style.width = (b.count / maxB) * 100 + "%";
-      bandBox.append(h("div", { class: "compare-row" }, h("div", { class: "lbl" }, h("span", { text: b.band }), h("b", { text: fmtNum(b.count) })), track));
+      bandBox.append(h("div", { class: "compare-row" }, h("div", { class: "lbl" }, h("span", { text: _ts(b.band) }), h("b", { text: fmtNum(b.count) })), track));
     }
     const nodeU = u.node_utxo;
     viewShell(
-      !u.full_done ? notice("warn", "These figures are still being built: every spam output is tracked from the block that created it until it is spent, so the exact current number is known once the full history scan has reached the tip.", null, "page-top") : null,
+      !u.full_done ? notice("warn", _t("These figures are still being built: every spam output is tracked from the block that created it until it is spent, so the exact current number is known once the full history scan has reached the tip."), null, "page-top") : null,
       h("div", { class: "grid grid-4" },
-        kpi("Spam entries in the UTXO set", fmtNum(u.count), u.complete ? "Exact, current" : "So far", "p2tr_dust"),
-        kpi("Chainstate they occupy", fmtBytes(u.disk_estimate), `${fmtBytes(u.bytes)} serialized × 1.35 database overhead`),
-        kpi("Share of all UTXOs", u.share_of_entries_pct != null ? fmtPct(u.share_of_entries_pct) : "–",
-          nodeU ? `of ${fmtNum(nodeU.txouts)} entries in your node's UTXO set` : "Waiting for the node's UTXO set size"),
-        kpi("Your node's UTXO set", nodeU ? fmtBytes(nodeU.disk_size) : "–", nodeU ? `on disk · read ${timeAgo(nodeU.time)}` : "Read once a day (read-only)")),
+        kpi(_t("Spam entries in the UTXO set"), fmtNum(u.count), u.complete ? _t("Exact, current") : _t("So far"), "p2tr_dust"),
+        kpi(_t("Chainstate they occupy"), fmtBytes(u.disk_estimate), _t("{size} serialized × 1.35 database overhead", { size: fmtBytes(u.bytes) })),
+        kpi(_t("Share of all UTXOs"), u.share_of_entries_pct != null ? fmtPct(u.share_of_entries_pct) : "–",
+          nodeU ? _t("of {n} entries in your node's UTXO set", { n: fmtNum(nodeU.txouts) }) : _t("Waiting for the node's UTXO set size")),
+        kpi(_t("Your node's UTXO set"), nodeU ? fmtBytes(nodeU.disk_size) : "–", nodeU ? _t("on disk · read {ago}", { ago: timeAgo(nodeU.time) }) : _t("Read once a day (read-only)"))),
       h("div", { class: "grid grid-2", style: { marginTop: "16px" } },
-        h("div", { class: "card" }, h("h2", { text: "By type" }),
-          h("p", { class: "sub", text: "A Monetary Node keeps these out of its UTXO database. Stamps outputs are removed from blocks too; P2TR dust stays in block storage, where it costs less, and is looked up there if it is ever spent." }),
+        h("div", { class: "card" }, h("h2", { text: _t("By type") }),
+          h("p", { class: "sub", text: _t("A Monetary Node keeps these out of its UTXO database. Stamps outputs are removed from blocks too; P2TR dust stays in block storage, where it costs less, and is looked up there if it is ever spent.") }),
           kindBars),
-        h("div", { class: "card" }, h("h2", { text: "How old they are" }),
-          h("p", { class: "sub", text: "Spam outputs are rarely spent — most stay in the chainstate for years" }), bandBox)));
+        h("div", { class: "card" }, h("h2", { text: _t("How old they are") }),
+          h("p", { class: "sub", text: _t("Spam outputs are rarely spent — most stay in the chainstate for years") }), bandBox)));
   }
 
   function viewAbout() {
@@ -991,38 +1027,38 @@
     const r = st.rules || {};
     const P = (t) => h("p", { text: t });
     viewShell(h("div", { class: "card prose" },
-      h("h2", { text: "What this app shows" }),
-      P("BitcoinMonetaryView reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead."),
-      P("It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database."),
-      h("h2", { text: "What is a Monetary Node?" }),
-      P("A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then stores no spam. Inscription witness data, oversized OP_RETURN outputs, Stamps-style fake-key outputs and oversized scriptSigs are removed from block storage after validation. No fork, no confiscation, nobody's permission required."),
-      P("The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally."),
-      h("h2", { text: "What counts as spam" }),
+      h("h2", { text: _t("What this app shows") }),
+      P(_t("BitcoinMonetaryView reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
+      P(_t("It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.")),
+      h("h2", { text: _t("What is a Monetary Node?") }),
+      P(_t("A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then stores no spam. Inscription witness data, oversized OP_RETURN outputs, Stamps-style fake-key outputs and oversized scriptSigs are removed from block storage after validation. No fork, no confiscation, nobody's permission required.")),
+      P(_t("The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.")),
+      h("h2", { text: _t("What counts as spam") }),
       h("ul", null,
-        h("li", null, h("strong", { text: "Inscriptions: " }), "data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses."),
-        h("li", null, h("strong", { text: "OP_RETURN over 83 bytes: " }), "oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on."),
-        h("li", null, h("strong", { text: "Stamps / fake keys: " }), "bare multisig or P2PK outputs whose \"public keys\" are not points on the secp256k1 curve — data disguised as keys."),
-        h("li", null, h("strong", { text: "Oversized scriptSig: " }), "input scripts over 1,650 bytes."),
-        h("li", null, h("strong", { text: "Inscription-era P2TR dust: " }), "taproot outputs under 1,000 sats since block 767,430. They stay in block storage but leave the UTXO database.")),
-      h("h2", { text: "Honest limitations" }),
+        h("li", null, h("strong", { text: _t("Inscriptions: ") }), _t("data inside OP_FALSE OP_IF … OP_ENDIF envelopes in taproot script-path and P2WSH witnesses.")),
+        h("li", null, h("strong", { text: _t("OP_RETURN over 83 bytes: ") }), _t("oversized data carriers. Verified payment-protocol envelopes (Shielded Bitcoin) are kept when the carrier policy is on.")),
+        h("li", null, h("strong", { text: _t("Stamps / fake keys: ") }), _t("bare multisig or P2PK outputs whose \"public keys\" are not points on the secp256k1 curve — data disguised as keys.")),
+        h("li", null, h("strong", { text: _t("Oversized scriptSig: ") }), _t("input scripts over 1,650 bytes.")),
+        h("li", null, h("strong", { text: _t("Inscription-era P2TR dust: ") }), _t("taproot outputs under 1,000 sats since block 767,430. They stay in block storage but leave the UTXO database."))),
+      h("h2", { text: _t("Honest limitations") }),
       h("ul", null,
-        h("li", { text: "A stripped block cannot be served to a conventional node. Monetary Nodes can serve each other; who serves full blocks if they become a large share of the network is an open question." }),
-        h("li", { text: "Transactions whose outputs were removed can no longer have their signatures re-verified from the stripped store (they were fully validated once, when the block arrived)." }),
-        h("li", { text: "The dust figures are a proxy: they count small taproot outputs from the inscription era, which includes some ordinary small payments." }),
-        h("li", { text: "Monetary Node is early-stage software. This app informs your decision; it does not make it for you." })),
-      h("h2", { text: "Spam vs. storage saved" }),
-      P("“Spam” counts only the data itself: inscription content, oversized OP_RETURN data, fake keys and oversized scriptSigs. “Storage saved” is the real difference in disk space, and it is usually larger: in a transaction that carries spam, a Monetary Node also drops the witness data (signatures already verified when the block arrived), and a transaction that is nothing but spam is reduced to its 32-byte txid. The Monetary Node's own bookkeeping is subtracted. Undo files and optional indexes are not counted on either side."),
-      h("h2", { text: "While the scan is running" }),
-      P("The full history scan reads every block in order, which takes hours (days in Eco mode). So that the first impression is not dominated by the early, almost spam-free years, the app first analyses the latest 1,000 blocks and then every 100th block of the rest. From that sample the overview shows an estimate for the whole chain (marked ≈) with its margin of error, next to the exact figure so far. The estimate is replaced by exact figures as the scan proceeds. History, Blocks, the UTXO set, the share card and the exports always show exact figures; parts of the history that are not scanned yet are marked as such."),
-      P("Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures."),
-      h("h2", { text: "Core, Knots and this app" }),
-      P("Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both."),
-      h("h2", { text: "Rules in use" }),
+        h("li", { text: _t("A stripped block cannot be served to a conventional node. Monetary Nodes can serve each other; who serves full blocks if they become a large share of the network is an open question.") }),
+        h("li", { text: _t("Transactions whose outputs were removed can no longer have their signatures re-verified from the stripped store (they were fully validated once, when the block arrived).") }),
+        h("li", { text: _t("The dust figures are a proxy: they count small taproot outputs from the inscription era, which includes some ordinary small payments.") }),
+        h("li", { text: _t("Monetary Node is early-stage software. This app informs your decision; it does not make it for you.") })),
+      h("h2", { text: _t("Spam vs. storage saved") }),
+      P(_t("“Spam” counts only the data itself: inscription content, oversized OP_RETURN data, fake keys and oversized scriptSigs. “Storage saved” is the real difference in disk space, and it is usually larger: in a transaction that carries spam, a Monetary Node also drops the witness data (signatures already verified when the block arrived), and a transaction that is nothing but spam is reduced to its 32-byte txid. The Monetary Node's own bookkeeping is subtracted. Undo files and optional indexes are not counted on either side.")),
+      h("h2", { text: _t("While the scan is running") }),
+      P(_t("The full history scan reads every block in order, which takes hours (days in Eco mode). So that the first impression is not dominated by the early, almost spam-free years, the app first analyses the latest 1,000 blocks and then every 100th block of the rest. From that sample the overview shows an estimate for the whole chain (marked ≈) with its margin of error, next to the exact figure so far. The estimate is replaced by exact figures as the scan proceeds. History, Blocks, the UTXO set, the share card and the exports always show exact figures; parts of the history that are not scanned yet are marked as such.")),
+      P(_t("Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures.")),
+      h("h2", { text: _t("Core, Knots and this app") }),
+      P(_t("Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both.")),
+      h("h2", { text: _t("Rules in use") }),
       h("dl", { class: "kv" },
-        h("dt", { text: "Upstream" }), h("dd", null, h("a", { href: (st.upstream || {}).repo || "#", rel: "noopener noreferrer", target: "_blank", text: "sambitcoin/BitcoinMonetaryNode" }), ` @ ${(r.upstream_commit || "").slice(0, 12)}`),
-        h("dt", { text: "Carrier policy" }), h("dd", { text: r.carrier_policy ? `on (${(r.policy_id || "").slice(0, 16)}…)` : "off" }),
-        h("dt", { text: "P2TR dust from" }), h("dd", { text: r.dust_start_height != null ? `block ${fmtNum(r.dust_start_height)}` : "–" }),
-        h("dt", { text: "Units" }), h("dd", { text: "Decimal: 1 GB = 1,000,000,000 bytes" }))));
+        h("dt", { text: "Upstream" }), h("dd", null, h("a", { href: (st.upstream || {}).repo || "#", rel: "noopener noreferrer", target: "_blank", text: _t("sambitcoin/BitcoinMonetaryNode") }), ` @ ${(r.upstream_commit || "").slice(0, 12)}`),
+        h("dt", { text: _t("Carrier policy") }), h("dd", { text: r.carrier_policy ? _t("on ({id}…)", { id: (r.policy_id || "").slice(0, 16) }) : _t("off") }),
+        h("dt", { text: _t("P2TR dust from") }), h("dd", { text: r.dust_start_height != null ? _t("block {h}", { h: fmtNum(r.dust_start_height) }) : "–" }),
+        h("dt", { text: _t("Units") }), h("dd", { text: _t("Decimal: 1 GB = 1,000,000,000 bytes") }))));
   }
 
   async function viewConnection() {
@@ -1034,16 +1070,16 @@
     (settings ? settings.settings : []).forEach((x) => { byName[x.name] = x; });
 
     const platformName = PLATFORM_NAMES[st.platform] || st.platform;
-    const nodeCard = h("div", { class: "card" }, h("h2", { text: "Your node" }), h("p", { class: "sub", text: "Connection used for all read-only requests" }),
-      st.platform && !st.managed ? notice("info", `Running on ${platformName}: it connects this app to your Bitcoin node and protects this dashboard with its own login.`, null, "in-card") : null,
+    const nodeCard = h("div", { class: "card" }, h("h2", { text: _t("Your node") }), h("p", { class: "sub", text: _t("Connection used for all read-only requests") }),
+      st.platform && !st.managed ? notice("info", _t("Running on {p}: it connects this app to your Bitcoin node and protects this dashboard with its own login.", { p: platformName }), null, "in-card") : null,
       h("dl", { class: "kv" },
-        h("dt", { text: "Address" }), h("dd", { text: node.url || "–" }),
-        h("dt", { text: "Software" }), h("dd", { text: node.version || "–" }),
-        h("dt", { text: "Network" }), h("dd", { text: st.network || "–" }),
-        h("dt", { text: "Block height" }), h("dd", { text: fmtNum(node.tip) }),
-        h("dt", { text: "Blocks fetched via" }), h("dd", { text: node.rest ? "REST (binary, faster)" : "RPC" }),
-        h("dt", { text: "Pruned" }), h("dd", { text: node.pruned ? `yes, from block ${fmtNum(node.prune_height)}` : "no" }),
-        h("dt", { text: "App database" }), h("dd", { text: st.db_size ? fmtBytes(st.db_size) : "–" })));
+        h("dt", { text: _t("Address") }), h("dd", { text: node.url || "–" }),
+        h("dt", { text: _t("Software") }), h("dd", { text: node.version || "–" }),
+        h("dt", { text: _t("Network") }), h("dd", { text: st.network || "–" }),
+        h("dt", { text: _t("Block height") }), h("dd", { text: fmtNum(node.tip) }),
+        h("dt", { text: _t("Blocks fetched via") }), h("dd", { text: node.rest ? _t("REST (binary, faster)") : "RPC" }),
+        h("dt", { text: _t("Pruned") }), h("dd", { text: node.pruned ? _t("yes, from block {h}", { h: fmtNum(node.prune_height) }) : _t("no") }),
+        h("dt", { text: _t("App database") }), h("dd", { text: st.db_size ? fmtBytes(st.db_size) : "–" })));
 
     const testBox = h("div");
     const renderTest = (t) => {
@@ -1051,13 +1087,13 @@
       if (t && t.result) {
         for (const c of t.result) {
           testBox.append(h("div", { class: "check" }, h("span", { class: `st ${c.status}`, text: c.status === "ok" ? "✓" : "!" }),
-            h("div", null, h("div", null, h("strong", { text: c.name + ": " }), c.message), c.hint ? h("div", { class: "hint", text: c.hint }) : null)));
+            h("div", null, h("div", null, h("strong", { text: _ts(c.name) + ": " }), _ts(c.message)), c.hint ? h("div", { class: "hint", text: _ts(c.hint) }) : null)));
         }
-        testBox.append(h("p", { class: "sub", style: { marginTop: "8px" }, text: `Tested ${timeAgo(t.time)}` }));
-      } else testBox.append(h("p", { class: "sub", text: t && t.running ? "Running…" : "Not run yet." }));
+        testBox.append(h("p", { class: "sub", style: { marginTop: "8px" }, text: _t("Tested {ago}", { ago: timeAgo(t.time) }) }));
+      } else testBox.append(h("p", { class: "sub", text: t && t.running ? _t("Running…") : _t("Not run yet.") }));
     };
     renderTest(ct);
-    const testBtn = h("button", { class: "btn", type: "button", text: "Run connection test" });
+    const testBtn = h("button", { class: "btn", type: "button", text: _t("Run connection test") });
     testBtn.addEventListener("click", async () => {
       testBtn.disabled = true;
       try {
@@ -1068,54 +1104,54 @@
           renderTest(t);
           if (!t.running && t.result) break;
         }
-      } catch (e) { testBox.append(h("p", { class: "sub", text: e.message })); }
+      } catch (e) { testBox.append(h("p", { class: "sub", text: _ts(e.message) })); }
       testBtn.disabled = false;
     });
     const testCard = h("div", { class: "card" }, h("div", { class: "card-head" },
-      h("div", null, h("h2", { text: "Connection test" }), h("p", { class: "sub", text: "Checks reachability, credentials, sync state and speed" })), testBtn), testBox);
+      h("div", null, h("h2", { text: _t("Connection test") }), h("p", { class: "sub", text: _t("Checks reachability, credentials, sync state and speed") })), testBtn), testBox);
 
     // scan controls
     const ctrl = h("div");
     const prof = byName.speed_profile;
-    const seg = h("div", { class: "seg", role: "group", "aria-label": "Speed profile" });
-    for (const [v, l] of [["eco", "Eco"], ["balanced", "Balanced"], ["full", "Full speed"]]) {
+    const seg = h("div", { class: "seg", role: "group", "aria-label": _t("Speed profile") });
+    for (const [v, l] of [["eco", "Eco"], ["balanced", _t("Balanced")], ["full", _t("Full speed")]]) {
       seg.append(h("button", { type: "button", "aria-pressed": String(prof && prof.value === v), disabled: !(prof && prof.editable), text: l,
         onclick: () => saveSetting({ speed_profile: v }) }));
     }
     const win = byName.scan_window, tz = byName.timezone;
-    const winInput = h("input", { type: "text", value: win ? win.value : "", placeholder: "e.g. 01:00-07:00 (empty = always)", disabled: !(win && win.editable) });
-    const tzInput = h("input", { type: "text", value: tz ? tz.value : "UTC", placeholder: "e.g. Europe/Berlin", disabled: !(tz && tz.editable) });
-    const saveWin = h("button", { class: "btn", type: "button", text: "Save", disabled: !(win && win.editable),
+    const winInput = h("input", { type: "text", value: win ? win.value : "", placeholder: _t("e.g. 01:00-07:00 (empty = always)"), disabled: !(win && win.editable) });
+    const tzInput = h("input", { type: "text", value: tz ? tz.value : "UTC", placeholder: _t("e.g. Europe/Berlin"), disabled: !(tz && tz.editable) });
+    const saveWin = h("button", { class: "btn", type: "button", text: _t("Save"), disabled: !(win && win.editable),
       onclick: () => saveSetting({ scan_window: winInput.value.trim(), timezone: tzInput.value.trim() || "UTC" }) });
     const msg = h("p", { class: "sub", style: { margin: "8px 0 0" } });
     async function saveSetting(changes) {
-      try { await post("/api/settings", { changes }); msg.textContent = "Saved."; setTimeout(viewConnection, 300); }
-      catch (e) { msg.textContent = `Not saved: ${e.message}`; }
+      try { await post("/api/settings", { changes }); msg.textContent = _t("Saved."); setTimeout(viewConnection, 300); }
+      catch (e) { msg.textContent = _t("Not saved: {err}", { err: _ts(e.message) }); }
     }
-    const pinnedNote = (x) => x && !x.editable ? h("span", { class: "src", text: st.managed ? "managed" : st.platform && x.source === "env" ? `set by ${platformName}` : `set via ${x.source}` }) : null;
+    const pinnedNote = (x) => x && !x.editable ? h("span", { class: "src", text: st.managed ? _t("managed") : st.platform && x.source === "env" ? _t("set by {p}", { p: platformName }) : _t("set via {src}", { src: _t(x.source) }) }) : null;
     ctrl.append(
-      h("div", { class: "form-row" }, h("label", null, "Speed profile", pinnedNote(prof)), seg,
-        h("div", { class: "help", text: "Eco is gentlest on your node (default). Full speed uses parallel requests. The scanner also backs off automatically when your node responds slowly." })),
-      h("div", { class: "form-row" }, h("label", null, "Scan window", pinnedNote(win)), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, winInput, tzInput, saveWin),
-        h("div", { class: "help", text: "Optional: only scan history during these hours. New blocks are always analysed." })),
-      h("div", { class: "form-row" }, h("label", { text: "Scanning" }), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-        st.can_pause ? h("button", { class: "btn", type: "button", text: st.paused ? "Resume" : "Pause", onclick: togglePause }) : null,
-        st.can_rescan ? h("button", { class: "btn btn-danger", type: "button", text: "Rescan from scratch", onclick: async () => {
-          if (!confirm("Delete this app's results and scan the whole chain again? Your node is not affected.")) return;
-          await post("/api/control", { action: "rescan" }).catch((e) => alert(e.message));
+      h("div", { class: "form-row" }, h("label", null, _t("Speed profile"), pinnedNote(prof)), seg,
+        h("div", { class: "help", text: _t("Eco is gentlest on your node (default). Full speed uses parallel requests. The scanner also backs off automatically when your node responds slowly.") })),
+      h("div", { class: "form-row" }, h("label", null, _t("Scan window"), pinnedNote(win)), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, winInput, tzInput, saveWin),
+        h("div", { class: "help", text: _t("Optional: only scan history during these hours. New blocks are always analysed.") })),
+      h("div", { class: "form-row" }, h("label", { text: _t("Scanning") }), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
+        st.can_pause ? h("button", { class: "btn", type: "button", text: st.paused ? _t("Resume") : _t("Pause"), onclick: togglePause }) : null,
+        st.can_rescan ? h("button", { class: "btn btn-danger", type: "button", text: _t("Rescan from scratch"), onclick: async () => {
+          if (!confirm(_t("Delete this app's results and scan the whole chain again? Your node is not affected."))) return;
+          await post("/api/control", { action: "rescan" }).catch((e) => alert(_ts(e.message)));
         } }) : null)),
       msg);
-    const ctrlCard = h("div", { class: "card" }, h("h2", { text: "Scan settings" }),
-      h("p", { class: "sub", text: st.managed ? `Managed by ${platformName} — change these in the service's Actions.` : "These only affect this app." }), ctrl);
+    const ctrlCard = h("div", { class: "card" }, h("h2", { text: _t("Scan settings") }),
+      h("p", { class: "sub", text: st.managed ? _t("Managed by {p} — change these in the service's Actions.", { p: platformName }) : _t("These only affect this app.") }), ctrl);
 
     // all settings (read-only list)
-    const setTable = settings ? dataTable(["Setting", "Value", "Source"], settings.settings.map((x) => [x.name,
-      Array.isArray(x.value) ? x.value.join(", ") : x.value === "" || x.value == null ? "—" : String(x.value), x.source])) : h("p", { text: "–" });
-    const allCard = h("div", { class: "card" }, h("h2", { text: "All settings" }),
-      h("p", { class: "sub", text: "Set them via command line, environment variables (BMV_…) or settings.json in the data directory. Secrets are never shown." }), setTable);
+    const setTable = settings ? dataTable([_t("Setting"), _t("Value"), _t("Source")], settings.settings.map((x) => [x.name,
+      Array.isArray(x.value) ? x.value.join(", ") : x.value === "" || x.value == null ? "—" : String(x.value), _t(x.source)])) : h("p", { text: "–" });
+    const allCard = h("div", { class: "card" }, h("h2", { text: _t("All settings") }),
+      h("p", { class: "sub", text: _t("Set them via command line, environment variables (BMV_…) or settings.json in the data directory. Secrets are never shown.") }), setTable);
 
-    const act = h("ul", { class: "activity" }, (st.activity || []).map((a) => h("li", null, h("time", { text: clock(a.time) }), h("span", { class: a.level, text: a.message }))));
-    const actCard = h("div", { class: "card" }, h("h2", { text: "Activity" }), h("p", { class: "sub", text: "What the scanner has been doing" }), act);
+    const act = h("ul", { class: "activity" }, (st.activity || []).map((a) => h("li", null, h("time", { text: clock(a.time) }), h("span", { class: a.level, text: _ts(a.message) }))));
+    const actCard = h("div", { class: "card" }, h("h2", { text: _t("Activity") }), h("p", { class: "sub", text: _t("What the scanner has been doing") }), act);
 
     viewShell(h("div", { class: "grid grid-2" }, nodeCard, testCard, ctrlCard, actCard, h("div", { class: "span-2" }, allCard)));
   }
@@ -1133,18 +1169,24 @@
     grd.addColorStop(0, "rgba(247,147,26,0.25)"); grd.addColorStop(1, "rgba(247,147,26,0)");
     x.fillStyle = grd; x.fillRect(0, 0, W, H);
     const font = (w, s2) => `${w} ${s2}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif`;
+    /** Text left of the donut: shrink the font until it fits (translations can be longer). */
+    const fit = (text, w, size, px, py, maxW = 670) => {      // the donut starts at x = 760
+      let sz = size;
+      do { x.font = font(w, sz); } while (x.measureText(text).width > maxW && --sz > 10);
+      x.fillText(text, px, py);
+    };
     x.fillStyle = "#f7931a"; x.font = font(700, 26); x.fillText("Monetary View", 64, 76);
-    x.fillStyle = muted; x.font = font(500, 20); x.fillText("My Bitcoin node, analysed with the Monetary Node rules", 64, 108);
+    x.fillStyle = muted; fit(_t("My Bitcoin node, analysed with the Monetary Node rules"), 500, 20, 64, 108);
     x.fillStyle = fg; x.font = font(800, 76); x.fillText(fmtBytes(sum.spam_bytes), 64, 230);
-    x.fillStyle = fg2; x.font = font(600, 30); x.fillText(`of spam in my node's blocks (${fmtPct(sum.spam_pct)})`, 64, 280);
+    x.fillStyle = fg2; fit(_t("of spam in my node's blocks ({pct})", { pct: fmtPct(sum.spam_pct) }), 600, 30, 64, 280);
     const stats = [
-      ["A Monetary Node saves", sum.saved_bytes > 0 ? `${fmtBytes(sum.saved_bytes)} (${fmtPct(sum.saved_pct)})` : "—"],
-      ["Spam UTXO entries", sum.utxo.count ? fmtNum(sum.utxo.count) : "—"],
-      ["Transactions touched", fmtPct(sum.modified_tx_pct)],
+      [_t("A Monetary Node saves"), sum.saved_bytes > 0 ? `${fmtBytes(sum.saved_bytes)} (${fmtPct(sum.saved_pct)})` : "—"],
+      [_t("Spam UTXO entries"), sum.utxo.count ? fmtNum(sum.utxo.count) : "—"],
+      [_t("Transactions touched"), fmtPct(sum.modified_tx_pct)],
     ];
     stats.forEach(([l, v], i) => {
       const y = 350 + i * 78;
-      x.fillStyle = muted; x.font = font(500, 20); x.fillText(l, 64, y);
+      x.fillStyle = muted; fit(l, 500, 20, 64, y);
       x.fillStyle = fg; x.font = font(700, 32); x.fillText(v, 64, y + 38);
     });
     // donut
@@ -1160,7 +1202,7 @@
       x.fillStyle = col[k]; x.fill(); a0 = a1;
     }
     x.textAlign = "center"; x.fillStyle = fg; x.font = font(800, 40); x.fillText(fmtPct(sum.spam_pct), cx, cy + 8);
-    x.fillStyle = muted; x.font = font(500, 18); x.fillText("of block data", cx, cy + 36);
+    x.fillStyle = muted; x.font = font(500, 18); x.fillText(_t("of block data"), cx, cy + 36);
     x.textAlign = "left";
     let lx = 760;
     items.forEach(([k], i) => {
@@ -1169,40 +1211,44 @@
       x.fillStyle = fg2; x.font = font(500, 17); x.fillText(SHORT[k], xx + 22, y);
     });
     const st = S.status || {};
-    const scope = sum.meta && sum.meta.full_done === "1" ? `Full chain · ${fmtNum(sum.blocks_scanned)} blocks` : `${fmtNum(sum.blocks_scanned)} blocks scanned so far`;
+    const scope = sum.meta && sum.meta.full_done === "1" ? _t("Full chain · {n} blocks", { n: fmtNum(sum.blocks_scanned) }) : _t("{n} blocks scanned so far", { n: fmtNum(sum.blocks_scanned) });
     x.fillStyle = muted; x.font = font(500, 17);
     x.fillText(`${st.network || ""} · ${scope}`, 64, H - 40);
-    x.fillText("Rules: github.com/sambitcoin/BitcoinMonetaryNode", 64, H - 16);
+    x.fillText(_t("Rules: {url}", { url: "github.com/sambitcoin/BitcoinMonetaryNode" }), 64, H - 16);
     return c;
   }
   function shareText(sum) {
     const full = sum.meta && sum.meta.full_done === "1";
-    return [`My Bitcoin node stores ${fmtBytes(sum.spam_bytes)} of spam — ${fmtPct(sum.spam_pct)} of its block data${full ? "" : " (in the blocks scanned so far)"}.`,
-      sum.saved_bytes > 0 ? `A Monetary Node would store ${fmtBytes(sum.saved_bytes)} (${fmtPct(sum.saved_pct)}) less${sum.utxo.count ? ` and keep ${fmtNum(sum.utxo.count)} spam entries out of its UTXO set` : ""}.` : "",
-      "Same blocks, same proof-of-work, every consensus rule validated.",
-      "Measured on my own node with BitcoinMonetaryView (https://github.com/MarkSierra/BitcoinMonetaryView) using the Monetary Node rules (https://github.com/sambitcoin/BitcoinMonetaryNode)."].filter(Boolean).join(" ");
+    const v = { spam: fmtBytes(sum.spam_bytes), pct: fmtPct(sum.spam_pct), saved: fmtBytes(sum.saved_bytes), spct: fmtPct(sum.saved_pct), utxo: fmtNum(sum.utxo.count) };
+    return [full ? _t("My Bitcoin node stores {spam} of spam — {pct} of its block data.", v)
+      : _t("My Bitcoin node stores {spam} of spam — {pct} of its block data (in the blocks scanned so far).", v),
+      sum.saved_bytes > 0 ? (sum.utxo.count ? _t("A Monetary Node would store {saved} ({spct}) less and keep {utxo} spam entries out of its UTXO set.", v)
+        : _t("A Monetary Node would store {saved} ({spct}) less.", v)) : "",
+      _t("Same blocks, same proof-of-work, every consensus rule validated."),
+      _t("Measured on my own node with BitcoinMonetaryView ({app}) using the Monetary Node rules ({rules}).",
+        { app: "https://github.com/MarkSierra/BitcoinMonetaryView", rules: "https://github.com/sambitcoin/BitcoinMonetaryNode" })].filter(Boolean).join(" ");
   }
   function openShare() {
     const sum = S.summary;
     if (!sum || sum.empty) return;
     const dlg = $("#dialog"), body = clear($("#dialog-body"));
     const canvas = drawShareCard(sum);
-    const img = h("img", { class: "share-preview", alt: "Summary card preview" });
-    const dl = h("a", { class: "btn btn-primary", download: "my-node-spam.png", text: "Download image" });
+    const img = h("img", { class: "share-preview", alt: _t("Summary card preview") });
+    const dl = h("a", { class: "btn btn-primary", download: "my-node-spam.png", text: _t("Download image") });
     canvas.toBlob((blob) => { const u = URL.createObjectURL(blob); img.src = u; dl.href = u; });
     const ta = h("textarea", { class: "share-text", readonly: true });
     ta.value = shareText(sum);
-    const copy = h("button", { class: "btn", type: "button", text: "Copy text" });
+    const copy = h("button", { class: "btn", type: "button", text: _t("Copy text") });
     copy.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(ta.value); copy.textContent = "Copied ✓"; }
-      catch (e) { ta.select(); copy.textContent = "Press Ctrl+C"; }
+      try { await navigator.clipboard.writeText(ta.value); copy.textContent = _t("Copied ✓"); }
+      catch (e) { ta.select(); copy.textContent = _t("Press Ctrl+C"); }
     });
     body.append(h("div", { class: "dlg" },
-      h("div", { class: "dlg-head" }, h("h2", { text: "Share my results" }),
-        h("button", { class: "icon-btn", type: "button", "aria-label": "Close", text: "✕", onclick: () => dlg.close() })),
-      sum.meta && sum.meta.full_done !== "1" ? notice("warn", "The share card uses exact figures only. While the full history scan runs, they cover only the part of the chain scanned so far — the estimate on the overview is not included. For your complete result, share again once the scan is finished.", null, "share-note") : null,
+      h("div", { class: "dlg-head" }, h("h2", { text: _t("Share my results") }),
+        h("button", { class: "icon-btn", type: "button", "aria-label": _t("Close"), text: "✕", onclick: () => dlg.close() })),
+      sum.meta && sum.meta.full_done !== "1" ? notice("warn", _t("The share card uses exact figures only. While the full history scan runs, they cover only the part of the chain scanned so far — the estimate on the overview is not included. For your complete result, share again once the scan is finished."), null, "share-note") : null,
       img, ta,
-      h("p", { class: "sub", style: { marginTop: "10px" }, text: "Created on this device — nothing is uploaded. Contains chain statistics only, nothing that identifies your node." }),
+      h("p", { class: "sub", style: { marginTop: "10px" }, text: _t("Created on this device — nothing is uploaded. Contains chain statistics only, nothing that identifies your node.") }),
       h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, dl, copy)));
     dlg.showModal();
   }
@@ -1234,7 +1280,7 @@
   async function togglePause() {
     const st = S.status;
     try { await post("/api/control", { action: st && st.paused ? "resume" : "pause" }); await pollStatus(); }
-    catch (e) { alert(e.message); }
+    catch (e) { alert(_ts(e.message)); }
   }
   async function pollStatus() {
     try {
@@ -1247,8 +1293,8 @@
         await refreshData();
       } else if (stale) await refreshData();
     } catch (e) {
-      $("#phase-label").textContent = "Offline";
-      $("#status-detail").textContent = "Cannot reach the BitcoinMonetaryView server.";
+      $("#phase-label").textContent = _t("Offline");
+      $("#status-detail").textContent = _t("Cannot reach the BitcoinMonetaryView server.");
       $("#phase-pill").dataset.tone = "error";
     }
   }
@@ -1273,7 +1319,27 @@
     try { VIEWS[S.view](); } finally { S.quiet = false; }
   }
 
+  /** Static texts in index.html: data-i18n translates the text, data-i18n-attr the named attributes. */
+  function translatePage() {
+    document.documentElement.lang = LANG;
+    for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = _t(el.textContent.trim());
+    for (const el of document.querySelectorAll("[data-i18n-attr]")) {
+      for (const a of el.dataset.i18nAttr.split(" ")) if (el.hasAttribute(a)) el.setAttribute(a, _t(el.getAttribute(a)));
+    }
+    const other = LANG === "de" ? "en" : "de";
+    const btn = $("#lang-toggle");
+    btn.textContent = other.toUpperCase();
+    btn.title = LANGS[other];
+    btn.setAttribute("aria-label", LANGS[other]);
+    btn.setAttribute("lang", other);
+    btn.addEventListener("click", () => {
+      try { localStorage.setItem("bmv-lang", other); } catch (e) { /* storage blocked: only this page */ }
+      location.reload();
+    });
+  }
+
   async function init() {
+    translatePage();
     initTheme();
     $("#pause-btn").addEventListener("click", togglePause);
     $("#dialog").addEventListener("close", () => { if (S.redrawPending) setTimeout(redrawDataView, 0); });

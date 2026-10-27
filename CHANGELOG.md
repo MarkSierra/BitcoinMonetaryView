@@ -2,6 +2,18 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- German dashboard: every page, chart, message and the share card are available in German, with German number
+  formats (40,4 GB). The dashboard follows the browser's language; the new EN/DE button in the header switches it
+  and is remembered in that browser. Messages from the scanner and the connection test are translated too.
+- Fix: the scanner's parallel block fetching kept up to four connections to the node open after a scan session
+  ended (settings change, reconnect, stop); they are now all closed.
+- Supply chain: the base image is pinned by digest (Dependabot proposes updates weekly), and release images
+  carry a signed build-provenance attestation; SECURITY.md shows how to verify an image or a StartOS package.
+- Block details: long words are no longer split mid-word (only hashes break anywhere). On the Connection page a
+  "set via …" note sits on its own line under its label.
+
 ## [0.2.4] — 2026-10-27
 
 - RISC-V: the Docker image is now also published for `linux/riscv64`, next to x86_64 and ARM64. The StartOS
