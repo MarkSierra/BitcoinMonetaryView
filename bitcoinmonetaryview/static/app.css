@@ -472,7 +472,7 @@ textarea.share-text {
 .sk-kpi { height: 112px; }
 .sk-card { height: 300px; }
 
-/* folded "technical details" card (Connection page on StartOS/Umbrel) */
+/* folded settings list on the Connection page */
 details.tech > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
 details.tech > summary::-webkit-details-marker { display: none; }
 details.tech > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
