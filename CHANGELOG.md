@@ -17,6 +17,8 @@ All notable changes are documented here. This project uses [semantic versioning]
   lines. During the full scan the progress reads "12.34 % of data": it is measured by data volume, which is
   why the nearly empty early years barely move it. On phones the phase sits on top with the current block
   and the progress bar below it, and the figures use two columns, so they fit in every language.
+- **UTXO set:** "Chainstate they occupy" is rounded like the per-type figures (it showed 465 B next to
+  466 B for the same outputs).
 - **Connection test on StartOS and Umbrel:** no advice to edit `bitcoin.conf` for REST; the platform manages
   the node's configuration.
 
