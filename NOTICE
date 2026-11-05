@@ -11,6 +11,9 @@ Third-party code included in this repository
    License: BSD-2-Clause, Copyright (c) 2026, 'sambitcoin'
    (full text: bitcoinmonetaryview/rules/upstream/LICENSE)
 
+   BitcoinMonetaryView is an independent project. It is not affiliated with or
+   endorsed by the Monetary Node project; it uses its published spam rules unchanged.
+
    Files copied verbatim (byte-identical, verified by tests):
      bitcoinmonetaryview/rules/upstream/monetary_store.py   (tools/monetary_store.py)
      bitcoinmonetaryview/rules/upstream/carrier_policy.py   (tools/carrier_policy.py)
