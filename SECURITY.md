@@ -1,6 +1,6 @@
 # Security policy
 
-BitcoinMonetaryView is designed to be strictly read-only towards your Bitcoin node. Anything that could make it
+Monetary View is designed to be strictly read-only towards your Bitcoin node. Anything that could make it
 change node state, read or write the node's files, leak credentials, or let a website or another user on your
 network control it is a security issue.
 
@@ -33,7 +33,7 @@ With the [GitHub CLI](https://cli.github.com/):
 
 ```sh
 # Docker image (covers all architectures)
-gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.3.5 --repo MarkSierra/BitcoinMonetaryView
+gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.3.6 --repo MarkSierra/BitcoinMonetaryView
 
 # StartOS package, after downloading it from the package's GitHub release
 gh attestation verify bitcoinmonetaryview_x86_64.s9pk --repo MarkSierra/BitcoinMonetaryView-startos

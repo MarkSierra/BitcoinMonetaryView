@@ -1,8 +1,8 @@
-# BitcoinMonetaryView
+# Monetary View
 
 **See how much spam your Bitcoin node stores — and what a Monetary Node would save.**
 
-BitcoinMonetaryView connects to your own Bitcoin Core or Bitcoin Knots node, analyses every block of the
+Monetary View (on GitHub: BitcoinMonetaryView) connects to your own Bitcoin Core or Bitcoin Knots node, analyses every block of the
 chain with the rules of the [Monetary Node](https://github.com/sambitcoin/BitcoinMonetaryNode) project and
 shows, in a web dashboard:
 
@@ -26,7 +26,7 @@ the language menu in the header switches it and is remembered in that browser. T
 if you spot a mistake, please [report it](https://github.com/MarkSierra/BitcoinMonetaryView/issues/new?template=translation.yml).
 Exports (CSV/JSON) keep English column names, so scripts and spreadsheets work the same in every language.
 
-> **Independent project.** BitcoinMonetaryView is not affiliated with or endorsed by the
+> **Independent project.** Monetary View is not affiliated with or endorsed by the
 > [Monetary Node](https://github.com/sambitcoin/BitcoinMonetaryNode) project; it uses its published spam rules
 > unchanged (see [NOTICE](NOTICE) for the pinned version and licence).
 
@@ -130,7 +130,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64, ARM64 and, since 0.2.4, RISC-V):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.5`) — use it as `image:` instead
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.6`) — use it as `image:` instead
 of `build: .` in the compose file, or fetch it with `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---

@@ -3,7 +3,7 @@
 # when python:3.15-slim gets a new digest (Python or Debian security updates).
 FROM python:3.15-slim@sha256:e97b88e416c3c01eb427b21fd8cd3ebf006e6ee38afcfcc3cae1c54ee2ab0a75
 
-LABEL org.opencontainers.image.title="BitcoinMonetaryView" \
+LABEL org.opencontainers.image.title="Monetary View" \
       org.opencontainers.image.description="Read-only spam analysis for Bitcoin Core/Knots nodes (Monetary Node rules)" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.source="https://github.com/MarkSierra/BitcoinMonetaryView"
