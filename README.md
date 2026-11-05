@@ -40,7 +40,7 @@ Exports (CSV/JSON) keep English column names, so scripts and spreadsheets work t
 | Platform | How |
 |---|---|
 | **Umbrel** | Add the community app store [`https://github.com/MarkSierra/umbrel-community-app-store`](https://github.com/MarkSierra/umbrel-community-app-store) in your Umbrel's App Store, then install **Monetary View** — [steps](#umbrel) |
-| **Start9 (StartOS 0.4)** | Download the `.s9pk` from the [StartOS package releases](https://github.com/MarkSierra/BitcoinMonetaryView-startos/releases) and sideload it — [steps](#start9-startos) |
+| **Start9 (StartOS 0.4.1+)** | Download the `.s9pk` from the [StartOS package releases](https://github.com/MarkSierra/BitcoinMonetaryView-startos/releases) and sideload it — [steps](#start9-startos) |
 | **Docker** | `ghcr.io/marksierra/bitcoinmonetaryview:latest` — [steps](#docker) |
 | **Any computer with Python** | See the [quick start](#quick-start) below |
 
@@ -92,11 +92,13 @@ when it detects plain HTTP to another machine.
 
 ### Start9 (StartOS)
 
-**Native package (StartOS 0.4):** [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos)
+**Native package (StartOS 0.4.1 or newer):** [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos)
 runs the app on your Start9 next to Bitcoin Core / Knots, connects automatically and needs no setup. It is not
 in the Start9 marketplace yet: download the `.s9pk` for your architecture from that repo's
 [Releases](https://github.com/MarkSierra/BitcoinMonetaryView-startos/releases) and install it via System →
-Sideload. Updates keep your scan results.
+Sideload. StartOS asks you to confirm, because a sideloaded package is not signed by a registry it trusts;
+check the file against `SHA256SUMS` (or its build attestation) from the same release first. Updates keep your
+scan results.
 
 **From another computer:** use the RPC connection details shown in your Bitcoin Core / Knots service
 (Interfaces / Properties). StartOS serves LAN RPC over HTTPS with its own certificate authority: download your
