@@ -70,7 +70,7 @@ jobs:
   browser:
     # Every dashboard page in a real Chromium: no JavaScript or console errors, no failed
     # API calls, no requests outside the app, no sideways scrolling on phones and tablets.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Playwright 1.56 cannot install Chromium on ubuntu-latest (26.04)
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
