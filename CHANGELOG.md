@@ -2,6 +2,14 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.5] — 2026-11-05
+
+- **Python 3.15:** the image now runs on the current `python:3.15-slim` base (Python 3.15.2, Debian 13),
+  pinned by digest, for amd64, arm64 and riscv64. Before the switch the whole test suite, including the browser
+  tests in all five languages, passed on Python 3.15 and inside the new image itself. CI now tests every
+  Python from 3.10 (the oldest supported) to 3.15, and also runs the full suite inside the built image. No
+  change to the app's behaviour or figures.
+
 ## [0.3.4] — 2026-11-05
 
 - **Independence stated clearly:** the About page (in all five languages), the README and NOTICE now say that
