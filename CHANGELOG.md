@@ -2,7 +2,7 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.7] — 2026-11-05
 
 - **Realistic remaining time at the start of the full scan:** the first years of the chain are nearly empty
   blocks, so the data rate there is tiny and the estimate said "~400 days". Until the blocks reach half the
