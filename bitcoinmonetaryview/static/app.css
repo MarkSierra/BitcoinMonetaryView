@@ -203,8 +203,11 @@ main { max-width: 1240px; width: 100%; margin: 0 auto; padding: 20px 16px 40px; 
   .topbar, .statusbar { position: static; }
   /* status figures in a tidy grid instead of a ragged wrap */
   .status-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; width: 100%; }
+  @media (max-width: 480px) { .status-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .status-metrics div { min-width: 0; }
   .status-detail { display: block; -webkit-line-clamp: unset; line-clamp: unset; }
+  .status-left { flex-wrap: wrap; }
+  .status-text { flex-basis: 100%; }
 }
 /* tablets and phones: the tabs get their own row below the brand, one line you can swipe sideways;
    the current tab is scrolled into view */

@@ -508,9 +508,11 @@
     $("#progress-fill").style.transform = `scaleX(${Math.max(0, Math.min(100, prog)) / 100})`;
     $("#progress").setAttribute("aria-valuenow", String(Math.round(prog)));
     $("#m-height").textContent = st.height != null ? `${fmtNum(st.height)} / ${fmtNum(st.tip)}` : "–";
-    $("#m-progress").textContent = ["quick", "sample"].includes(st.phase) ? `${fmtPct(prog)} (${_t(st.phase)})` : st.progress != null ? fmtPct(prog, 2) : "–";
+    // the full scan measures progress by data volume, which tracks the time it takes; block counts do not
+    $("#m-progress").textContent = ["quick", "sample"].includes(st.phase) ? `${fmtPct(prog)} (${_t(st.phase)})`
+      : st.progress == null ? "–" : st.phase === "full" && st.total_bytes_estimate ? _t("{pct} of data", { pct: fmtPct(prog, 2) }) : fmtPct(prog, 2);
     $("#m-speed").textContent = ["full", "quick", "sample"].includes(st.phase) && st.bytes_per_s
-      ? `${fmtBytes(st.bytes_per_s)}/s · ${fixed(st.blocks_per_s, 1)} ${_t("blk/s")}` : "–";
+      ? `${fmtBytes(st.bytes_per_s)}/s · ${fixed(st.blocks_per_s, 1)}\u00a0${_t("blk/s")}` : "–";   // may wrap at the "·" only
     $("#m-elapsed").textContent = fmtDur(st.now - (st.full_started_at || st.started_at));
     $("#m-eta").textContent = st.phase === "live" ? _t("done") : st.eta_seconds ? "~" + fmtDur(st.eta_seconds) : "–";
     const pb = $("#pause-btn");

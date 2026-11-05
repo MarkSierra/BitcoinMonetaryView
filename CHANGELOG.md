@@ -14,7 +14,9 @@ All notable changes are documented here. This project uses [semantic versioning]
   until the full scan is done; the share card uses the same order.
 - **Status bar:** the line describing the current block may use two lines, so it is no longer cut off in
   German, Spanish, French or Polish. Numbers and their units ("5.6 %", "23.1 MB") no longer break across
-  lines.
+  lines. During the full scan the progress reads "12.34 % of data": it is measured by data volume, which is
+  why the nearly empty early years barely move it. On phones the phase sits on top with the current block
+  and the progress bar below it, and the figures use two columns, so they fit in every language.
 - **Connection test on StartOS and Umbrel:** no advice to edit `bitcoin.conf` for REST; the platform manages
   the node's configuration.
 

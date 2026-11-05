@@ -89,6 +89,7 @@
     "{pct} of all UTXOs": "{pct} aller UTXOs",
     "No blocks yet.": "Noch keine Blöcke.",
     "Block {h}": "Block {h}",
+    "{pct} of data": "{pct} der Daten",
     "spam: {spam} of {size}": "Spam: {spam} von {size}",
     " and ": " und ",
     "Scanned so far: blocks {list}.": "Bisher gescannt: Blöcke {list}.",
