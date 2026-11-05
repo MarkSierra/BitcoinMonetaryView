@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.6] — 2026-11-05
+
+- **One name:** the app is called **Monetary View** everywhere you see it — header, footer, About page, share
+  text, messages, logs, the browser's login prompt and the docs, in all five languages. `BitcoinMonetaryView`
+  stays only as the technical name (GitHub repository, Docker image, Python package, StartOS package id); the
+  About page and README mention it once ("on GitHub: BitcoinMonetaryView"). No change to the figures.
+
 ## [0.3.5] — 2026-11-05
 
 - **Python 3.15:** the image now runs on the current `python:3.15-slim` base (Python 3.15.2, Debian 13),

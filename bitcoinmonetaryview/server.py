@@ -308,7 +308,7 @@ def make_handler(app):
                 if not ok:
                     body = b"Authentication required"
                     self._headers(401, "text/plain", len(body),
-                                  {"WWW-Authenticate": 'Basic realm="BitcoinMonetaryView", charset="UTF-8"'})
+                                  {"WWW-Authenticate": 'Basic realm="Monetary View", charset="UTF-8"'})
                     self.wfile.write(body)
                     return False
             return True

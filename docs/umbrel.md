@@ -1,6 +1,6 @@
 # Umbrel package
 
-BitcoinMonetaryView is packaged for umbrelOS in the community app store
+Monetary View is packaged for umbrelOS in the community app store
 [MarkSierra/umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store)
 (app ID `marksierra-bitcoinmonetaryview`). The package is two files, `umbrel-app.yml` and
 `docker-compose.yml`, and uses the multi-arch image `ghcr.io/marksierra/bitcoinmonetaryview`, pinned by

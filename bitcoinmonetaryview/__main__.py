@@ -15,7 +15,7 @@ from .config import Config, build_arg_parser, default_data_dir, json_schema
 def main(argv=None):
     args = build_arg_parser().parse_args(argv)
     if args.version:
-        print(f"BitcoinMonetaryView {__version__}")
+        print(f"Monetary View {__version__}")
         return 0
     if args.print_settings_schema:
         print(json.dumps(json_schema(), indent=2))
@@ -48,7 +48,7 @@ def main(argv=None):
     from .scanner import Scanner
     from .server import make_server
 
-    log.info("BitcoinMonetaryView %s — read-only: nothing on your node is changed", __version__)
+    log.info("Monetary View %s — read-only: nothing on your node is changed", __version__)
     log.info("Data directory: %s", data_dir)
     if config.managed:
         log.info("Managed by %s: settings are read-only in the web interface", config.managed_by)

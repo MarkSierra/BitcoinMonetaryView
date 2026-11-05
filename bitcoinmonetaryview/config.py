@@ -187,7 +187,7 @@ def json_schema():
             p["writeOnly"] = True
         props[s.name] = p
     return {"$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "BitcoinMonetaryView settings", "type": "object",
+            "title": "Monetary View settings", "type": "object",
             "additionalProperties": True, "properties": props}
 
 

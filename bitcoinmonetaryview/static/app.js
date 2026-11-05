@@ -1111,9 +1111,9 @@
     const P = (t) => h("p", { text: t });
     viewShell(h("div", { class: "card prose" },
       h("h2", { text: _t("What this app shows") }),
-      P(_t("BitcoinMonetaryView reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
+      P(_t("Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
       P(_t("It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.")),
-      P(_t("BitcoinMonetaryView is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.")),
+      P(_t("Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.")),
       h("h2", { text: _t("What is a Monetary Node?") }),
       P(_t("A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.")),
       P(_t("The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.")),
@@ -1313,7 +1313,7 @@
       sum.saved_bytes > 0 ? (sum.utxo.count ? _t("A Monetary Node would store {saved} ({spct}) less and keep {utxo} spam entries out of its UTXO set.", v)
         : _t("A Monetary Node would store {saved} ({spct}) less.", v)) : "",
       _t("Same blocks, same proof-of-work, every consensus rule validated."),
-      _t("Measured on my own node with BitcoinMonetaryView ({app}) using the Monetary Node rules ({rules}).",
+      _t("Measured on my own node with Monetary View ({app}) using the Monetary Node rules ({rules}).",
         { app: "https://github.com/MarkSierra/BitcoinMonetaryView", rules: "https://github.com/sambitcoin/BitcoinMonetaryNode" })].filter(Boolean).join(" ");
   }
   function openShare() {
@@ -1410,7 +1410,7 @@
       } else if (stale) await refreshData();
     } catch (e) {
       $("#phase-label").textContent = _t("Offline");
-      $("#status-detail").textContent = _t("Cannot reach the BitcoinMonetaryView server.");
+      $("#status-detail").textContent = _t("Cannot reach the Monetary View server.");
       $("#phase-pill").dataset.tone = "error";
     }
   }

@@ -224,12 +224,12 @@
     "Spam outputs are rarely spent — most stay in the chainstate for years":
       "Les outputs de spam sont rarement dépensés — la plupart restent des années dans le chainstate",
     "What this app shows": "Ce que montre cette application",
-    "BitcoinMonetaryView reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.":
-      "BitcoinMonetaryView lit chaque bloc de votre propre nœud Bitcoin Core ou Knots et lui applique les règles du projet Monetary Node. Elle montre quelle part du stockage et de l’ensemble UTXO de votre nœud est occupée par des données qui ne sont pas de la monnaie — et ce qu’un Monetary Node stockerait à la place.",
+    "Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.":
+      "Monetary View (sur GitHub : BitcoinMonetaryView) lit chaque bloc de votre propre nœud Bitcoin Core ou Knots et lui applique les règles du projet Monetary Node. Elle montre quelle part du stockage et de l’ensemble UTXO de votre nœud est occupée par des données qui ne sont pas de la monnaie — et ce qu’un Monetary Node stockerait à la place.",
     "It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.":
       "Elle fonctionne strictement en lecture seule : elle n’utilise que des appels RPC de lecture (une liste blanche fixe appliquée dans l’application), ne touche jamais aux fichiers de votre nœud et garde ses propres résultats dans une base de données séparée.",
-    "BitcoinMonetaryView is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.":
-      "BitcoinMonetaryView est un projet indépendant. Il n’est ni affilié au projet Monetary Node ni approuvé par lui ; il utilise ses règles anti-spam publiées sans modification.",
+    "Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.":
+      "Monetary View est un projet indépendant. Il n’est ni affilié au projet Monetary Node ni approuvé par lui ; il utilise ses règles anti-spam publiées sans modification.",
     "A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.":
       "Un Monetary Node est un nœud Bitcoin qui valide chaque règle de consensus et chaque bloc, puis retire le spam de son stockage de blocs : les données witness des inscriptions, les outputs OP_RETURN surdimensionnés et les outputs à fausses clés de type Stamps sont retirés après validation. Pas de fork, pas de confiscation, aucune permission à demander.",
     "The blocks still verify against their headers and real proof-of-work: a block's merkle root is computed over txids, and the Monetary Node keeps the 32-byte txid of every transaction it changes. Removed outputs keep a small filter entry, so anything removed can still be spent and validated locally.":
@@ -351,8 +351,8 @@
       "Un Monetary Node stockerait {saved} ({spct}) de moins et garderait {utxo} entrées de spam hors de son ensemble UTXO.",
     "A Monetary Node would store {saved} ({spct}) less.": "Un Monetary Node stockerait {saved} ({spct}) de moins.",
     "Same blocks, same proof-of-work, every consensus rule validated.": "Mêmes blocs, même preuve de travail, chaque règle de consensus validée.",
-    "Measured on my own node with BitcoinMonetaryView ({app}) using the Monetary Node rules ({rules}).":
-      "Mesuré sur mon propre nœud avec BitcoinMonetaryView ({app}) selon les règles Monetary Node ({rules}).",
+    "Measured on my own node with Monetary View ({app}) using the Monetary Node rules ({rules}).":
+      "Mesuré sur mon propre nœud avec Monetary View ({app}) selon les règles Monetary Node ({rules}).",
     "Summary card preview": "Aperçu de la carte de résumé",
     "Download image": "Télécharger l’image",
     "Copy text": "Copier le texte",
@@ -363,7 +363,7 @@
     "Created on this device — nothing is uploaded. Contains chain statistics only, nothing that identifies your node.":
       "Créée sur cet appareil — rien n’est envoyé. Ne contient que des statistiques de la chaîne, rien qui identifie votre nœud.",
     "Offline": "Hors ligne",
-    "Cannot reach the BitcoinMonetaryView server.": "Impossible de joindre le serveur BitcoinMonetaryView.",
+    "Cannot reach the Monetary View server.": "Impossible de joindre le serveur Monetary View.",
     "Skip to content": "Aller au contenu",
     "Overview": "Vue d’ensemble",
     "History": "Historique",
