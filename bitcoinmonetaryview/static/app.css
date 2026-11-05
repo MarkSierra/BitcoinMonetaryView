@@ -471,3 +471,11 @@ textarea.share-text {
 .sk-hero { height: 190px; border-radius: 18px; }
 .sk-kpi { height: 112px; }
 .sk-card { height: 300px; }
+
+/* folded "technical details" card (Connection page on StartOS/Umbrel) */
+details.tech > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+details.tech > summary::-webkit-details-marker { display: none; }
+details.tech > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+details.tech[open] > summary::before { transform: rotate(90deg); }
+details.tech > summary h2 { margin: 0; }
+details.tech[open] > summary { margin-bottom: 12px; }

@@ -1237,10 +1237,13 @@
     // all settings (read-only list)
     const setTable = settings ? dataTable([_t("Setting"), _t("Value"), _t("Source")], settings.settings.map((x) => [x.name,
       Array.isArray(x.value) ? x.value.join(", ") || "—" : x.value === "" || x.value == null ? "—" : String(x.value), _t(x.source)])) : h("p", { text: "–" });
-    const allCard = h("div", { class: "card" }, h("h2", { text: _t("All settings") }),
-      h("p", { class: "sub", text: st.managed ? _t("{p} sets the connection; your choices come from the service's Actions. Secrets are never shown.", { p: platformName })
-        : st.platform ? _t("{p} sets the connection; change the scan settings above. Secrets are never shown.", { p: platformName })
-        : _t("Set them via command line, environment variables (BMV_…) or settings.json in the data directory. Secrets are never shown.") }), setTable);
+    const allSub = h("p", { class: "sub", text: st.managed ? _t("{p} sets the connection; your choices come from the service's Actions. Secrets are never shown.", { p: platformName })
+      : st.platform ? _t("{p} sets the connection; change the scan settings above. Secrets are never shown.", { p: platformName })
+      : _t("Set them via command line, environment variables (BMV_…) or settings.json in the data directory. Secrets are never shown.") });
+    // on a platform hardly any of these can be changed: keep them for support, folded away
+    const allCard = st.platform
+      ? h("div", { class: "card" }, h("details", { class: "tech" }, h("summary", null, h("h2", { text: _t("Technical details (for support)") })), allSub, setTable))
+      : h("div", { class: "card" }, h("h2", { text: _t("All settings") }), allSub, setTable);
 
     const act = h("ul", { class: "activity" }, (st.activity || []).map((a) => h("li", null, h("time", { text: clock(a.time) }), h("span", { class: a.level, text: _ts(a.message) }))));
     const actCard = h("div", { class: "card" }, h("h2", { text: _t("Activity") }), h("p", { class: "sub", text: _t("What the scanner has been doing") }), act);

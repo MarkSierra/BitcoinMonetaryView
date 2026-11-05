@@ -329,6 +329,7 @@
     "Delete this app's results and scan the whole chain again? Your node is not affected.":
       "Supprimer les résultats de cette application et réanalyser toute la chaîne ? Votre nœud n’est pas concerné.",
     "Scan settings": "Paramètres d’analyse",
+    "Technical details (for support)": "Détails techniques (pour l’assistance)",
     "{p} sets the connection; your choices come from the service's Actions. Secrets are never shown.":
       "{p} définit la connexion ; vos choix viennent des Actions du service. Les secrets ne sont jamais affichés.",
     "{p} sets the connection; change the scan settings above. Secrets are never shown.":

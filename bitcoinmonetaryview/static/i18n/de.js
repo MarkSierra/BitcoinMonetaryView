@@ -285,6 +285,7 @@
     "Rescan from scratch": "Komplett neu scannen",
     "Delete this app's results and scan the whole chain again? Your node is not affected.": "Die Ergebnisse dieser App löschen und die gesamte Chain neu scannen? Dein Node ist davon nicht betroffen.",
     "Scan settings": "Scan-Einstellungen",
+    "Technical details (for support)": "Technische Details (für den Support)",
     "{p} sets the connection; your choices come from the service's Actions. Secrets are never shown.":
       "{p} legt die Verbindung fest; deine Einstellungen kommen aus den Aktionen des Dienstes. Geheimnisse werden nie angezeigt.",
     "{p} sets the connection; change the scan settings above. Secrets are never shown.":

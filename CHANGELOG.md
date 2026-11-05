@@ -22,6 +22,7 @@ All notable changes are documented here. This project uses [semantic versioning]
 - **All settings on StartOS and Umbrel:** the description no longer suggests the command line, environment
   variables or `settings.json`; it says the platform sets the connection and where your own choices are
   made (StartOS: the service's Actions; Umbrel: the scan settings above).
+  There the list is folded away as "Technical details (for support)", since hardly any of it can be changed.
 - **Connection test on StartOS and Umbrel:** no advice to edit `bitcoin.conf` for REST; the platform manages
   the node's configuration.
 
