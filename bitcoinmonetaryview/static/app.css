@@ -158,7 +158,8 @@ a { color: var(--accent-ink); }
 .phase-pill[data-tone="error"] .dot { background: var(--crit); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 .status-text { min-width: 0; flex: 1; }
-.status-detail { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* up to two lines: longer languages need them; the full text is also the tooltip */
+.status-detail { font-size: 13px; color: var(--text-2); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .progress { height: 6px; background: var(--surface-3); border-radius: 999px; overflow: hidden; margin-top: 6px; }
 /* no transition: it moves a fraction of a pixel per update, and animating it kept the GPU drawing frames */
 .progress-fill { height: 100%; width: 100%; background: linear-gradient(90deg, var(--accent), #ffb257); transform: scaleX(0); transform-origin: left; }
@@ -202,8 +203,11 @@ main { max-width: 1240px; width: 100%; margin: 0 auto; padding: 20px 16px 40px; 
   .topbar, .statusbar { position: static; }
   /* status figures in a tidy grid instead of a ragged wrap */
   .status-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; width: 100%; }
+  @media (max-width: 480px) { .status-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .status-metrics div { min-width: 0; }
-  .status-detail { white-space: normal; }
+  .status-detail { display: block; -webkit-line-clamp: unset; line-clamp: unset; }
+  .status-left { flex-wrap: wrap; }
+  .status-text { flex-basis: 100%; }
 }
 /* tablets and phones: the tabs get their own row below the brand, one line you can swipe sideways;
    the current tab is scrolled into view */
@@ -467,3 +471,11 @@ textarea.share-text {
 .sk-hero { height: 190px; border-radius: 18px; }
 .sk-kpi { height: 112px; }
 .sk-card { height: 300px; }
+
+/* folded settings list on the Connection page */
+details.tech > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+details.tech > summary::-webkit-details-marker { display: none; }
+details.tech > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+details.tech[open] > summary::before { transform: rotate(90deg); }
+details.tech > summary h2 { margin: 0; }
+details.tech[open] > summary { margin-bottom: 12px; }

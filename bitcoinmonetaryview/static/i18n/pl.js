@@ -100,7 +100,8 @@
     "{pct} of all UTXOs": "{pct} wszystkich UTXO",
     "No blocks yet.": "Brak bloków.",
     "Block {h}": "Blok {h}",
-    "spam · {size}": "spam · {size}",
+    "{pct} of data": "{pct} danych",
+    "spam: {spam} of {size}": "spam: {spam} z {size}",
     " and ": " i ",
     "Scanned so far: blocks {list}.": "Przeskanowane dotąd: bloki {list}.",
     "Scanned so far: block {list}.": "Przeskanowany dotąd: blok {list}.",
@@ -326,6 +327,11 @@
     "Delete this app's results and scan the whole chain again? Your node is not affected.":
       "Usunąć wyniki tej aplikacji i przeskanować cały łańcuch ponownie? Twój węzeł nie zostanie naruszony.",
     "Scan settings": "Ustawienia skanowania",
+    "Technical details (for support)": "Szczegóły techniczne (dla wsparcia)",
+    "{p} sets the connection; your choices come from the service's Actions. Secrets are never shown.":
+      "{p} ustawia połączenie; Twoje wybory pochodzą z Akcji usługi. Sekrety nigdy nie są wyświetlane.",
+    "{p} sets the connection; change the scan settings above. Secrets are never shown.":
+      "{p} ustawia połączenie; ustawienia skanowania zmienisz powyżej. Sekrety nigdy nie są wyświetlane.",
     "Managed by {p} — change these in the service's Actions.": "Zarządzane przez {p} — zmienisz je w Akcjach usługi.",
     "These only affect this app.": "Dotyczą tylko tej aplikacji.",
     "Setting": "Ustawienie",

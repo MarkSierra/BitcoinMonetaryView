@@ -225,7 +225,7 @@ class Analytics:
             except ValueError:
                 info = None
         res = {"count": total_c, "bytes": total_b,
-               "disk_estimate": int(total_b * mr.LEVELDB_OVERHEAD_FACTOR),
+               "disk_estimate": round(total_b * mr.LEVELDB_OVERHEAD_FACTOR),   # rounded like the per-type figures
                "by_kind": kinds, "age_bands": [{"band": n, **bands[n]} for n, _ in AGE_BANDS],
                "complete": m.get("utxo_complete") == "1" and m.get("full_done") == "1",
                "full_done": m.get("full_done") == "1",

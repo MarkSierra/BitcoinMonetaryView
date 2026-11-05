@@ -89,7 +89,8 @@
     "{pct} of all UTXOs": "{pct} aller UTXOs",
     "No blocks yet.": "Noch keine Blöcke.",
     "Block {h}": "Block {h}",
-    "spam · {size}": "Spam · {size}",
+    "{pct} of data": "{pct} der Daten",
+    "spam: {spam} of {size}": "Spam: {spam} von {size}",
     " and ": " und ",
     "Scanned so far: blocks {list}.": "Bisher gescannt: Blöcke {list}.",
     "Scanned so far: block {list}.": "Bisher gescannt: Block {list}.",
@@ -284,6 +285,11 @@
     "Rescan from scratch": "Komplett neu scannen",
     "Delete this app's results and scan the whole chain again? Your node is not affected.": "Die Ergebnisse dieser App löschen und die gesamte Chain neu scannen? Dein Node ist davon nicht betroffen.",
     "Scan settings": "Scan-Einstellungen",
+    "Technical details (for support)": "Technische Details (für den Support)",
+    "{p} sets the connection; your choices come from the service's Actions. Secrets are never shown.":
+      "{p} legt die Verbindung fest; deine Einstellungen kommen aus den Aktionen des Dienstes. Geheimnisse werden nie angezeigt.",
+    "{p} sets the connection; change the scan settings above. Secrets are never shown.":
+      "{p} legt die Verbindung fest; die Scan-Einstellungen änderst du oben. Geheimnisse werden nie angezeigt.",
     "Managed by {p} — change these in the service's Actions.": "Verwaltet von {p} – ändere sie in den Aktionen des Dienstes.",
     "These only affect this app.": "Diese betreffen nur diese App.",
     "Setting": "Einstellung",

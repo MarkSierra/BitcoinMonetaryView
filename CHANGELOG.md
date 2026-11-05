@@ -2,6 +2,31 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.7] — 2026-11-05
+
+- **Realistic remaining time at the start of the full scan:** the first years of the chain are nearly empty
+  blocks, so the data rate there is tiny and the estimate said "~400 days". Until the blocks reach half the
+  chain's average size, the estimate now uses at least the data rate the sample pass measured across the
+  whole chain.
+- **Latest blocks:** each card shows the spam share with one decimal below 10 % ("0.3 %" instead of "0 %")
+  and spells out what the small line means: "spam: 4.1 kB of 1.26 MB" (it showed only the block size).
+- **Overview:** "Transactions with spam" now comes before "Spam entries in the UTXO set", which stays empty
+  until the full scan is done; the share card uses the same order.
+- **Status bar:** the line describing the current block may use two lines, so it is no longer cut off in
+  German, Spanish, French or Polish. Numbers and their units ("5.6 %", "23.1 MB") no longer break across
+  lines. During the full scan the progress reads "12.34 % of data": it is measured by data volume, which is
+  why the nearly empty early years barely move it. On phones the phase sits on top with the current block
+  and the progress bar below it, and the figures use two columns, so they fit in every language.
+- **UTXO set:** "Chainstate they occupy" is rounded like the per-type figures (it showed 465 B next to
+  466 B for the same outputs).
+- **All settings on StartOS and Umbrel:** the description no longer suggests the command line, environment
+  variables or `settings.json`; it says the platform sets the connection and where your own choices are
+  made (StartOS: the service's Actions; Umbrel: the scan settings above).
+  The settings list on the Connection page is folded away by default (it is a read-only reference); on StartOS
+  and Umbrel it is called "Technical details (for support)", since hardly any of it can be changed there.
+- **Connection test on StartOS and Umbrel:** no advice to edit `bitcoin.conf` for REST; the platform manages
+  the node's configuration.
+
 ## [0.3.6] — 2026-11-05
 
 - **One name:** the app is called **Monetary View** everywhere you see it — header, footer, About page, share
