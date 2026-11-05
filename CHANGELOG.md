@@ -2,6 +2,12 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.4] — 2026-11-05
+
+- **Independence stated clearly:** the About page (in all five languages), the README and NOTICE now say that
+  BitcoinMonetaryView is an independent project, not affiliated with or endorsed by the Monetary Node project,
+  and that it uses that project's published spam rules unchanged. No change to the figures.
+
 ## [0.3.3] — 2026-10-27
 
 - **Open pages update themselves:** a dashboard tab or installed app window that stays open used to keep
