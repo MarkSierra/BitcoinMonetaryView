@@ -2,6 +2,22 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- **Realistic remaining time at the start of the full scan:** the first years of the chain are nearly empty
+  blocks, so the data rate there is tiny and the estimate said "~400 days". Until the blocks reach half the
+  chain's average size, the estimate now uses at least the data rate the sample pass measured across the
+  whole chain.
+- **Latest blocks:** each card shows the spam share with one decimal below 10 % ("0.3 %" instead of "0 %")
+  and spells out what the small line means: "spam: 4.1 kB of 1.26 MB" (it showed only the block size).
+- **Overview:** "Transactions with spam" now comes before "Spam entries in the UTXO set", which stays empty
+  until the full scan is done; the share card uses the same order.
+- **Status bar:** the line describing the current block may use two lines, so it is no longer cut off in
+  German, Spanish, French or Polish. Numbers and their units ("5.6 %", "23.1 MB") no longer break across
+  lines.
+- **Connection test on StartOS and Umbrel:** no advice to edit `bitcoin.conf` for REST; the platform manages
+  the node's configuration.
+
 ## [0.3.6] — 2026-11-05
 
 - **One name:** the app is called **Monetary View** everywhere you see it — header, footer, About page, share

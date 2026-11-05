@@ -164,6 +164,7 @@ class Scanner(threading.Thread):
         self._rules_sig = None
         self.processed_bytes = 0
         self.total_bytes_estimate = None
+        self._sample_rate = None
         self._pool = None
         self._pool_workers = None
         self._apool = None
@@ -193,6 +194,7 @@ class Scanner(threading.Thread):
         self.bloom = None                       # free the old filter before allocating a new one
         self.bloom = Bloom(self.config.bloom_mb)
         self.processed_bytes = 0
+        self._sample_rate = None
         self.status.set(full_started_at=None)
         self.status.event(level, message)
 
@@ -736,6 +738,7 @@ class Scanner(threading.Thread):
             self.status.event("info", f"Sample pass: analysing every {n:,}th block of blocks "
                                       f"{full_next:,}–{end - 1:,} ({total:,} blocks) for a whole-chain estimate")
         t0 = time.monotonic()
+        run_bytes = 0
         hashes = self.node.hashes_for(todo)
         last_commit = time.monotonic()
         self.store.begin()
@@ -745,6 +748,7 @@ class Scanner(threading.Thread):
                 res = self.accept(h, hashes[i], res, None)
                 self.store.put_sample(h, res)
                 done += 1
+                run_bytes += res["original"]
                 self.meter.add(res["original"])
                 bps, Bps = self.meter.rates()
                 remaining = total - done
@@ -764,6 +768,11 @@ class Scanner(threading.Thread):
                 self.store.set_meta("sample_done", "1")
                 self.status.event("info", f"Sample pass finished in {time.monotonic() - t0:.0f}s — "
                                           "whole-chain estimate available")
+            # The sample spans the whole chain, so its data rate (pauses and per-block overhead
+            # included) is a fair reference for the full scan while that is still in tiny blocks.
+            if time.monotonic() - t0 >= 30 and run_bytes:
+                self.store.set_meta("sample_bytes_per_s", run_bytes / (time.monotonic() - t0))
+                self._sample_rate = None
             self.store.commit()
         except (mr.BlockInvalid, NodeError):
             # keep the samples taken so far; if the node pruned the blocks we were after,
@@ -897,12 +906,24 @@ class Scanner(threading.Thread):
                 self.store.set_meta("full_done", "1")
                 self.status.event("info", "Full history scan complete — now following new blocks live")
 
+    def sample_rate(self):
+        """Data rate measured by the sample pass (bytes/s), 0 if there was none."""
+        if self._sample_rate is None:
+            self._sample_rate = float(self.store.get_meta("sample_bytes_per_s") or 0)
+        return self._sample_rate
+
     def update_full_status(self, h, tip, start_height, res):
         bps, Bps = self.meter.rates()
         total = self.total_bytes_estimate
         if total and total > self.processed_bytes:
             progress = self.processed_bytes / total * 100
-            eta = (total - self.processed_bytes) / Bps if Bps > 0 else None
+            rate = Bps
+            # Early blocks are nearly empty: per-block overhead dominates and the data rate says
+            # little about the rest (it gave "400 days" in 2009). Until the blocks are at least half
+            # the chain's average size, don't let the estimate fall below the sample pass's rate.
+            if bps > 0 and Bps / bps < 0.5 * total / max(1, tip + 1):
+                rate = max(Bps, self.sample_rate())
+            eta = (total - self.processed_bytes) / rate if rate > 0 else None
         else:
             span = max(1, tip - start_height + 1)
             progress = (h - start_height + 1) / span * 100

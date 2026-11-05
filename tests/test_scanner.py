@@ -419,6 +419,25 @@ class ScannerTest(unittest.TestCase):
         self.assertEqual(heights, list(range(0, 5000, 100)))
         s.store.close()
 
+    def test_eta_in_tiny_early_blocks_uses_sample_rate(self):
+        # 2009-style blocks: 100 blocks/s but only 25 kB/s. Bytes left / 25 kB/s said "400 days";
+        # the sample pass measured 10 MB/s over the whole chain.
+        s = Scanner(self.config())
+        s.store = Store(os.path.join(self.dir, "eta.sqlite"))
+        s.total_bytes_estimate, tip = 780e9, 974_000
+        s.meter.rates = lambda: (100.0, 25e3)
+        s.describe_block = lambda h, res: ""
+        s.update_full_status(8000, tip, 0, {"original": 250})
+        self.assertGreater(s.status.get("eta_seconds"), 300 * 86400)    # no sample rate yet: as before
+        s.store.set_meta("sample_bytes_per_s", 10e6)
+        s._sample_rate = None                                           # as the sample pass does
+        s.update_full_status(8001, tip, 0, {"original": 250})
+        self.assertAlmostEqual(s.status.get("eta_seconds"), 78_000, delta=1000)
+        s.meter.rates = lambda: (8.0, 8e6)                              # full blocks: measured rate again
+        s.update_full_status(900_000, tip, 0, {"original": 1_000_000})
+        self.assertAlmostEqual(s.status.get("eta_seconds"), 97_500, delta=1000)
+        s.store.close()
+
 
 class PrunedNode(ScannerTest):
     def test_jumps_when_node_prunes_past_cursor(self):

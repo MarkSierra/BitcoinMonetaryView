@@ -100,7 +100,7 @@
     "{pct} of all UTXOs": "{pct} wszystkich UTXO",
     "No blocks yet.": "Brak bloków.",
     "Block {h}": "Blok {h}",
-    "spam · {size}": "spam · {size}",
+    "spam: {spam} of {size}": "spam: {spam} z {size}",
     " and ": " i ",
     "Scanned so far: blocks {list}.": "Przeskanowane dotąd: bloki {list}.",
     "Scanned so far: block {list}.": "Przeskanowany dotąd: blok {list}.",

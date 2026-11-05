@@ -125,7 +125,7 @@
     let i = 0;
     while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; }
     const d = digits != null ? digits : (b >= 100 || i === 0 ? 0 : b >= 10 ? 1 : 2);
-    return (neg ? "−" : "") + fixed(b, d) + " " + u[i];
+    return (neg ? "−" : "") + fixed(b, d) + "\u00a0" + u[i];   // no-break space: number and unit stay on one line
   }
   const fmtNum = (n) => (n == null || isNaN(n) ? "–" : NF.format(Math.round(n)));
   function fmtCompact(n) {
@@ -136,7 +136,7 @@
     if (a >= 1e3) return fixed(n / 1e3, a >= 1e4 ? 0 : 1) + _t("k");
     return String(Math.round(n));
   }
-  function fmtPct(p, d = 1) { return p == null || isNaN(p) ? "–" : fixed(p, d) + " %"; }
+  function fmtPct(p, d = 1) { return p == null || isNaN(p) ? "–" : fixed(p, d) + "\u00a0%"; }
   function fmtDur(sec) {
     if (sec == null || !isFinite(sec)) return "–";
     sec = Math.max(0, Math.round(sec));
@@ -606,8 +606,8 @@
     const kpis = h("div", { class: "grid grid-4" },
       kpi(_t("Spam in your blocks"), ap + fmtBytes(B.spam_bytes), _t("{pct} of {size} block data", { pct: ap + fmtPct(B.spam_pct), size: ap + fmtBytes(t.size) })),
       kpi(_t("Storage a Monetary Node saves"), saved >= 0 ? ap + fmtBytes(saved) : "—", saved >= 0 ? _t("{pct} less block storage", { pct: ap + fmtPct(B.saved_pct) }) : _t("No saving in the blocks scanned so far")),
-      kpi(_t("Spam entries in the UTXO set"), u.full_done || u.count ? fmtCompact(u.count) : "–", utxoFoot(u)),
-      kpi(_t("Transactions with spam"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })));
+      kpi(_t("Transactions with spam"), ap + fmtPct(B.modified_tx_pct), est ? _t("of all transactions modified or reduced to a txid") : _t("{n} of {total} modified or reduced to a txid", { n: fmtNum(t.modified + t.stripped), total: fmtNum(t.tx_count) })),
+      kpi(_t("Spam entries in the UTXO set"), u.full_done || u.count ? fmtCompact(u.count) : "–", utxoFoot(u)));
 
     viewShell(
       h("section", { class: "hero" },
@@ -673,7 +673,7 @@
     return s2;
   }
   function kpi(label, value, foot) {
-    const parts = String(value).split(" ");
+    const parts = String(value).split(/[ \u00a0]/);
     return h("div", { class: "card kpi" },
       h("div", { class: "kpi-label" }, label),
       h("div", { class: "kpi-value" }, parts[0], parts[1] ? h("small", { text: parts.slice(1).join(" ") }) : null),
@@ -709,7 +709,7 @@
       wrap.append(h("a", { class: "blockcard", href: `#/block/${b.height}`, title: _t("Block {h}", { h: fmtNum(b.height) }) },
         h("div", { class: "top" }, h("div", { class: "h", text: fmtNum(b.height) }), h("div", { class: "t", text: timeAgo(b.time) })),
         h("div", { class: "zone" }, fill),
-        h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, 0), h("small", { text: _t("spam · {size}", { size: fmtBytes(b.size, 2) }) })))));
+        h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, b.spam_pct < 10 ? 1 : 0), h("small", { text: _t("spam: {spam} of {size}", { spam: fmtBytes(b.spam_bytes), size: fmtBytes(b.size, 2) }) })))));
     }
     return wrap;
   }
@@ -944,7 +944,7 @@
       const mo = byMonth.get(mk);
       return { label: mk, title: mk, value: mo && mo.size ? (CARRIERS.reduce((a, k) => a + (mo[k] || 0), 0) / mo.size) * 100 : (mo ? 0 : null) };
     });
-    lineChart(share, shareRows, "spam", { yFmt: (v) => fmtPct(v), axisFmt: (v) => fixed(v, 0) + " %", seriesLabel: _t("Spam share"), pending });
+    lineChart(share, shareRows, "spam", { yFmt: (v) => fmtPct(v), axisFmt: (v) => fixed(v, 0) + "\u00a0%", seriesLabel: _t("Spam share"), pending });
     const full = data.months.filter((mo) => mo.utxo_count !== 0 || mo.utxo_bytes !== 0);
     lineChart(utxo, seq.map((mk) => {
       const mo = byMonth.get(mk);
@@ -1269,8 +1269,8 @@
     x.fillStyle = fg2; fit(_t("of spam in my node's blocks ({pct})", { pct: fmtPct(sum.spam_pct) }), 600, 30, 64, 280);
     const stats = [
       [_t("A Monetary Node saves"), sum.saved_bytes > 0 ? `${fmtBytes(sum.saved_bytes)} (${fmtPct(sum.saved_pct)})` : "—"],
-      [_t("Spam UTXO entries"), sum.utxo.count ? fmtNum(sum.utxo.count) : "—"],
       [_t("Transactions with spam"), fmtPct(sum.modified_tx_pct)],
+      [_t("Spam UTXO entries"), sum.utxo.count ? fmtNum(sum.utxo.count) : "—"],
     ];
     stats.forEach(([l, v], i) => {
       const y = 350 + i * 78;

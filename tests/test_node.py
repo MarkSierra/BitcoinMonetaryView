@@ -128,6 +128,22 @@ class Client(unittest.TestCase):
         finally:
             node.stop()
 
+    def test_no_bitcoin_conf_advice_on_platforms(self):
+        # StartOS and Umbrel manage the node's config: the connection test must not suggest editing it
+        from bitcoinmonetaryview.config import Config
+        from bitcoinmonetaryview.diagnostics import run_connection_test
+        node = MockNode(self.chain, rest=False)
+        d = tempfile.mkdtemp()
+        try:
+            cli = {"rpc_url": node.url, "rpc_user": "u", "rpc_password": "p"}
+            for env, advice in (({}, True), ({"BMV_MANAGED_BY": "startos"}, False), ({"BMV_MANAGED_BY": "umbrel"}, False)):
+                rest = [c for c in run_connection_test(Config(d, cli=cli, env=env)) if c["name"] == "REST"][0]
+                self.assertEqual(rest["status"], "ok")
+                self.assertEqual("bitcoin.conf" in rest["hint"], advice, env)
+        finally:
+            node.stop()
+            shutil.rmtree(d)
+
     def test_bad_password(self):
         node = MockNode(self.chain)
         try:

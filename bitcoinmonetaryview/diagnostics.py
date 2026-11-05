@@ -65,8 +65,9 @@ def run_connection_test(scanner_or_config):
     if node.probe_rest():
         add("REST", "ok", "REST interface is enabled — blocks are fetched in binary (faster)")
     else:
+        # On StartOS/Umbrel the platform manages the node's config: no bitcoin.conf advice there.
         add("REST", "ok", "REST interface not enabled — using RPC (works fine, a bit slower)",
-            "Optional: rest=1 in bitcoin.conf roughly halves the transfer size. Not required.")
+            "" if config.platform else "Optional: rest=1 in bitcoin.conf roughly halves the transfer size. Not required.")
     try:
         h = node.best_hash()
         t0 = time.monotonic()
