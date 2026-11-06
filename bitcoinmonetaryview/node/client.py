@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""High-level, read-only view of a Bitcoin Core/Knots node (RPC + optional REST)."""
+"""High-level, read-only view of a Bitcoin Core/Knots/Roots node (RPC + optional REST)."""
 
 import time
 

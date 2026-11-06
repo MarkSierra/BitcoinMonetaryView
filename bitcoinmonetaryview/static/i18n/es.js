@@ -72,7 +72,7 @@
       "Los mismos bloques, la misma prueba de trabajo; solo se eliminan los portadores de datos (estimado para toda la cadena)",
     "Same blocks, same proof-of-work — only the data carriers removed":
       "Los mismos bloques, la misma prueba de trabajo; solo se eliminan los portadores de datos",
-    "Your node (Core/Knots)": "Tu nodo (Core/Knots)",
+    "Your node (Core/Knots/Roots)": "Tu nodo (Core/Knots/Roots)",
     "The saving is usually larger than the spam itself: in transactions that carry spam, a Monetary Node also drops the witness data (signatures and other data already verified when the block was accepted), and transactions that are only spam are reduced to their txid. Its own bookkeeping (stored txids, a record of removed outputs) is included. Undo files and optional indexes are not.":
       "El ahorro suele ser mayor que el propio spam: en las transacciones que llevan spam, un Monetary Node también descarta los datos de witness (firmas y otros datos ya verificados cuando se aceptó el bloque), y las transacciones que solo son spam se reducen a su txid. Su propia contabilidad (txids guardados, un registro de los outputs eliminados) está incluida. Los archivos undo y los índices opcionales no.",
     "Spam in your blocks": "Spam en tus bloques",
@@ -103,6 +103,8 @@
     "Block {h}": "Bloque {h}",
     "{pct} of data": "{pct} de los datos",
     "spam: {spam} of {size}": "spam: {spam} de {size}",
+    "spam: {spam}": "spam: {spam}",
+    "of {size}": "de {size}",
     " and ": " y ",
     "Scanned so far: blocks {list}.": "Escaneado hasta ahora: bloques {list}.",
     "Scanned so far: block {list}.": "Escaneado hasta ahora: bloque {list}.",
@@ -225,8 +227,8 @@
     "Spam outputs are rarely spent — most stay in the chainstate for years":
       "Los outputs de spam rara vez se gastan: la mayoría permanecen años en el chainstate",
     "What this app shows": "Qué muestra esta app",
-    "Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.":
-      "Monetary View (en GitHub: BitcoinMonetaryView) lee cada bloque de tu propio nodo Bitcoin Core o Knots y le aplica las reglas del proyecto Monetary Node. Muestra cuánto del almacenamiento y del conjunto UTXO de tu nodo ocupan datos que no son dinero, y qué almacenaría en su lugar un Monetary Node.",
+    "Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core, Knots or Roots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.":
+      "Monetary View (en GitHub: BitcoinMonetaryView) lee cada bloque de tu propio nodo Bitcoin Core, Knots o Roots y le aplica las reglas del proyecto Monetary Node. Muestra cuánto del almacenamiento y del conjunto UTXO de tu nodo ocupan datos que no son dinero, y qué almacenaría en su lugar un Monetary Node.",
     "It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.":
       "Es estrictamente de solo lectura: solo usa llamadas RPC de lectura (una lista blanca fija aplicada dentro de la app), nunca toca los archivos de tu nodo y guarda sus propios resultados en una base de datos aparte.",
     "Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.":
@@ -268,7 +270,7 @@
       "El escaneo completo del historial lee cada bloque en orden, lo que lleva horas (días en modo Eco). Para que la primera impresión no la dominen los primeros años, casi sin spam, la app analiza primero los últimos 1000 bloques y después uno de cada 100 bloques del resto. A partir de esa muestra, la vista general muestra una estimación para toda la cadena (marcada con ≈) con su margen de error, junto a la cifra exacta hasta el momento. La estimación se sustituye por cifras exactas a medida que avanza el escaneo. Historial, Bloques, el conjunto UTXO, la tarjeta para compartir y las exportaciones muestran siempre cifras exactas; las partes del historial aún no escaneadas aparecen marcadas como tales.",
     "Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures.":
       "Cualquier bloque se puede abrir en la página Bloques por su altura o hash. Si el escaneo aún no ha llegado a él, «Analizar este bloque ahora» lee solo ese bloque de tu nodo y muestra sus cifras exactas.",
-    "Core, Knots and this app": "Core, Knots y esta app",
+    "Core, Knots, Roots and this app": "Core, Knots, Roots y esta app",
     "“Transactions with spam” is the share of transactions a Monetary Node changes: it removes their spam part, or keeps only the txid of a transaction that is nothing but spam. Upstream's results call them “modified or stripped”.":
       "«Transacciones con spam» es la proporción de transacciones que un Monetary Node modifica: elimina su parte de spam o, si la transacción es solo spam, conserva únicamente su txid. Los resultados del proyecto original las llaman «modified or stripped».",
     "Trends and records on the overview come from the blocks already scanned, without extra requests to your node. A comparison appears once 95 % of its blocks are scanned: the last 30 days (4,320 blocks), and the last 1,000 blocks against the same 1,000 blocks a year earlier.":
@@ -277,8 +279,8 @@
       "Idiomas",
     "The dashboard is available in English, German, Spanish, French and Polish. It follows your browser's language, and the menu in the header switches it. The translations are new: if something reads wrong, please report it with the link at the bottom of the page.":
       "El panel está disponible en inglés, alemán, español, francés y polaco. Sigue el idioma de tu navegador, y el menú de la cabecera permite cambiarlo. Las traducciones son nuevas: si algo suena mal, infórmanos con el enlace al pie de la página.",
-    "Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both.":
-      "Los filtros de mempool de Knots dejan de retransmitir spam, pero el spam que ya está en los bloques lo almacenan todos los nodos completos, tanto Core como Knots. Las cifras de aquí valen para ambos.",
+    "The mempool filters of Knots and Roots stop relaying spam, but spam that is already in blocks is stored by every full node — Core, Knots and Roots alike. The numbers here apply to all of them.":
+      "Los filtros de mempool de Knots y Roots dejan de retransmitir spam, pero el spam que ya está en los bloques lo almacenan todos los nodos completos, ya sean Core, Knots o Roots. Las cifras de aquí valen para todos.",
     "Rules in use": "Reglas en uso",
     "sambitcoin/BitcoinMonetaryNode": "sambitcoin/BitcoinMonetaryNode",
     "Carrier policy": "Política de portadores",
@@ -479,8 +481,8 @@
     "RPC credentials accepted": "Credenciales RPC aceptadas",
     "Is the node running and the URL/port right? For access from another computer the node needs rpcbind=<its LAN address> (or 0.0.0.0) and rpcallowip=<your network, e.g. 192.168.1.0/24> in bitcoin.conf. On Start9, use the RPC address shown in the service's interfaces.":
       "¿Está en marcha el nodo y son correctos la URL y el puerto? Para acceder desde otro equipo, el nodo necesita rpcbind=<su dirección LAN> (o 0.0.0.0) y rpcallowip=<tu red, p. ej. 192.168.1.0/24> en bitcoin.conf. En Start9, usa la dirección RPC que aparece en las interfaces del servicio.",
-    "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. On Start9 the RPC credentials are shown in the Bitcoin Core/Knots service's properties.":
-      "Comprueba rpc_user/rpc_password o haz que rpc_cookie_file apunte al archivo .cookie del nodo. En Start9, las credenciales RPC aparecen en las propiedades del servicio Bitcoin Core/Knots.",
+    "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. On Start9 the RPC credentials are shown in the Bitcoin Core/Knots/Roots service's properties.":
+      "Comprueba rpc_user/rpc_password o haz que rpc_cookie_file apunte al archivo .cookie del nodo. En Start9, las credenciales RPC aparecen en las propiedades del servicio Bitcoin Core/Knots/Roots.",
     "The node may still be starting up. Try again in a minute.": "Puede que el nodo aún se esté iniciando. Vuelve a intentarlo en un minuto.",
     "Scanning starts automatically once the node is fully synced.": "El escaneo empieza automáticamente cuando el nodo esté totalmente sincronizado.",
     "Node is fully synced": "El nodo está totalmente sincronizado",

@@ -101,6 +101,8 @@ class App:
         self.scanner = scanner
         self.csrf = secrets.token_urlsafe(32)
         self._analytics = {}
+        self._analytics_lock = threading.Lock()
+        self._retired = []          # replaced databases with connections still in use
         self._conn_test = {"running": False, "result": None, "time": None}
         self._conn_lock = threading.Lock()
         self._lookup_lock = threading.Lock()
@@ -198,10 +200,30 @@ class App:
         path = self.scanner.store_path
         if not path:
             return None
-        a = self._analytics.get(path)
-        if a is None:
-            a = self._analytics[path] = Analytics(path)
+        with self._analytics_lock:
+            a = self._analytics.get(path)
+            if a is None:
+                # a new database (rescan, other network): the old ones' connections go
+                for old in self._analytics.values():
+                    old.close()
+                    self._retired.append(old)
+                self._analytics = {path: Analytics(path)}
+                a = self._analytics[path]
         return a
+
+    def release_db(self):
+        """Return the current thread's database connections to their pools."""
+        with self._analytics_lock:
+            current = list(self._analytics.values()) + self._retired
+        for a in current:
+            a.release()
+        with self._analytics_lock:
+            self._retired = [a for a in self._retired if a.open_connections()]
+
+    def close(self):
+        with self._analytics_lock:
+            for a in list(self._analytics.values()) + self._retired:
+                a.close()
 
     def start_connection_test(self):
         with self._conn_lock:
@@ -257,6 +279,12 @@ def make_handler(app):
 
         def log_message(self, fmt, *args):
             log.debug("%s %s", self.address_string(), fmt % args)
+
+        def handle_one_request(self):
+            try:
+                super().handle_one_request()
+            finally:
+                app.release_db()
 
         # ------------------------------------------------------------ helpers
         def _headers(self, code, ctype, length, extra=None, cache=False):
@@ -499,6 +527,12 @@ class Server(ThreadingHTTPServer):
         if ipv6:
             self.address_family = socket.AF_INET6
         super().__init__(addr, handler)
+
+    def server_close(self):
+        super().server_close()
+        app = getattr(self, "app", None)
+        if app is not None:
+            app.close()
 
     def finish_request(self, request, client_address):
         # TLS handshake in the per-connection thread, so a slow client cannot block accept()
