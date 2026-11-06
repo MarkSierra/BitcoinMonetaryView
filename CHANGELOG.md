@@ -10,8 +10,8 @@ All notable changes are documented here. This project uses [semantic versioning]
   Texts that named "Core/Knots" now name Roots too.
 - **Latest blocks:** the line below the share ("spam: 92.1 kB of 1.41 MB") was cut off on most screen widths;
   it now uses two lines ("spam: 92.1 kB", "of 1.41 MB") that fit in every language at every width. Eight
-  tiles per row only from about 1,180 px wide; narrower screens show four (phones two) with a fixed height,
-  so the spam fill stays clearly visible.
+  tiles per row only from about 1,180 px wide; narrower screens show four, and up to 700 px (phones, small
+  tablets) the latest four in two columns, all with a fixed height so the spam fill stays clearly visible.
 - **Database connections:** the dashboard's read-only database connections are now pooled and returned after
   each request, and closed when the database is replaced (rescan, other network) or the app stops. Before,
   every request thread opened its own connection, which was only closed by Python's garbage collector.

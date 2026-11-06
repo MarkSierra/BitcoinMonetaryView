@@ -304,9 +304,9 @@ main { max-width: 1240px; width: 100%; margin: 0 auto; padding: 20px 16px 40px; 
 .strip { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
 /* eight tiles only where each keeps a visible fill; fewer columns get a fixed height instead */
 @media (max-width: 1180px) { .strip { grid-template-columns: repeat(4, minmax(0, 1fr)); } .strip .blockcard { aspect-ratio: auto; height: 220px; } }
-@media (max-width: 520px) {
+@media (max-width: 700px) {
   .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .strip .blockcard:nth-child(n+5) { display: none; }          /* phones: the latest four */
+  .strip .blockcard:nth-child(n+5) { display: none; }          /* phones and small tablets: the latest four */
 }
 .blockcard {
   position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
