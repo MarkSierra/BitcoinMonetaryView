@@ -44,7 +44,7 @@ def _height(p):
     return isinstance(p, int) and not isinstance(p, bool) and 0 <= p < 100_000_000
 
 
-# method -> validator(params list) ; all of these are read-only in Core/Knots
+# method -> validator(params list) ; all of these are read-only in Core/Knots/Roots
 ALLOWED = {
     "getblockchaininfo": _no_params,
     "getnetworkinfo": _no_params,

@@ -2,6 +2,20 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.8] — 2026-11-07
+
+- **Bitcoin Roots:** Monetary View works with [Bitcoin Roots](https://plan-b.foundation/bitcoin-roots/), the
+  Bitcoin Core-based node of the Plan ₿ Foundation, as with Core and Knots. The automated tests now run the
+  app against real Roots 29.4 and 31.1 nodes, and against Bitcoin Core 32.1, next to Core 29.1/31.1 and Knots.
+  Texts that named "Core/Knots" now name Roots too.
+- **Latest blocks:** the line below the share ("spam: 92.1 kB of 1.41 MB") was cut off on most screen widths;
+  it now uses two lines ("spam: 92.1 kB", "of 1.41 MB") that fit in every language at every width. Eight
+  tiles per row only from about 1,180 px wide; narrower screens show four, and up to 700 px (phones, small
+  tablets) the latest four in two columns, all with a fixed height so the spam fill stays clearly visible.
+- **Database connections:** the dashboard's read-only database connections are now pooled and returned after
+  each request, and closed when the database is replaced (rescan, other network) or the app stops. Before,
+  every request thread opened its own connection, which was only closed by Python's garbage collector.
+
 ## [0.3.7] — 2026-11-05
 
 - **Realistic remaining time at the start of the full scan:** the first years of the chain are nearly empty

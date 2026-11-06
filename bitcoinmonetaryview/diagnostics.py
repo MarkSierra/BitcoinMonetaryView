@@ -34,7 +34,7 @@ def run_connection_test(scanner_or_config):
     except NodeAuthError as e:
         add("Authentication", "fail", str(e),
             "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. "
-            "On Start9 the RPC credentials are shown in the Bitcoin Core/Knots service's properties.")
+            "On Start9 the RPC credentials are shown in the Bitcoin Core/Knots/Roots service's properties.")
         return checks
     except NodeUnreachable as e:
         add("Reachable", "fail", str(e),

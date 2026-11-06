@@ -599,7 +599,7 @@
       h("h2", { text: _t("Block storage: today vs. Monetary Node") }),
       h("p", { class: "sub", text: est ? _t("Same blocks, same proof-of-work — only the data carriers removed (estimated for the whole chain)") : _t("Same blocks, same proof-of-work — only the data carriers removed") }),
       h("div", { class: "compare" },
-        compareRow(_t("Your node (Core/Knots)"), t.size, maxB, [["monetary", t.size - B.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
+        compareRow(_t("Your node (Core/Knots/Roots)"), t.size, maxB, [["monetary", t.size - B.spam_bytes], ...CARRIERS.map((k) => [k, t[k]])]),
         compareRow("Monetary Node", t.stored, maxB, [["monetary", t.stored]])),
       h("p", { class: "sub", style: { marginTop: "14px", marginBottom: 0 },
         text: _t("The saving is usually larger than the spam itself: in transactions that carry spam, a Monetary Node also drops the witness data (signatures and other data already verified when the block was accepted), and transactions that are only spam are reduced to their txid. Its own bookkeeping (stored txids, a record of removed outputs) is included. Undo files and optional indexes are not.") }));
@@ -711,7 +711,8 @@
       wrap.append(h("a", { class: "blockcard", href: `#/block/${b.height}`, title: _t("Block {h}", { h: fmtNum(b.height) }) },
         h("div", { class: "top" }, h("div", { class: "h", text: fmtNum(b.height) }), h("div", { class: "t", text: timeAgo(b.time) })),
         h("div", { class: "zone" }, fill),
-        h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, b.spam_pct < 10 ? 1 : 0), h("small", { text: _t("spam: {spam} of {size}", { spam: fmtBytes(b.spam_bytes), size: fmtBytes(b.size, 2) }) })))));
+        h("div", { class: "bottom" }, h("div", { class: "pct" }, fmtPct(b.spam_pct, b.spam_pct < 10 ? 1 : 0), h("small", { title: _t("spam: {spam} of {size}", { spam: fmtBytes(b.spam_bytes), size: fmtBytes(b.size, 2) }) },
+          h("span", { text: _t("spam: {spam}", { spam: fmtBytes(b.spam_bytes) }) }), h("span", { text: _t("of {size}", { size: fmtBytes(b.size, 2) }) }))))));
     }
     return wrap;
   }
@@ -1113,7 +1114,7 @@
     const P = (t) => h("p", { text: t });
     viewShell(h("div", { class: "card prose" },
       h("h2", { text: _t("What this app shows") }),
-      P(_t("Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core or Knots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
+      P(_t("Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core, Knots or Roots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
       P(_t("It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.")),
       P(_t("Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.")),
       h("h2", { text: _t("What is a Monetary Node?") }),
@@ -1139,8 +1140,8 @@
       P(_t("The full history scan reads every block in order, which takes hours (days in Eco mode). So that the first impression is not dominated by the early, almost spam-free years, the app first analyses the latest 1,000 blocks and then every 100th block of the rest. From that sample the overview shows an estimate for the whole chain (marked ≈) with its margin of error, next to the exact figure so far. The estimate is replaced by exact figures as the scan proceeds. History, Blocks, the UTXO set, the share card and the exports always show exact figures; parts of the history that are not scanned yet are marked as such.")),
       P(_t("Any block can be opened on the Blocks page by its height or hash. If the scan has not reached it yet, “Analyse this block now” reads just that block from your node and shows its exact figures.")),
       P(_t("Trends and records on the overview come from the blocks already scanned, without extra requests to your node. A comparison appears once 95 % of its blocks are scanned: the last 30 days (4,320 blocks), and the last 1,000 blocks against the same 1,000 blocks a year earlier.")),
-      h("h2", { text: _t("Core, Knots and this app") }),
-      P(_t("Knots' mempool filters stop relaying spam, but spam that is already in blocks is stored by every full node — Core and Knots alike. The numbers here apply to both.")),
+      h("h2", { text: _t("Core, Knots, Roots and this app") }),
+      P(_t("The mempool filters of Knots and Roots stop relaying spam, but spam that is already in blocks is stored by every full node — Core, Knots and Roots alike. The numbers here apply to all of them.")),
       h("h2", { text: _t("Languages") }),
       P(_t("The dashboard is available in English, German, Spanish, French and Polish. It follows your browser's language, and the menu in the header switches it. The translations are new: if something reads wrong, please report it with the link at the bottom of the page.")),
       h("h2", { text: _t("Rules in use") }),

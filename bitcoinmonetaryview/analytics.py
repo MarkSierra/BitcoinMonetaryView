@@ -31,20 +31,67 @@ def csv_safe(v):
 
 
 class Analytics:
+    POOL_SIZE = 4       # idle read-only connections kept for reuse
+
     def __init__(self, db_path):
         self.db_path = db_path
         self._local = threading.local()
         self._cache = {}
+        self._lock = threading.Lock()
+        self._idle = []
+        self._open = set()
+        self._closed = False
 
     def db(self):
+        """The calling thread's read-only connection, taken from the pool until release()."""
         c = getattr(self._local, "db", None)
-        if c is None or getattr(self._local, "path", None) != self.db_path:
-            if not os.path.exists(self.db_path):
+        if c is not None:
+            return c
+        if not self.db_path or not os.path.exists(self.db_path):
+            return None
+        with self._lock:
+            if self._closed:
                 return None
-            c = sqlite3.connect("file:" + self.db_path + "?mode=ro", uri=True, timeout=10,
-                                check_same_thread=False)
-            self._local.db, self._local.path = c, self.db_path
+            c = self._idle.pop() if self._idle else None
+            if c is None:
+                c = sqlite3.connect("file:" + self.db_path + "?mode=ro", uri=True, timeout=10,
+                                    check_same_thread=False)
+                self._open.add(c)
+        self._local.db = c
         return c
+
+    def release(self):
+        """Return the calling thread's connection to the pool (the server calls this after
+        every request)."""
+        c = getattr(self._local, "db", None)
+        if c is None:
+            return
+        self._local.db = None
+        try:
+            if c.in_transaction:
+                c.rollback()
+        except sqlite3.Error:
+            pass
+        with self._lock:
+            if not self._closed and len(self._idle) < self.POOL_SIZE:
+                self._idle.append(c)
+                return
+            self._open.discard(c)
+        c.close()
+
+    def close(self):
+        """Close every connection: idle ones now, ones still in use when they are released."""
+        with self._lock:
+            self._closed = True
+            idle, self._idle = self._idle, []
+            for c in idle:
+                self._open.discard(c)
+        for c in idle:
+            c.close()
+
+    def open_connections(self):
+        with self._lock:
+            return len(self._open)
 
     def cached(self, key, ttl, fn):
         hit = self._cache.get(key)

@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -404,3 +405,71 @@ class ReviewRegressions(ServerTest):
         self.assertEqual(json.loads(d)["blocks"], [])
         r, d = self.req("GET", "/api/export.csv")
         self.assertTrue(d.decode().startswith("height,hash,time_utc"))
+
+
+class ConnectionPool(ServerTest):
+    """Read-only database connections are pooled, returned after each request and closed when
+    a database is replaced or the server closes, so none is left to the garbage collector."""
+
+    def make_db(self, name):
+        from bitcoinmonetaryview.store import Store
+        path = os.path.join(self.dir, name)
+        Store(path).close()
+        return path
+
+    def test_requests_reuse_pooled_connections(self):
+        self.scanner.store_path = self.make_db("a.sqlite")
+        for _ in range(12):
+            r, _ = self.req("GET", "/api/summary")
+            self.assertEqual(r.status, 200)
+        a = self.srv.app.analytics()
+        # one connection per concurrent request at most; sequential requests share one
+        self.assertEqual(a.open_connections(), 1)
+
+    def test_replaced_database_closes_old_connections(self):
+        self.scanner.store_path = self.make_db("a.sqlite")
+        self.req("GET", "/api/summary")
+        old = self.srv.app.analytics()
+        self.assertEqual(old.open_connections(), 1)
+        self.scanner.store_path = self.make_db("b.sqlite")
+        self.req("GET", "/api/summary")
+        self.assertEqual(old.open_connections(), 0)
+        self.assertEqual(self.srv.app.analytics().open_connections(), 1)
+
+    def test_server_close_closes_everything(self):
+        self.scanner.store_path = self.make_db("a.sqlite")
+        self.req("GET", "/api/blocks")
+        a = self.srv.app.analytics()
+        self.srv.shutdown()
+        self.srv.server_close()
+        self.assertEqual(a.open_connections(), 0)
+        self.srv.shutdown = lambda: None        # tearDown closes again: harmless
+
+    def test_connection_in_use_closes_when_released(self):
+        from bitcoinmonetaryview.analytics import Analytics
+        a = Analytics(self.make_db("a.sqlite"))
+        self.assertIsNotNone(a.db())
+        a.close()                               # e.g. a rescan while a request still runs
+        self.assertEqual(a.open_connections(), 1)
+        a.release()
+        self.assertEqual(a.open_connections(), 0)
+        self.assertIsNone(a.db())               # a closed pool hands out nothing new
+
+    @unittest.skipIf(sys.version_info < (3, 13), "sqlite3 warns about unclosed connections from 3.13")
+    def test_no_resource_warning(self):
+        import gc
+        import warnings
+        self.scanner.store_path = self.make_db("a.sqlite")
+        gc.collect()        # earlier tests' garbage must not be counted here
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", ResourceWarning)
+            for path in ("/api/summary", "/api/blocks", "/api/export.csv"):
+                self.req("GET", path)
+            self.scanner.store_path = self.make_db("b.sqlite")
+            self.req("GET", "/api/summary")
+            self.srv.shutdown()
+            self.srv.server_close()
+            self.srv.shutdown = lambda: None
+            gc.collect()
+        leaks = [w for w in caught if issubclass(w.category, ResourceWarning) and "sqlite3" in str(w.message)]
+        self.assertEqual(leaks, [])

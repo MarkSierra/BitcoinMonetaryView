@@ -29,7 +29,7 @@ jobs:
           EOF
 
   regtest:
-    # The app against real nodes: the oldest tested Core, the current Core and the current Knots.
+    # The app against real nodes: the oldest tested Core, the current Core, Knots and Roots.
     name: regtest (${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
@@ -42,9 +42,21 @@ jobs:
           - node: Core 31.1
             base: https://bitcoincore.org/bin/bitcoin-core-31.1
             file: bitcoin-31.1-x86_64-linux-gnu.tar.gz
+          - node: Core 32.1
+            base: https://bitcoincore.org/bin/bitcoin-core-32.1
+            file: bitcoin-32.1-x86_64-linux-gnu.tar.gz
           - node: Knots 29.4.1
             base: https://bitcoinknots.org/files/29.x/29.4.1.knots20260508
             file: bitcoin-29.4.1.knots20260508-x86_64-linux-gnu.tar.gz
+          # Roots publishes SHA512SUMS; 29.4 is the line the StartOS package ships, 31.1 the newest release
+          - node: Roots 29.4
+            base: https://github.com/LuganoPlanB/bitcoin-roots/releases/download/v29.4-roots.4
+            file: bitcoin-roots-linux-x86_64.tar.gz
+            sums: SHA512SUMS
+          - node: Roots 31.1
+            base: https://github.com/LuganoPlanB/bitcoin-roots/releases/download/v31.1-roots.6
+            file: bitcoin-roots-linux-x86_64.tar.gz
+            sums: SHA512SUMS
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -54,12 +66,14 @@ jobs:
         env:
           BASE: ${{ matrix.base }}
           FILE: ${{ matrix.file }}
+          SUMS: ${{ matrix.sums || 'SHA256SUMS' }}
         run: |
           set -euo pipefail
           mkdir node && cd node
           curl -fsSLO "${BASE}/${FILE}"
-          curl -fsSLO "${BASE}/SHA256SUMS"
-          grep -F " ${FILE}" SHA256SUMS | sha256sum -c -
+          curl -fsSLO "${BASE}/${SUMS}"
+          check=sha256sum; [ "${SUMS}" = SHA512SUMS ] && check=sha512sum
+          grep -E " \*?${FILE}\$" "${SUMS}" | "$check" -c -
           tar xzf "${FILE}"
           bitcoind=$(find "$PWD" -type f -name bitcoind -path '*/bin/*' | head -1)
           "$bitcoind" -version | head -1

@@ -123,7 +123,7 @@ class Setting:
 
 SCHEMA = [
     # --- node connection
-    Setting("rpc_url", _url, "http://127.0.0.1:8332", "Bitcoin Core/Knots RPC URL", group="node"),
+    Setting("rpc_url", _url, "http://127.0.0.1:8332", "Bitcoin Core/Knots/Roots RPC URL", group="node"),
     Setting("rpc_user", _str, "", "RPC username (leave empty when using a cookie file)", group="node"),
     Setting("rpc_password", _str, "", "RPC password", secret=True, group="node"),
     Setting("rpc_cookie_file", _str, "", "Path to bitcoind's .cookie file (read-only)", group="node"),
@@ -346,7 +346,7 @@ def write_private_json(path, data):
 def build_arg_parser():
     ap = argparse.ArgumentParser(
         prog="bitcoinmonetaryview",
-        description="Read-only spam analysis for your Bitcoin Core/Knots node, "
+        description="Read-only spam analysis for your Bitcoin Core/Knots/Roots node, "
                     "based on the Monetary Node rules.")
     ap.add_argument("--data-dir", default=None, help="where the app keeps its own data (default ~/.bitcoinmonetaryview)")
     for s in SCHEMA:

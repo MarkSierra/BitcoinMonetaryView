@@ -25,7 +25,7 @@ Umbrel has no settings screen for apps.
 
 | Setting | Default | Description |
 |---|---|---|
-| `rpc_url` | http://127.0.0.1:8332 | Bitcoin Core/Knots RPC URL. |
+| `rpc_url` | http://127.0.0.1:8332 | Bitcoin Core/Knots/Roots RPC URL. |
 | `rpc_user` | empty | RPC username (leave empty when using a cookie file). |
 | `rpc_password` | empty | RPC password. *(secret, never shown in the UI)* |
 | `rpc_cookie_file` | empty | Path to bitcoind's .cookie file (read-only). |

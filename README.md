@@ -2,7 +2,7 @@
 
 **See how much spam your Bitcoin node stores — and what a Monetary Node would save.**
 
-Monetary View (on GitHub: BitcoinMonetaryView) connects to your own Bitcoin Core or Bitcoin Knots node, analyses every block of the
+Monetary View (on GitHub: BitcoinMonetaryView) connects to your own Bitcoin Core, Bitcoin Knots or Bitcoin Roots node, analyses every block of the
 chain with the rules of the [Monetary Node](https://github.com/sambitcoin/BitcoinMonetaryNode) project and
 shows, in a web dashboard:
 
@@ -17,7 +17,7 @@ shows, in a web dashboard:
 
 ![Dashboard overview (a fully scanned mainnet node)](docs/screenshot-overview.png)
 
-It is meant for people who run Core or Knots today and are considering a Monetary Node: it shows the
+It is meant for people who run Core, Knots or Roots today and are considering a Monetary Node: it shows the
 benefits on *their own* node, with *their own* data.
 
 The dashboard is available in **English, German (Deutsch), Spanish (Español), French (Français) and Polish
@@ -53,7 +53,7 @@ LAN address.
 
 ## Quick start
 
-Requirements: Python 3.10+ (standard library only — nothing to install) and a Bitcoin Core or Knots node.
+Requirements: Python 3.10+ (standard library only — nothing to install) and a Bitcoin Core, Knots or Roots node.
 
 ```bash
 git clone https://github.com/MarkSierra/BitcoinMonetaryView
@@ -93,14 +93,14 @@ when it detects plain HTTP to another machine.
 ### Start9 (StartOS)
 
 **Native package (StartOS 0.4.1 or newer):** [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos)
-runs the app on your Start9 next to Bitcoin Core / Knots, connects automatically and needs no setup. It is not
+runs the app on your Start9 next to Bitcoin Core, Knots or Roots, connects automatically and needs no setup. It is not
 in the Start9 marketplace yet: download the `.s9pk` for your architecture from that repo's
 [Releases](https://github.com/MarkSierra/BitcoinMonetaryView-startos/releases) and install it via System →
 Sideload. StartOS asks you to confirm, because a sideloaded package is not signed by a registry it trusts;
 check the file against `SHA256SUMS` (or its build attestation) from the same release first. Updates keep your
 scan results.
 
-**From another computer:** use the RPC connection details shown in your Bitcoin Core / Knots service
+**From another computer:** use the RPC connection details shown in your Bitcoin Core / Knots / Roots service
 (Interfaces / Properties). StartOS serves LAN RPC over HTTPS with its own certificate authority: download your
 Start9 root CA and pass it with `--rpc-cafile` (TLS verification is never disabled). Over Tor:
 `--rpc-url http://<rpc-address>.onion:8332 --tor-proxy 127.0.0.1:9050`.
@@ -130,7 +130,7 @@ docker compose up -d
 The container runs as a non-root user with a read-only root filesystem; only its data volume is writable.
 
 Released versions are also published as a ready-made multi-arch image (x86_64, ARM64 and, since 0.2.4, RISC-V):
-`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.7`) — use it as `image:` instead
+`ghcr.io/marksierra/bitcoinmonetaryview:latest` (or a fixed version such as `:0.3.8`) — use it as `image:` instead
 of `build: .` in the compose file, or fetch it with `docker pull ghcr.io/marksierra/bitcoinmonetaryview:latest`.
 
 ---

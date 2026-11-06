@@ -2,7 +2,7 @@
 """
 Optional binary REST access (bitcoind `rest=1`), used only if already enabled.
 
-REST endpoints are GET-only and read-only by design in Core/Knots. Paths are
+REST endpoints are GET-only and read-only by design in Core/Knots/Roots. Paths are
 built here from validated hashes only; nothing user-controlled reaches them.
 """
 
