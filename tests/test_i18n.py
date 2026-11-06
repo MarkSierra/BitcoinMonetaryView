@@ -96,7 +96,8 @@ class Coverage(unittest.TestCase):
         calls = {"event": 1, "set": None, "add": 2, "append": 0, "Restart": 0, "reset_results": 0}
         starts = []
         for name in ("scanner.py", "diagnostics.py", "server.py", "config.py", "analytics.py"):
-            tree = ast.parse(open(os.path.join(ROOT, "bitcoinmonetaryview", name), encoding="utf-8").read())
+            with open(os.path.join(ROOT, "bitcoinmonetaryview", name), encoding="utf-8") as f:
+                tree = ast.parse(f.read())
             texts = []
             for node in ast.walk(tree):
                 if isinstance(node, ast.Call):

@@ -460,6 +460,7 @@ class ConnectionPool(ServerTest):
         import gc
         import warnings
         self.scanner.store_path = self.make_db("a.sqlite")
+        gc.collect()        # earlier tests' garbage must not be counted here
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", ResourceWarning)
             for path in ("/api/summary", "/api/blocks", "/api/export.csv"):
