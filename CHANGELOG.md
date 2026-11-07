@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.9] — 2026-11-07
+
+- **Trends and records:** the card always shows its four tiles. A tile whose blocks are not scanned far
+  enough yet shows "–" and how far they are ("Available at 95 % scanned (now 12 %)"), instead of leaving a
+  gap; the year-earlier comparison under "Spam share of recent blocks" says the same. The tiles follow the
+  same 4 / 2 / 1 columns as the other rows (they could end up three and one).
+
 ## [0.3.8] — 2026-11-07
 
 - **Bitcoin Roots:** Monetary View works with [Bitcoin Roots](https://plan-b.foundation/bitcoin-roots/), the

@@ -420,27 +420,31 @@ class Analytics:
         blocks) and its yearly pace, the spam share of the last 1,000 blocks against the same
         window a year earlier, and the biggest spam block and month. A window counts only
         when at least 95 % of its blocks are scanned, so a half-scanned window is never
-        presented as a trend.
+        presented as a trend; "coverage" says how far each window is scanned meanwhile.
         """
         hi = db.execute("SELECT MAX(height) FROM blocks").fetchone()[0]
         if hi is None:
             return {"empty": True}
         spam = "+".join(mr.CARRIERS)
 
-        def window(lo, top):
+        coverage = {}
+
+        def window(name, lo, top):
             if lo < 0:
+                coverage[name] = None           # before the genesis block: never available
                 return None
             r = db.execute(f"SELECT COUNT(*), COALESCE(SUM({spam}),0), COALESCE(SUM(size),0) "
                            "FROM blocks WHERE height BETWEEN ? AND ?", (lo, top)).fetchone()
             want = top - lo + 1
+            coverage[name] = min(100.0, r[0] / want * 100)
             if r[0] < want * 0.95 or not r[2]:
                 return None
             return {"from": lo, "to": top, "blocks": r[0], "spam_bytes": r[1], "size": r[2],
                     "spam_pct": r[1] / r[2] * 100}
 
-        month = window(hi - 4319, hi)
-        recent = window(hi - 999, hi)
-        year_ago = window(hi - BLOCKS_PER_YEAR - 999, hi - BLOCKS_PER_YEAR)
+        month = window("last_month", hi - 4319, hi)
+        recent = window("recent", hi - 999, hi)
+        year_ago = window("year_ago", hi - BLOCKS_PER_YEAR - 999, hi - BLOCKS_PER_YEAR)
         b = db.execute(f"SELECT height, time, size, {spam} AS s FROM blocks ORDER BY s DESC, height LIMIT 1").fetchone()
         months = self._history_in(db)["months"]
         worst = max(months, key=lambda mo: sum(mo[k] for k in mr.CARRIERS), default=None)
@@ -449,6 +453,7 @@ class Analytics:
             "complete": self.meta(db).get("full_done") == "1",
             "last_month": dict(month, per_year_bytes=month["spam_bytes"] * 365 / 30) if month else None,
             "recent": recent, "year_ago": year_ago,
+            "coverage": coverage, "coverage_needed": 95,
             "top_block": {"height": b[0], "time": b[1], "spam_bytes": b[3],
                           "spam_pct": b[3] / b[2] * 100 if b[2] else 0} if b and b[3] else None,
             "top_month": {"month": worst["month"], "spam_bytes": sum(worst[k] for k in mr.CARRIERS),

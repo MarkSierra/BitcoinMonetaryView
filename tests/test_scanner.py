@@ -785,6 +785,10 @@ class Trends(unittest.TestCase):
         t = Analytics(self.path).trends()
         self.assertIsNone(t["year_ago"])                      # 100 of 1,000 blocks missing
         self.assertIsNotNone(t["recent"])
+        # meanwhile the dashboard shows how far each window is scanned
+        self.assertAlmostEqual(t["coverage"]["year_ago"], 90)
+        self.assertEqual(t["coverage"]["recent"], 100)
+        self.assertEqual(t["coverage_needed"], 95)
 
     def test_short_chain(self):
         self.fill(500, lambda h: 0)
@@ -793,4 +797,7 @@ class Trends(unittest.TestCase):
         self.assertIsNone(t["recent"])
         self.assertIsNone(t["top_block"])                     # no spam at all: no record to show
         self.assertIsNone(t["top_month"])
+        # a 501-block chain has no 30-day window yet (it would reach below genesis)
+        self.assertIsNone(t["coverage"]["last_month"])
+        self.assertIsNone(t["coverage"]["year_ago"])
         self.assertTrue(Analytics(os.path.join(self.dir, "none.sqlite")).trends()["empty"])
