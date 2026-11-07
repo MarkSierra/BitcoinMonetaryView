@@ -435,7 +435,6 @@ textarea.share-text {
 .period-result > .sub { margin-bottom: 4px; }
 .period-kpis { margin-top: 12px; }
 .period-kpis .kpi { box-shadow: none; background: var(--surface-2); height: 100%; }
-.trends .period-kpis { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .kpi-link { text-decoration: none; color: inherit; display: block; border-radius: var(--radius); }
 .kpi-link:hover .kpi { border-color: var(--accent); }
 .kpi-link .kpi-label::after { content: "→"; margin-left: auto; color: var(--muted); }
