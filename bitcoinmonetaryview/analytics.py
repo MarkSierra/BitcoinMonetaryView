@@ -420,27 +420,43 @@ class Analytics:
         blocks) and its yearly pace, the spam share of the last 1,000 blocks against the same
         window a year earlier, and the biggest spam block and month. A window counts only
         when at least 95 % of its blocks are scanned, so a half-scanned window is never
-        presented as a trend; "coverage" says how far each window is scanned meanwhile.
+        presented as a trend; "pending" says from which block on a window will count.
         """
         hi = db.execute("SELECT MAX(height) FROM blocks").fetchone()[0]
         if hi is None:
             return {"empty": True}
         spam = "+".join(mr.CARRIERS)
 
-        coverage = {}
+        # The full scan runs from genesis upwards, so a window still short of 95 % fills up
+        # when the scan's cursor passes its missing blocks: "at" is the block from which it counts
+        # (None if those blocks will not come, e.g. on a pruned node or after the full scan).
+        meta = self.meta(db)
+        cursor = None if meta.get("full_done") == "1" else int(meta.get("full_next_height") or 0)
+        pending = {}
 
         def window(name, lo, top):
             if lo < 0:
-                coverage[name] = None           # before the genesis block: never available
+                pending[name] = None            # before the genesis block: never available
                 return None
             r = db.execute(f"SELECT COUNT(*), COALESCE(SUM({spam}),0), COALESCE(SUM(size),0) "
                            "FROM blocks WHERE height BETWEEN ? AND ?", (lo, top)).fetchone()
             want = top - lo + 1
-            coverage[name] = min(100.0, r[0] / want * 100)
-            if r[0] < want * 0.95 or not r[2]:
-                return None
-            return {"from": lo, "to": top, "blocks": r[0], "spam_bytes": r[1], "size": r[2],
-                    "spam_pct": r[1] / r[2] * 100}
+            if r[0] >= want * 0.95 and r[2]:
+                return {"from": lo, "to": top, "blocks": r[0], "spam_bytes": r[1], "size": r[2],
+                        "spam_pct": r[1] / r[2] * 100}
+            at = None
+            if cursor is not None:
+                need = math.ceil(want * 0.95) - r[0]
+                have = {h for (h,) in db.execute("SELECT height FROM blocks WHERE height BETWEEN ? AND ?",
+                                                 (max(lo, cursor), top))}
+                for hgt in range(max(lo, cursor), top + 1):
+                    if hgt not in have:
+                        need -= 1
+                        if need <= 0:
+                            at = hgt
+                            break
+            pending[name] = {"coverage": min(100.0, r[0] / want * 100), "at": at}
+            return None
 
         month = window("last_month", hi - 4319, hi)
         recent = window("recent", hi - 999, hi)
@@ -450,10 +466,10 @@ class Analytics:
         worst = max(months, key=lambda mo: sum(mo[k] for k in mr.CARRIERS), default=None)
         return {
             "empty": False,
-            "complete": self.meta(db).get("full_done") == "1",
+            "complete": meta.get("full_done") == "1",
             "last_month": dict(month, per_year_bytes=month["spam_bytes"] * 365 / 30) if month else None,
             "recent": recent, "year_ago": year_ago,
-            "coverage": coverage, "coverage_needed": 95,
+            "pending": pending,
             "top_block": {"height": b[0], "time": b[1], "spam_bytes": b[3],
                           "spam_pct": b[3] / b[2] * 100 if b[2] else 0} if b and b[3] else None,
             "top_month": {"month": worst["month"], "spam_bytes": sum(worst[k] for k in mr.CARRIERS),

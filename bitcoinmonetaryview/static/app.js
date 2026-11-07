@@ -639,27 +639,28 @@
   function trendsCard(tr) {
     if (!tr || tr.empty) return null;
     const lm = tr.last_month, rc = tr.recent, ya = tr.year_ago, tb = tr.top_block, tm = tr.top_month;
-    const cov = tr.coverage || {};
-    // a window not scanned far enough keeps its tile, with how far it is (four tiles, always)
-    const pending = (c) => c == null ? _t("Not enough blocks in the chain yet")
-      : _t("Available at {need} scanned (now {pct})", { need: fmtPct(tr.coverage_needed || 95, 0), pct: fmtPct(c, c < 10 ? 1 : 0) });
+    const pend = tr.pending || {};
+    // a window not scanned far enough keeps its tile: the full scan runs from genesis upwards,
+    // so these recent windows fill at (or shortly before) its end
+    const pending = (p) => !p ? _t("Not enough blocks in the chain yet")
+      : p.at == null ? _t("Not available on this node")
+      : _t("Available once the full scan is done");
     const tiles = [];
     tiles.push(lm ? kpi(_t("Spam in the last 30 days"), fmtBytes(lm.spam_bytes),
         _t("≈ {size} per year at this pace", { size: fmtBytes(lm.per_year_bytes) }))
-      : kpi(_t("Spam in the last 30 days"), "–", pending(cov.last_month)));
+      : kpi(_t("Spam in the last 30 days"), "–", pending(pend.last_month)));
     if (rc) {
       let foot = _t("of the data in the last {n} blocks", { n: fmtNum(rc.blocks) });
       if (ya) {
         const d = rc.spam_pct - ya.spam_pct;
         foot = _t("a year earlier: {pct}", { pct: fmtPct(ya.spam_pct) }) + " · " +
           (Math.abs(d) < 0.05 ? _t("unchanged") : (d > 0 ? "▲ " : "▼ ") + _t("{d} points", { d: fixed(Math.abs(d), 1) }));
-      } else if (cov.year_ago != null) {
-        foot = _t("Year-earlier comparison at {need} scanned (now {pct})",
-          { need: fmtPct(tr.coverage_needed || 95, 0), pct: fmtPct(cov.year_ago, cov.year_ago < 10 ? 1 : 0) });
+      } else if (pend.year_ago && pend.year_ago.at != null) {
+        foot = _t("Comparison with a year earlier once the full scan is done");
       }
       tiles.push(kpi(_t("Spam share of recent blocks"), fmtPct(rc.spam_pct), foot));
     } else {
-      tiles.push(kpi(_t("Spam share of recent blocks"), "–", pending(cov.recent)));
+      tiles.push(kpi(_t("Spam share of recent blocks"), "–", pending(pend.recent)));
     }
     if (tm) {
       const t = kpi(_t("Biggest spam month"), fmtBytes(tm.spam_bytes), _t("{month} · {n} blocks", { month: tm.month, n: fmtNum(tm.blocks) }));

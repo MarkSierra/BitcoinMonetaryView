@@ -785,10 +785,19 @@ class Trends(unittest.TestCase):
         t = Analytics(self.path).trends()
         self.assertIsNone(t["year_ago"])                      # 100 of 1,000 blocks missing
         self.assertIsNotNone(t["recent"])
-        # meanwhile the dashboard shows how far each window is scanned
-        self.assertAlmostEqual(t["coverage"]["year_ago"], 90)
-        self.assertEqual(t["coverage"]["recent"], 100)
-        self.assertEqual(t["coverage_needed"], 95)
+        # meanwhile the dashboard names the block from which the window counts: the full scan
+        # fills the 100 missing blocks upwards, and 95 % is reached at the 50th of them
+        lo = 60000 - 52560 - 999
+        self.assertEqual(t["pending"]["year_ago"], {"coverage": 90.0, "at": lo + 49})
+        self.assertNotIn("recent", t["pending"])
+        # the scan's cursor already past some of them (skipped, e.g. pruned): those will not come
+        self.st.set_meta("full_next_height", str(lo + 40))
+        self.assertEqual(Analytics(self.path).trends()["pending"]["year_ago"]["at"], lo + 40 + 49)
+        self.st.set_meta("full_next_height", str(lo + 60))          # only 40 left, 50 needed
+        self.assertIsNone(Analytics(self.path).trends()["pending"]["year_ago"]["at"])
+        # after the full scan (e.g. a pruned node) the window cannot fill any more
+        self.st.set_meta("full_done", "1")
+        self.assertIsNone(Analytics(self.path).trends()["pending"]["year_ago"]["at"])
 
     def test_short_chain(self):
         self.fill(500, lambda h: 0)
@@ -798,6 +807,6 @@ class Trends(unittest.TestCase):
         self.assertIsNone(t["top_block"])                     # no spam at all: no record to show
         self.assertIsNone(t["top_month"])
         # a 501-block chain has no 30-day window yet (it would reach below genesis)
-        self.assertIsNone(t["coverage"]["last_month"])
-        self.assertIsNone(t["coverage"]["year_ago"])
+        self.assertIsNone(t["pending"]["last_month"])
+        self.assertIsNone(t["pending"]["year_ago"])
         self.assertTrue(Analytics(os.path.join(self.dir, "none.sqlite")).trends()["empty"])
