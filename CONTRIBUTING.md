@@ -43,11 +43,18 @@ language at desktop, tablet and phone width.
    `ghcr.io/marksierra/bitcoinmonetaryview` for x86_64, ARM64 and RISC-V (tags `X.Y.Z`, `X.Y`, `latest`). The
    package is public. To refresh the notes of a published release only, run it with *notes only*. Pushing a tag
    `vX.Y.Z` by hand publishes the image too.
-3. StartOS: in [BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos), move the
-   `upstream` submodule to the release, bump the package version and release notes in
-   `startos/versions/current.ts` (`X.Y.Z:0`, notes in all five languages), merge, then run its *Release*
-   workflow on `main`. It creates the tag `vX.Y.Z_0` (Start9's tag convention) and the release, and attaches
-   both `.s9pk` files permanently (see its `UPDATING.md`).
+3. StartOS: Start9 builds and publishes the package only from
+   [Start9-Community/bitcoinmonetaryview-startos](https://github.com/Start9-Community/bitcoinmonetaryview-startos).
+   1. Sync `main` of [MarkSierra/BitcoinMonetaryView-startos](https://github.com/MarkSierra/BitcoinMonetaryView-startos)
+      from that fork, then branch. Move the `upstream` submodule to the release, copy the `FROM` line of
+      `upstream/Dockerfile`, and set `startos/versions/current.ts` to the final version (`X.Y.Z:0`) with release
+      notes in all five languages (see the fork's `UPDATING.md` and Start9's packaging guide).
+   2. Test build: on a second branch, one extra commit sets the version to `X.Y.Z:0-beta.N`; run the *Build*
+      workflow on it and sideload the `.s9pk` (an update over the installed version, a clean install, tasks and
+      actions, sign-in, health checks). `-beta.N` sorts before `X.Y.Z:0`, so the published build arrives as a
+      normal update. Fixes go on the final-version branch; the next test build is `-beta.N+1`.
+   3. Open the pull request to the fork from the final-version branch, never from a test branch. Each merge
+      publishes to Community Beta; promotion to the Community Registry is requested with an issue on the fork.
 4. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the
    new image by version and digest and bump `version` / `releaseNotes` (see [docs/umbrel.md](docs/umbrel.md)).
 

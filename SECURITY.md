@@ -34,10 +34,11 @@ With the [GitHub CLI](https://cli.github.com/):
 ```sh
 # Docker image (covers all architectures)
 gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.3.10 --repo MarkSierra/BitcoinMonetaryView
-
-# StartOS package, after downloading it from the package's GitHub release
-gh attestation verify bitcoinmonetaryview_x86_64.s9pk --repo MarkSierra/BitcoinMonetaryView-startos
 ```
 
 A successful check prints the workflow and commit the file was built from. If it fails, do not install the file.
+
+The StartOS package comes from the Start9 Community Registry: Start9 builds it from its
+[Start9-Community fork](https://github.com/Start9-Community/bitcoinmonetaryview-startos) and StartOS verifies
+the registry's signature on install, so there is no separate file to check.
 The Docker images also carry build provenance and an SBOM (list of contained software) from the build itself.
