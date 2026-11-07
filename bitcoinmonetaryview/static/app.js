@@ -640,11 +640,11 @@
     if (!tr || tr.empty) return null;
     const lm = tr.last_month, rc = tr.recent, ya = tr.year_ago, tb = tr.top_block, tm = tr.top_month;
     const pend = tr.pending || {};
-    // a window not scanned far enough keeps its tile and says from which block on it counts:
-    // the full scan runs from genesis upwards, so it fills when the scan passes that block
+    // a window not scanned far enough keeps its tile: the full scan runs from genesis upwards,
+    // so these recent windows fill at (or shortly before) its end
     const pending = (p) => !p ? _t("Not enough blocks in the chain yet")
       : p.at == null ? _t("Not available on this node")
-      : _t("Available once the scan reaches block\u00a0{h}", { h: fmtNum(p.at) });
+      : _t("Available once the full scan is done");
     const tiles = [];
     tiles.push(lm ? kpi(_t("Spam in the last 30 days"), fmtBytes(lm.spam_bytes),
         _t("≈ {size} per year at this pace", { size: fmtBytes(lm.per_year_bytes) }))
@@ -656,7 +656,7 @@
         foot = _t("a year earlier: {pct}", { pct: fmtPct(ya.spam_pct) }) + " · " +
           (Math.abs(d) < 0.05 ? _t("unchanged") : (d > 0 ? "▲ " : "▼ ") + _t("{d} points", { d: fixed(Math.abs(d), 1) }));
       } else if (pend.year_ago && pend.year_ago.at != null) {
-        foot = _t("Comparison with a year earlier once the scan reaches block\u00a0{h}", { h: fmtNum(pend.year_ago.at) });
+        foot = _t("Comparison with a year earlier once the full scan is done");
       }
       tiles.push(kpi(_t("Spam share of recent blocks"), fmtPct(rc.spam_pct), foot));
     } else {
