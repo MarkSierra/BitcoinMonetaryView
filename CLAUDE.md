@@ -45,6 +45,42 @@ node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of the Mo
 Reading the fork: `git` works directly; for PR comments/reviews/CI use a helper session that has the fork
 attached (read-only). Nothing on github.com/Start9-Community is posted without the maintainer's own action.
 
+Practical notes from the first releases through the fork:
+- Claude's GitHub App is not installed on Start9-Community: this session and the helper can read the fork but
+  cannot comment, review, open PRs or watch PR activity there. The maintainer posts (give texts in a plain
+  code block; they copy them on a phone) and opens PRs via a prefilled compare link
+  (`.../compare/main...MarkSierra:BitcoinMonetaryView-startos:<branch>?expand=1&title=...`). A PR from our
+  branch updates itself on every push; Start9's build checks run on their own. Keep the PR title and
+  description in step with the version (the maintainer edits them).
+- A helper session for reading the fork: `session_014Xu9HKAQ8jL94y4Y7ZwcfN` (send_message, read-only). It
+  may no longer exist in a later session; create a new one with the fork as source if needed.
+- Watching a PR or issue there: scheduled tasks (minimum interval one hour; two hourly tasks at different
+  minutes give ~30 min) that run `git ls-remote` on the fork and ask the helper for comments; delete them
+  after the merge. Matt Hill (Start9) usually answers in the US afternoon/evening; helix-a is Start9's AI
+  reviewer.
+- Deleting branches with `git push --delete` is refused by this environment's proxy: ask the maintainer to
+  delete merged branches on GitHub.
+- Downloading and running third-party node binaries here (e.g. a Roots release) is blocked; test such nodes
+  in CI only (the regtest matrix).
+- Promotion: a blank issue on the fork (none of the fork's issue templates fits), stating what was tested on
+  which build. Categories (Bitcoin) are set by Start9 on request.
+- Version numbers may skip: a package version that never reached a registry can be replaced by a newer one
+  in the same PR (0.3.8:0 became 0.3.10:0); the release notes then cover everything since the last
+  published version.
+- Bitcoin Roots: the dependency range accepts `>=#roots:29.4:0`, but Roots is not on the Community Registry
+  yet, so package descriptions and release notes do not mention it (Matt's request on PR #4). Add the wording
+  back once Roots is on community-prod and tested against the Roots package on StartOS. The app itself and
+  its README may name Roots.
+- Release notes follow the guide's format: "Updated Monetary View to X.Y.Z." then short bullets
+  (New/Fix/Internal), then a link to the GitHub release, in all five languages (FR: no-break space before
+  ":" and ";").
+
+## State (2026-11-07)
+
+App v0.3.10; StartOS 0.3.10:0 in the Community Registry (promoted via issue #5 on the fork; Bitcoin category
+still to confirm); Umbrel 0.3.10. Open: the Bitcoin category on the registry; Roots wording once Roots is on
+community-prod.
+
 ## Start9's packaging rules (they hold every registry package to these)
 
 Guide: https://docs.start9.com/packaging (see `versions.md` "Release Notes", `project-structure.md`,
@@ -58,6 +94,10 @@ Guide: https://docs.start9.com/packaging (see `versions.md` "Release Notes", `pr
 - README follows the guide's section set; no version numbers in it.
 - Pre-publish checklist: `tsc --noEmit`, prettier (`--config node_modules/@start9labs/start-sdk/prettier.config.json`),
   pack/build green, tested end-to-end on StartOS (install, start, UI, health checks, uninstall/reinstall).
+- Dashboard checks before a UI release: measure texts in all five languages at 360–1920 px with Playwright
+  (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`, Python 3.15 venv with playwright 1.63.0) and send screenshots;
+  the demo server (`python3 -m tests.demo`) has a 50-block quick pass, so tiles that wait for it are not
+  representative of mainnet.
 - The web UI uses the app's own basic auth (`auth_user`/`auth_password` in settings.json); **Set Web
   Password** runs in any state and restarts a running service (an only-stopped action behind a critical
   task deadlocks after an update).
