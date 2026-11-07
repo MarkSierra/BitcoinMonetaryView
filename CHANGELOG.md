@@ -2,6 +2,14 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.10] — 2026-11-07
+
+- **Trends and records:** a tile still waiting for its blocks now names the block the scan has to reach
+  ("Available once the scan reaches block 970,548"), and the year-earlier comparison does the same. The
+  percentage shown in 0.3.9 stood still for hours: the full scan runs from the first block upwards and
+  reaches these recent windows only at its end. Where the blocks cannot come any more (e.g. a pruned node
+  after the full scan), the tile says it is not available on this node.
+
 ## [0.3.9] — 2026-11-07
 
 - **Trends and records:** the card always shows its four tiles. A tile whose blocks are not scanned far
