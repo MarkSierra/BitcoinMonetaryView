@@ -1,5 +1,7 @@
-# The Umbrel package installed and used through a real umbrelOS (the official image, run as a container),
-# with Umbrel's Bitcoin Node app switched to regtest and fed spam blocks.
+# The Umbrel packages installed and used through a real umbrelOS (the official image, run as a container),
+# with Umbrel's Bitcoin Node app switched to regtest and fed spam blocks: the community-store package as
+# published, and the official App Store package (copied into umbrelOS's official store, as Umbrel's own
+# testing guide does).
 name: umbrelOS
 
 on:
@@ -8,15 +10,15 @@ on:
       umbrelos:
         description: umbrelOS image tag
         default: "2.0.1"
-      store:
-        description: App store repository Umbrel installs the package from
-        default: https://github.com/MarkSierra/umbrel-community-app-store
-      app:
-        description: App ID in that store
-        default: marksierra-bitcoinmonetaryview
       node:
         description: Umbrel app that provides the bitcoin dependency
         default: bitcoin
+      official_repo:
+        description: Git repository holding the official-store package
+        default: https://github.com/MarkSierra/umbrel-community-app-store
+      official_ref:
+        description: Branch of that repository
+        default: official-bitcoinmonetaryview
   pull_request:
     paths:
       - .github/workflows/umbrel.yml
@@ -25,14 +27,36 @@ on:
 permissions:
   contents: read
 
+env:
+  OFFICIAL_APP: bitcoinmonetaryview
+  OFFICIAL_REPO: ${{ inputs.official_repo || 'https://github.com/MarkSierra/umbrel-community-app-store' }}
+  OFFICIAL_REF: ${{ inputs.official_ref || 'official-bitcoinmonetaryview' }}
+
 jobs:
+  lint:
+    # Umbrel's own App Store lint (including the image checks) on the official-store package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Umbrel's lint on ${{ env.OFFICIAL_APP }}
+        run: |
+          set -euo pipefail
+          git clone -q --depth 1 https://github.com/getumbrel/umbrel-apps.git store
+          git clone -q --depth 1 --branch "$OFFICIAL_REF" "$OFFICIAL_REPO" pkg
+          rm -rf "store/$OFFICIAL_APP"
+          cp -r "pkg/$OFFICIAL_APP" "store/$OFFICIAL_APP"
+          cd store
+          npm ci --no-audit --no-fund
+          npm run lint:apps -- "$OFFICIAL_APP" --check-images
+
   umbrelos:
-    name: umbrelOS ${{ inputs.umbrelos || '2.0.1' }} (${{ matrix.arch }})
+    name: umbrelOS ${{ inputs.umbrelos || '2.0.1' }} (${{ matrix.arch }}, ${{ matrix.package }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
+        arch: [amd64, arm64]
+        package: [community, official]
         include:
           - arch: amd64
             runner: ubuntu-24.04
@@ -40,12 +64,13 @@ jobs:
             runner: ubuntu-24.04-arm
     env:
       UMBRELOS: ${{ inputs.umbrelos || '2.0.1' }}
-      STORE: ${{ inputs.store || 'https://github.com/MarkSierra/umbrel-community-app-store' }}
-      APP: ${{ inputs.app || 'marksierra-bitcoinmonetaryview' }}
+      STORE: https://github.com/MarkSierra/umbrel-community-app-store
+      APP: ${{ matrix.package == 'official' && 'bitcoinmonetaryview' || 'marksierra-bitcoinmonetaryview' }}
       NODE_APP: ${{ inputs.node || 'bitcoin' }}
       # a throwaway login for the disposable test system
       UMBREL_PASSWORD: ci-umbrel-test
       OUT: umbrel-evidence
+      LABEL: ${{ matrix.arch }}-${{ matrix.package }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -110,18 +135,28 @@ jobs:
           echo "::add-mask::$pass"
           python -m tests.umbrel_feed http://127.0.0.1:8332 "$user" "$pass" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Install ${{ env.APP }} from ${{ env.STORE }}
+      - name: Install ${{ env.APP }} through Umbrel
         run: |
           set -euo pipefail
           . "$RUNNER_TEMP/umbrel.sh"
-          uc appStore.addRepository.mutate --url "$STORE"
+          if [ "${{ matrix.package }}" = official ]; then
+            # into umbrelOS's copy of the official store, as Umbrel's testing guide does
+            git clone -q --depth 1 --branch "$OFFICIAL_REF" "$OFFICIAL_REPO" pkg
+            rm -f "pkg/$APP/data/app/.gitkeep"
+            official=$(in_umbrel sh -c 'ls -d /home/umbrel/umbrel/app-stores/getumbrel-umbrel-apps-github-*' | head -1)
+            echo "official store: $official"
+            docker cp "pkg/$APP" "umbrelos:$official/$APP"
+            in_umbrel chown -R 1000:1000 "$official/$APP"
+          else
+            uc appStore.addRepository.mutate --url "$STORE"
+          fi
           for i in $(seq 1 60); do
             uc appStore.registry.query | grep -q "$APP" && break
             sleep 5
           done
           uc apps.install.mutate --appId "$APP"
           wait_state "$APP" ready
-          uc apps.list.query > "$OUT/apps-list.txt" || true
+          uc apps.list.query > "$OUT/$LABEL-apps-list.txt" || true
 
       - name: Open it through Umbrel and wait for the scan
         run: |
@@ -130,7 +165,7 @@ jobs:
           echo "app port: $port"
           echo "APP_PORT=$port" >> "$GITHUB_ENV"
           python -m tests.umbrel_ui http://localhost "$port" "$UMBREL_PASSWORD" \
-            "${{ steps.feed.outputs.height }}" "${{ steps.feed.outputs.spam_height }}" "$OUT" ${{ matrix.arch }}-install
+            "${{ steps.feed.outputs.height }}" "${{ steps.feed.outputs.spam_height }}" "$OUT" "$LABEL-install"
 
       - name: Restart through Umbrel; the scan must persist
         run: |
@@ -148,20 +183,20 @@ jobs:
           echo "$out" | head -c 600; echo
           if echo "$out" | grep -q '"empty": *true'; then echo "scan was lost on restart"; exit 1; fi
           python -m tests.umbrel_ui http://localhost "$APP_PORT" "$UMBREL_PASSWORD" \
-            "${{ steps.feed.outputs.height }}" "${{ steps.feed.outputs.spam_height }}" "$OUT" ${{ matrix.arch }}-restart
+            "${{ steps.feed.outputs.height }}" "${{ steps.feed.outputs.spam_height }}" "$OUT" "$LABEL-restart"
 
       - name: App logs (no tracebacks)
         if: always()
         run: |
           . "$RUNNER_TEMP/umbrel.sh"
-          uc apps.logs.query --appId "$APP" > "$OUT/${{ matrix.arch }}-app-logs.txt" 2>&1 || true
-          uc apps.logs.query --appId "$NODE_APP" > "$OUT/${{ matrix.arch }}-node-logs.txt" 2>&1 || true
-          docker exec umbrelos journalctl -u umbrel --no-pager -n 300 > "$OUT/${{ matrix.arch }}-umbreld.txt" 2>&1 || true
-          tail -n 40 "$OUT/${{ matrix.arch }}-app-logs.txt"
-          ! grep -n "Traceback" "$OUT/${{ matrix.arch }}-app-logs.txt"
+          uc apps.logs.query --appId "$APP" > "$OUT/$LABEL-app-logs.txt" 2>&1 || true
+          uc apps.logs.query --appId "$NODE_APP" > "$OUT/$LABEL-node-logs.txt" 2>&1 || true
+          docker exec umbrelos journalctl -u umbrel --no-pager -n 300 > "$OUT/$LABEL-umbreld.txt" 2>&1 || true
+          tail -n 40 "$OUT/$LABEL-app-logs.txt"
+          ! grep -n "Traceback" "$OUT/$LABEL-app-logs.txt"
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: umbrelos-${{ matrix.arch }}
+          name: umbrelos-${{ matrix.arch }}-${{ matrix.package }}
           path: ${{ env.OUT }}
