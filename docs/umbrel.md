@@ -1,8 +1,15 @@
 # Umbrel package
 
-Monetary View is packaged for umbrelOS in the community app store
-[MarkSierra/umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store)
-(app ID `marksierra-bitcoinmonetaryview`). The package is two files, `umbrel-app.yml` and
+Monetary View is packaged for umbrelOS in two places:
+
+- the community app store
+  [MarkSierra/umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store)
+  (app ID `marksierra-bitcoinmonetaryview`);
+- the official Umbrel App Store (app ID `bitcoinmonetaryview`), submitted from the fork
+  [MarkSierra/umbrel-apps](https://github.com/MarkSierra/umbrel-apps) (branch `bitcoinmonetaryview`) in
+  [getumbrel/umbrel-apps#6328](https://github.com/getumbrel/umbrel-apps/pull/6328). It is the same package
+  without the store prefix, icon and gallery (Umbrel hosts those itself).
+ The package is two files, `umbrel-app.yml` and
 `docker-compose.yml`, and uses the multi-arch image `ghcr.io/marksierra/bitcoinmonetaryview`, pinned by
 version tag and digest.
 
@@ -25,3 +32,15 @@ After a release of this repository (image `X.Y.Z` on GHCR):
 2. In the store repo, set `image: ghcr.io/marksierra/bitcoinmonetaryview:X.Y.Z@sha256:<digest>` in
    `marksierra-bitcoinmonetaryview/docker-compose.yml`, and `version` / `releaseNotes` in its `umbrel-app.yml`.
 3. Commit to `main`. Umbrel devices that added the store offer the update automatically.
+4. Official store: make the same change in `bitcoinmonetaryview/` on a branch of the `umbrel-apps` fork
+   (synced from `getumbrel/umbrel-apps` first) and open a pull request there.
+
+## Testing on umbrelOS
+
+The *umbrelOS* workflow (`.github/workflows/umbrel.yml`) runs the official `ghcr.io/getumbrel/umbrelos`
+image as a container on amd64 and arm64, installs Umbrel's Bitcoin Node and switches it to regtest, mines
+blocks with spam, installs both packages through Umbrel (the official one copied into umbrelOS's official
+store directory, as Umbrel's testing guide does), opens the app through Umbrel's port in Chromium, restarts
+it and checks that the scan persists. It also runs Umbrel's own `lint:apps --check-images` on the official
+package. It runs on pull requests that change it and on demand (inputs: umbrelOS version, node app,
+repository and branch of the official package). Screenshots and logs are uploaded as artifacts.
