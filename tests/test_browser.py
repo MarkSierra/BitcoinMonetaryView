@@ -17,7 +17,7 @@ import unittest
 import urllib.request
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:            # not a dependency of the app
     sync_playwright = None
 
@@ -213,11 +213,16 @@ class Dashboard(unittest.TestCase):
         self.assertEqual(dates.nth(0).input_value(), month + "-01")
         self.assertTrue(dates.nth(1).input_value().startswith(month + "-"))
         page.locator(".period-result .period-kpis").wait_for(timeout=15000)
-        # the range card is scrolled into view, below the sticky header and status bar
-        top = page.evaluate("document.querySelector('.period-result').closest('.card').getBoundingClientRect().top")
-        bar = page.evaluate("document.querySelector('.statusbar').getBoundingClientRect().bottom")
-        self.assertGreaterEqual(top, bar)
-        self.assertLess(top, bar + 60)
+        # the range card is scrolled into view, below the sticky header and status bar; the page scrolls only
+        # once the history charts are drawn too, which can be after the range figures appear
+        where = ("() => [document.querySelector('.period-result').closest('.card').getBoundingClientRect().top, "
+                 "document.querySelector('.statusbar').getBoundingClientRect().bottom]")
+        try:
+            page.wait_for_function(f"() => {{ const [top, bar] = ({where})(); return top >= bar && top < bar + 60; }}",
+                                   timeout=15000)
+        except PlaywrightTimeout:
+            top, bar = page.evaluate(where)
+            self.fail(f"range card not scrolled below the status bar: top {top}, status bar bottom {bar}")
         # on a phone the header and status bar scroll away, so the card goes to the top of the screen
         page.set_viewport_size({"width": 390, "height": 844})
         page.evaluate("location.hash = '#/history/' + arguments[0]".replace("arguments[0]", repr(month)))
