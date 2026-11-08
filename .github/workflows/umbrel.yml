@@ -1,0 +1,167 @@
+# The Umbrel package installed and used through a real umbrelOS (the official image, run as a container),
+# with Umbrel's Bitcoin Node app switched to regtest and fed spam blocks.
+name: umbrelOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      umbrelos:
+        description: umbrelOS image tag
+        default: "2.0.1"
+      store:
+        description: App store repository Umbrel installs the package from
+        default: https://github.com/MarkSierra/umbrel-community-app-store
+      app:
+        description: App ID in that store
+        default: marksierra-bitcoinmonetaryview
+      node:
+        description: Umbrel app that provides the bitcoin dependency
+        default: bitcoin
+  pull_request:
+    paths:
+      - .github/workflows/umbrel.yml
+      - tests/umbrel_*.py
+
+permissions:
+  contents: read
+
+jobs:
+  umbrelos:
+    name: umbrelOS ${{ inputs.umbrelos || '2.0.1' }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      UMBRELOS: ${{ inputs.umbrelos || '2.0.1' }}
+      STORE: ${{ inputs.store || 'https://github.com/MarkSierra/umbrel-community-app-store' }}
+      APP: ${{ inputs.app || 'marksierra-bitcoinmonetaryview' }}
+      NODE_APP: ${{ inputs.node || 'bitcoin' }}
+      # a throwaway login for the disposable test system
+      UMBREL_PASSWORD: ci-umbrel-test
+      OUT: umbrel-evidence
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+      - name: Install Playwright and Chromium (test tooling only)
+        run: |
+          python -m pip install "playwright==1.56.0"
+          python -m playwright install --with-deps chromium
+
+      - name: Boot umbrelOS ${{ env.UMBRELOS }}
+        run: |
+          set -euo pipefail
+          docker run -d -t --name umbrelos --privileged --network host \
+            -v umbrelos-test:/data "ghcr.io/getumbrel/umbrelos:${UMBRELOS}" /sbin/init
+          for i in $(seq 1 120); do
+            docker exec umbrelos umbreld client user.exists.query >/dev/null 2>&1 && break
+            sleep 5
+          done
+          docker exec umbrelos umbreld client user.exists.query
+          docker exec umbrelos umbreld client user.register.mutate --name CI --password "$UMBREL_PASSWORD"
+          mkdir -p "$OUT"
+
+      - name: Helper functions
+        run: |
+          cat > "$RUNNER_TEMP/umbrel.sh" <<'EOF'
+          uc() { docker exec umbrelos umbreld client "$@"; }
+          in_umbrel() { docker exec -i umbrelos "$@"; }
+          wait_state() {  # app, wanted state
+            for i in $(seq 1 180); do
+              s=$(uc apps.state.query --appId "$1" 2>&1 || true)
+              echo "$s" | grep -q "'$2'\|\"$2\"" && return 0
+              sleep 5
+            done
+            echo "$1 did not reach $2: $s"; return 1
+          }
+          app_data() {  # app -> its data directory on the umbrelOS system
+            in_umbrel sh -c "ls -d /home/umbrel/umbrel/app-data/$1 2>/dev/null || find / -xdev -type d -path '*/app-data/$1' 2>/dev/null | head -1"
+          }
+          EOF
+
+      - name: Install ${{ env.NODE_APP }} and switch it to regtest
+        run: |
+          set -euo pipefail
+          . "$RUNNER_TEMP/umbrel.sh"
+          uc apps.install.mutate --appId "$NODE_APP"
+          wait_state "$NODE_APP" ready
+          uc apps.stop.mutate --appId "$NODE_APP"
+          wait_state "$NODE_APP" stopped
+          dir="$(app_data "$NODE_APP")/data/app"
+          echo "settings: $dir/settings.json"
+          in_umbrel sh -c "mkdir -p '$dir' && printf '%s\n' '{\"chain\": \"regtest\"}' > '$dir/settings.json' && chown -R 1000:1000 '$dir'"
+          uc apps.start.mutate --appId "$NODE_APP"
+          wait_state "$NODE_APP" ready
+
+      - name: Mine regtest blocks with spam
+        id: feed
+        run: |
+          set -euo pipefail
+          user=$(docker exec umbrelos docker exec "${NODE_APP}_app_1" printenv RPC_USER)
+          pass=$(docker exec umbrelos docker exec "${NODE_APP}_app_1" printenv RPC_PASS)
+          echo "::add-mask::$pass"
+          python -m tests.umbrel_feed http://127.0.0.1:8332 "$user" "$pass" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Install ${{ env.APP }} from ${{ env.STORE }}
+        run: |
+          set -euo pipefail
+          . "$RUNNER_TEMP/umbrel.sh"
+          uc apps.addRepository.mutate --url "$STORE"
+          for i in $(seq 1 60); do
+            uc appStore.registry.query | grep -q "$APP" && break
+            sleep 5
+          done
+          uc apps.install.mutate --appId "$APP"
+          wait_state "$APP" ready
+          uc apps.list.query > "$OUT/apps-list.txt" || true
+
+      - name: Open it through Umbrel and wait for the scan
+        run: |
+          . "$RUNNER_TEMP/umbrel.sh"
+          port=$(in_umbrel grep -E '^port:' "$(app_data "$APP")/umbrel-app.yml" | awk '{print $2}')
+          echo "app port: $port"
+          echo "APP_PORT=$port" >> "$GITHUB_ENV"
+          python -m tests.umbrel_ui http://localhost "$port" "$UMBREL_PASSWORD" \
+            "${{ steps.feed.outputs.height }}" "${{ steps.feed.outputs.spam_height }}" "$OUT" ${{ matrix.arch }}-install
+
+      - name: Restart through Umbrel; the scan must persist
+        run: |
+          set -euo pipefail
+          . "$RUNNER_TEMP/umbrel.sh"
+          in_umbrel ls -la "$(app_data "$APP")/data/app/regtest"
+          uc apps.restart.mutate --appId "$APP"
+          wait_state "$APP" ready
+          # straight after the restart, before any rescan could finish, the saved scan must be there
+          for i in $(seq 1 60); do
+            out=$(docker exec umbrelos docker exec "${APP}_web_1" python3 -c \
+              "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8338/api/summary').read().decode())" 2>/dev/null) && break
+            sleep 2
+          done
+          echo "$out" | head -c 600; echo
+          if echo "$out" | grep -q '"empty": *true'; then echo "scan was lost on restart"; exit 1; fi
+          python -m tests.umbrel_ui http://localhost "$APP_PORT" "$UMBREL_PASSWORD" \
+            "${{ steps.feed.outputs.height }}" "${{ steps.feed.outputs.spam_height }}" "$OUT" ${{ matrix.arch }}-restart
+
+      - name: App logs (no tracebacks)
+        if: always()
+        run: |
+          . "$RUNNER_TEMP/umbrel.sh"
+          uc apps.logs.query --appId "$APP" > "$OUT/${{ matrix.arch }}-app-logs.txt" 2>&1 || true
+          uc apps.logs.query --appId "$NODE_APP" > "$OUT/${{ matrix.arch }}-node-logs.txt" 2>&1 || true
+          docker exec umbrelos journalctl -u umbrel --no-pager -n 300 > "$OUT/${{ matrix.arch }}-umbreld.txt" 2>&1 || true
+          tail -n 40 "$OUT/${{ matrix.arch }}-app-logs.txt"
+          ! grep -n "Traceback" "$OUT/${{ matrix.arch }}-app-logs.txt"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: umbrelos-${{ matrix.arch }}
+          path: ${{ env.OUT }}
