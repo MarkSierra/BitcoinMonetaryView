@@ -56,6 +56,8 @@ language at desktop, tablet and phone width.
    3. Open the pull request to the fork from the final-version branch, never from a test branch. Each merge
       publishes to Community Beta; promotion to the Community Registry is requested with an issue on the fork.
 4. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the
-   new image by version and digest and bump `version` / `releaseNotes` (see [docs/umbrel.md](docs/umbrel.md)).
+   new image by version and digest and bump `version` / `releaseNotes`; then the same in the official-store
+   package via a pull request to `getumbrel/umbrel-apps`, after the *umbrelOS* workflow passed (see
+   [docs/umbrel.md](docs/umbrel.md)).
 
 By contributing you agree that your contribution is licensed under the AGPL-3.0-or-later.
