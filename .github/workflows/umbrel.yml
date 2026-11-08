@@ -15,10 +15,10 @@ on:
         default: bitcoin
       official_repo:
         description: Git repository holding the official-store package
-        default: https://github.com/MarkSierra/umbrel-community-app-store
+        default: https://github.com/MarkSierra/umbrel-apps
       official_ref:
         description: Branch of that repository
-        default: official-bitcoinmonetaryview
+        default: bitcoinmonetaryview
   pull_request:
     paths:
       - .github/workflows/umbrel.yml
@@ -29,8 +29,8 @@ permissions:
 
 env:
   OFFICIAL_APP: bitcoinmonetaryview
-  OFFICIAL_REPO: ${{ inputs.official_repo || 'https://github.com/MarkSierra/umbrel-community-app-store' }}
-  OFFICIAL_REF: ${{ inputs.official_ref || 'official-bitcoinmonetaryview' }}
+  OFFICIAL_REPO: ${{ inputs.official_repo || 'https://github.com/MarkSierra/umbrel-apps' }}
+  OFFICIAL_REF: ${{ inputs.official_ref || 'bitcoinmonetaryview' }}
 
 jobs:
   lint:
