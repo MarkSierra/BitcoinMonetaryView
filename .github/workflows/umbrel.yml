@@ -145,7 +145,7 @@ jobs:
             rm -f "pkg/$APP/data/app/.gitkeep"
             official=$(in_umbrel sh -c 'ls -d /home/umbrel/umbrel/app-stores/getumbrel-umbrel-apps-github-*' | head -1)
             echo "official store: $official"
-            docker cp "pkg/$APP" "umbrelos:$official/$APP"
+            tar -C pkg -cf - "$APP" | in_umbrel tar -C "$official" -xf -
             in_umbrel chown -R 1000:1000 "$official/$APP"
           else
             uc appStore.addRepository.mutate --url "$STORE"
