@@ -18,7 +18,8 @@ node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of the Mo
 | `MarkSierra/BitcoinMonetaryView` (this one) | the app; releases are tagged here (`vX.Y.Z`), image on ghcr.io |
 | `Start9-Community/bitcoinmonetaryview-startos` | the StartOS package. **Start9 builds and publishes only from here.** A fork of the repo below |
 | `MarkSierra/bitcoinmonetaryview-startos` | our workspace for the package: sync `main` from the Start9-Community fork, branch, test, then open PRs to the fork. Never release from here |
-| `MarkSierra/umbrel-community-app-store` (`marksierra-bitcoinmonetaryview/`) | Umbrel listing; image pinned by digest. No CI; merge directly |
+| `MarkSierra/umbrel-community-app-store` (`marksierra-bitcoinmonetaryview/`) | Umbrel community listing; image pinned by digest. No CI; merge directly |
+| `MarkSierra/umbrel-apps` (`bitcoinmonetaryview/`, branch `bitcoinmonetaryview`) | fork of `getumbrel/umbrel-apps` for the official Umbrel App Store; PRs to getumbrel are opened by the maintainer |
 
 ## StartOS release flow (through Start9-Community)
 
@@ -40,7 +41,8 @@ node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of the Mo
    to the **Community Registry** is the maintainer's call: an issue on the fork (copies the same build).
    Ask there for the Bitcoin category too (categories are set by the registry, not the manifest).
 6. After each merge: sync our `main` from the fork; delete merged branches.
-7. Umbrel: bump image tag and digest, version and releaseNotes in `umbrel-app.yml`.
+7. Umbrel: bump image tag and digest, version and releaseNotes in `umbrel-app.yml` (community store), and
+   the same in the official-store package on the fork (PR to getumbrel). Run the *umbrelOS* workflow first.
 
 Reading the fork: `git` works directly; for PR comments/reviews/CI use a helper session that has the fork
 attached (read-only). Nothing on github.com/Start9-Community is posted without the maintainer's own action.
@@ -75,11 +77,27 @@ Practical notes from the first releases through the fork:
   (New/Fix/Internal), then a link to the GitHub release, in all five languages (FR: no-break space before
   ":" and ";").
 
-## State (2026-11-07)
+## Umbrel official App Store
+
+- Umbrel requires a runtime test through umbrelOS before a PR. `.github/workflows/umbrel.yml` does it in CI
+  (umbrelOS container on amd64/arm64, Bitcoin Node switched to regtest via its `settings.json`
+  `{"chain": "regtest"}`, `umbreld client` for install/restart/logs, Playwright through Umbrel's port), plus
+  Umbrel's `lint:apps --check-images`. Running Umbrel's lint or Docker here is blocked; use CI.
+- Official app IDs have no store prefix; `bitcoinmonetaryview` matches StartOS. No `icon`, `gallery: []`,
+  `releaseNotes: ""` for a new app, `submission:` is the PR link. Lint warns about `security_opt`
+  (`no-new-privileges`); justify it in the PR as hardening.
+- This session cannot fork, comment or open PRs on getumbrel: the maintainer opens the PR from a prefilled
+  compare link (leave "Allow edits by maintainers" on there: Umbrel adds the gallery and icon itself).
+- umbrelOS 2.0.1 CLI notes: the store is added with `appStore.addRepository`; `docker cp` into the umbrelOS
+  container fails for `/home/umbrel/umbrel/...`, pipe a tar through `docker exec` instead.
+
+## State (2026-11-08)
 
 App v0.3.10; StartOS 0.3.10:0 in the Community Registry (promoted via issue #5 on the fork; Bitcoin category
-still to confirm); Umbrel 0.3.10. Open: the Bitcoin category on the registry; Roots wording once Roots is on
-community-prod.
+still to confirm); Umbrel community store 0.3.10; official Umbrel App Store submitted as
+getumbrel/umbrel-apps#6328 (waiting for review). Open: the Bitcoin category on the StartOS registry; the
+Umbrel review; Roots wording once Roots is on community-prod; delete the community-store branch
+`official-bitcoinmonetaryview` (test leftover).
 
 ## Start9's packaging rules (they hold every registry package to these)
 
