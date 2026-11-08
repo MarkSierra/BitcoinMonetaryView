@@ -114,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           . "$RUNNER_TEMP/umbrel.sh"
-          uc apps.addRepository.mutate --url "$STORE"
+          uc appStore.addRepository.mutate --url "$STORE"
           for i in $(seq 1 60); do
             uc appStore.registry.query | grep -q "$APP" && break
             sleep 5
