@@ -10,6 +10,7 @@ node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of the Mo
 - The scan databases are never included in backups.
 - Never ask for tokens or passwords in chat.
 - Security and standard procedures come first. Test everything before it ships.
+- No Claude session links (`claude.ai/code/session_...`) in PR descriptions or commit messages.
 
 ## Repositories
 
@@ -74,6 +75,7 @@ Practical notes from the first releases through the fork:
   yet, so package descriptions and release notes do not mention it (Matt's request on PR #4). Add the wording
   back once Roots is on community-prod and tested against the Roots package on StartOS. The app itself and
   its README may name Roots.
+- `next` in our StartOS workspace is a copy of Start9-Community's own `next` branch; leave it (not ours).
 - Release notes follow the guide's format: "Updated Monetary View to X.Y.Z." then short bullets
   (New/Fix/Internal), then a link to the GitHub release, in all five languages (FR: no-break space before
   ":" and ";").
@@ -89,15 +91,23 @@ Practical notes from the first releases through the fork:
   (`no-new-privileges`); justify it in the PR as hardening.
 - This session cannot fork, comment or open PRs on getumbrel: the maintainer opens the PR from a prefilled
   compare link (leave "Allow edits by maintainers" on there: Umbrel adds the gallery and icon itself).
+- GitHub sometimes creates a CI run with no jobs or only some ("No jobs were run" email): re-run it once and
+  check that all 15 jobs exist before merging.
 - umbrelOS 2.0.1 CLI notes: the store is added with `appStore.addRepository`; `docker cp` into the umbrelOS
   container fails for `/home/umbrel/umbrel/...`, pipe a tar through `docker exec` instead.
 
 ## State (2026-11-09)
 
 App v0.3.12. StartOS 0.3.12:0 in the Community Registry and on Community Beta, Bitcoin category set (Start9
-promoted it on its own within hours of merging #7; promotion issue #8 was filed after that and can be
-closed). Umbrel community store 0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12,
-waiting for review. Open: the Umbrel review; Roots wording once Roots is on community-prod.
+promoted it on its own within hours of merging #7; promotion issue #8 closed). The maintainer's server runs
+StartOS 0.4.2 with Knots 29.3. Umbrel community store 0.3.12; official Umbrel App Store
+getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Merged branches are deleted. Open: the Umbrel
+review; Roots wording once Roots is on community-prod.
+
+Idea for a later release (maintainer: "maybe later", not now): a missing RPC cookie file right after a
+reboot (the node has not written it yet) shows as a red "Authentication problem" until the 30 s retry
+connects; show it as waiting for the node instead (`scanner.py` NodeAuthError, `node/rpc.py`), keeping red
+for wrong credentials.
 
 Lessons from 0.3.10:1-0.3.12: a StartOS user's btrfs data drive went read-only during a first full scan
 (fsync of a fragmented copy-on-write SQLite file). The app now creates its per-network directory
