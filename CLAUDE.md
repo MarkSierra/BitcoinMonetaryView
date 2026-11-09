@@ -91,13 +91,18 @@ Practical notes from the first releases through the fork:
 - umbrelOS 2.0.1 CLI notes: the store is added with `appStore.addRepository`; `docker cp` into the umbrelOS
   container fails for `/home/umbrel/umbrel/...`, pipe a tar through `docker exec` instead.
 
-## State (2026-11-08)
+## State (2026-11-09)
 
-App v0.3.10; StartOS 0.3.10:0 in the Community Registry (promoted via issue #5 on the fork; Bitcoin category
-still to confirm); Umbrel community store 0.3.10; official Umbrel App Store submitted as
-getumbrel/umbrel-apps#6328 (waiting for review). Open: the Bitcoin category on the StartOS registry; the
-Umbrel review; Roots wording once Roots is on community-prod; delete the community-store branch
-`official-bitcoinmonetaryview` (test leftover).
+App v0.3.12. StartOS: 0.3.10:0 in the Community Registry; Matt's 0.3.10:1 (nocow migration, Start9 PR #6)
+on Community Beta; 0.3.12:0 submitted as Start9-Community PR #7 (0.3.10:1 kept as a historical version in
+`startos/versions/v0.3.10_1.ts`; 0.3.11:0 was never submitted). Umbrel community store 0.3.12; official
+Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Open: Start9 PR #7, then
+promotion and the Bitcoin category; the Umbrel review; Roots wording once Roots is on community-prod.
+
+Lessons from 0.3.10:1-0.3.12: a StartOS user's btrfs data drive went read-only during a first full scan
+(fsync of a fragmented copy-on-write SQLite file). The app now creates its per-network directory
+nodatacow and checkpoints the WAL every 64 MB (`store.py`, CI job `btrfs`). A StartOS migration that must
+still run for users skipping a version stays in a historical version file, not in `current.ts`.
 
 ## Start9's packaging rules (they hold every registry package to these)
 
