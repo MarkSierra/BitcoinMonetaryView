@@ -18,14 +18,55 @@ import hashlib
 import os
 import sqlite3
 import struct
+import sys
 import threading
 import time
+
+try:
+    import fcntl
+except ImportError:          # not on Windows
+    fcntl = None
 
 from .rules import monetary_rules as mr
 
 SCHEMA_VERSION = 1
 REORG_WINDOW = 288
 BUCKET = 1000
+
+# SQLite flushes the database to disk at each WAL checkpoint (synchronous=NORMAL). The default
+# checkpoint every 1,000 pages (4 MB) means several flushes a second during a fast scan, which strains
+# copy-on-write file systems; checkpoint every 64 MB instead and keep the WAL file at most that big.
+WAL_CHECKPOINT_PAGES = 16384
+WAL_SIZE_LIMIT = 64 << 20
+
+# Linux FS_IOC_GETFLAGS / FS_IOC_SETFLAGS and the btrfs "nodatacow" attribute (chattr +C).
+FS_IOC_GETFLAGS = 0x80086601
+FS_IOC_SETFLAGS = 0x40086602
+FS_NOCOW_FL = 0x00800000
+
+
+def no_cow(directory):
+    """Mark the app's own data directory nodatacow, so files created in it later skip copy-on-write.
+
+    On btrfs, a database rewritten in small pieces fragments into a huge number of extents, and
+    flushing it then strains the file system. The results are rebuildable from the node, so losing
+    btrfs checksums on them is acceptable. Existing files keep their attribute. Best effort: other
+    file systems and systems refuse it, which is fine. Returns True if the attribute is set."""
+    if fcntl is None or not sys.platform.startswith("linux"):
+        return False
+    try:
+        fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return False
+    try:
+        flags = struct.unpack("q", fcntl.ioctl(fd, FS_IOC_GETFLAGS, struct.pack("q", 0)))[0]
+        if not flags & FS_NOCOW_FL:
+            fcntl.ioctl(fd, FS_IOC_SETFLAGS, struct.pack("q", flags | FS_NOCOW_FL))
+        return True
+    except OSError:
+        return False
+    finally:
+        os.close(fd)
 
 BLOCK_COLS = ("height", "hash", "time", "size", "stored", "weight", "tx_count",
               "envelope", "op_return", "multisig", "scriptsig",
@@ -208,9 +249,12 @@ class Store:
             self.db = sqlite3.connect(uri, uri=True, check_same_thread=False, timeout=30)
         else:
             os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+            no_cow(os.path.dirname(path))
             self.db = sqlite3.connect(path, check_same_thread=False, timeout=30, isolation_level=None)
             self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute("PRAGMA synchronous=NORMAL")
+            self.db.execute(f"PRAGMA wal_autocheckpoint={WAL_CHECKPOINT_PAGES}")
+            self.db.execute(f"PRAGMA journal_size_limit={WAL_SIZE_LIMIT}")
             self.db.executescript(DDL)
             if self.get_meta("schema_version") is None:
                 self.set_meta("schema_version", SCHEMA_VERSION)

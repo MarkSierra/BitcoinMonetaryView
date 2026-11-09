@@ -2,6 +2,19 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- **Gentler on the disk, especially on btrfs (StartOS):** the scan databases are created without
+  copy-on-write on btrfs (`chattr +C` on each network's data directory; other file systems are unaffected).
+  A database rewritten in small pieces fragments badly on copy-on-write file systems, and on one StartOS
+  server this drove btrfs into a fault that made the data drive read-only. The databases lose btrfs
+  checksums as a result; they can always be rebuilt from the node and are not in backups. Existing database
+  files keep their attribute (the StartOS package rewrites them once in its 0.3.10:1 update).
+- SQLite now flushes the database to disk every 64 MB of changes instead of every 4 MB, so a fast scan forces
+  far fewer disk flushes (about 16 times fewer while the history scan runs). An app crash loses nothing; a
+  power cut can lose the scan progress since the last flush, which the scan then redoes (the database stays
+  consistent either way).
+
 ## [0.3.10] — 2026-11-07
 
 - **Trends and records:** a tile still waiting for its blocks now says "Available once the full scan is done"
