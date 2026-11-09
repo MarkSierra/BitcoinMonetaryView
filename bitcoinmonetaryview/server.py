@@ -19,6 +19,7 @@ import os
 import secrets
 import socket
 import ssl
+import sys
 import threading
 import re
 import time
@@ -33,6 +34,9 @@ from .rules import monetary_rules as mr
 from .rules import UPSTREAM_COMMIT, UPSTREAM_REPO
 
 log = logging.getLogger("bmv.server")
+
+# The browser went away before the answer was sent (page reloaded or closed): nothing to report.
+CLIENT_GONE = (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
 
 
 def worker_analyze(raw, height, hexhash, dust_start, policy):
@@ -404,6 +408,8 @@ def make_handler(app):
                     return self.stream((a or Analytics("")).iter_json(), "application/json; charset=utf-8",
                                        "bitcoinmonetaryview.json")
                 return self.error(404, "not found")
+            except CLIENT_GONE:
+                self.close_connection = True
             except (ValueError, KeyError):
                 return self.error(400, "bad request")
             except Exception:
@@ -510,6 +516,8 @@ def make_handler(app):
                     started = app.start_connection_test()
                     return self.send_json({"ok": True, "started": started})
                 return self.error(404, "not found")
+            except CLIENT_GONE:
+                self.close_connection = True
             except Exception:
                 log.exception("API error")
                 return self.error(500, "internal error")
@@ -533,6 +541,11 @@ class Server(ThreadingHTTPServer):
         app = getattr(self, "app", None)
         if app is not None:
             app.close()
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], CLIENT_GONE):
+            return
+        super().handle_error(request, client_address)
 
     def finish_request(self, request, client_address):
         # TLS handshake in the per-connection thread, so a slow client cannot block accept()

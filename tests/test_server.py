@@ -473,3 +473,53 @@ class ConnectionPool(ServerTest):
             gc.collect()
         leaks = [w for w in caught if issubclass(w.category, ResourceWarning) and "sqlite3" in str(w.message)]
         self.assertEqual(leaks, [])
+
+
+class ClientGone(ServerTest):
+    """A browser that leaves before the answer arrives (reload, closed tab) is not an error."""
+
+    def test_disconnect_while_answering_is_quiet(self):
+        import contextlib
+        import io
+        from unittest import mock
+
+        class Gone:
+            def summary(self):
+                raise BrokenPipeError(32, "Broken pipe")
+
+        stderr = io.StringIO()
+        with mock.patch.object(self.srv.app, "analytics", return_value=Gone()), \
+                contextlib.redirect_stderr(stderr), self.assertNoLogs("bmv.server", level="ERROR"):
+            c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+            c.request("GET", "/api/summary", headers={"Host": f"127.0.0.1:{self.port}"})
+            with self.assertRaises((http.client.RemoteDisconnected, ConnectionResetError)):
+                c.getresponse()            # no 500 written after the client is gone
+            c.close()
+            r, _ = self.req("GET", "/api/health")     # the server carries on
+            self.assertEqual(r.status, 200)
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_real_errors_are_still_logged(self):
+        from unittest import mock
+
+        class Broken:
+            def summary(self):
+                raise RuntimeError("boom")
+
+        with mock.patch.object(self.srv.app, "analytics", return_value=Broken()), \
+                self.assertLogs("bmv.server", level="ERROR"):
+            r, _ = self.req("GET", "/api/summary")
+        self.assertEqual(r.status, 500)
+
+    def test_server_ignores_client_gone_only(self):
+        import contextlib
+        import io
+        for exc, quiet in ((BrokenPipeError(32, "x"), True), (ConnectionResetError(104, "x"), True),
+                           (RuntimeError("x"), False)):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                try:
+                    raise exc
+                except Exception:
+                    self.srv.handle_error(None, ("127.0.0.1", 1))
+            self.assertEqual(err.getvalue() == "", quiet, type(exc).__name__)
