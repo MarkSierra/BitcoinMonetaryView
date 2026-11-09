@@ -75,9 +75,6 @@ Practical notes from the first releases through the fork:
   back once Roots is on community-prod and tested against the Roots package on StartOS. The app itself and
   its README may name Roots.
 - `next` in our StartOS workspace is a copy of Start9-Community's own `next` branch; leave it (not ours).
-- The StartOS 0.4.2 update once ended in Diagnostic Mode ("ServiceActorSeed held somewhere after actor
-  shutdown", a StartOS shutdown bug; all services had exited cleanly). "Restart server" fixed it; never
-  suggest "Repair drive" unless Start9 says so.
 - Release notes follow the guide's format: "Updated Monetary View to X.Y.Z." then short bullets
   (New/Fix/Internal), then a link to the GitHub release, in all five languages (FR: no-break space before
   ":" and ";").
