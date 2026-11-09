@@ -117,8 +117,10 @@ Practical notes from the first releases through the fork:
 
 ## Limits of the cloud environment
 
-- No Docker daemon; Umbrel's lint, third-party node binaries (e.g. a Roots release) and docs.start9.com are
-  blocked. Test those in CI; ask the maintainer for Start9 guide pages if needed.
+- Use the cloud environment "Monetary View": it adds docs.start9.com and the two Start9 registries
+  (`community-registry.start9.com`, `community-beta-registry.start9.com`). The Default environment blocks them.
+- No Docker daemon; Umbrel's lint and third-party node binaries (e.g. a Roots release) are blocked on purpose:
+  test those in CI.
 - `git push --delete` is refused by the proxy: the maintainer deletes merged branches on GitHub.
 - GitHub sometimes creates a CI run with no jobs or only some ("No jobs were run" email): re-run it once and
   check that all 15 jobs exist before merging.
