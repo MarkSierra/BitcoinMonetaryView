@@ -2,6 +2,12 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.12] — 2026-11-09
+
+- **Quieter log:** when a browser leaves before an answer arrives (the page is reloaded or closed while it
+  loads), the app no longer logs this as an "API error" with two long tracebacks; it simply drops the
+  connection. Real errors are still logged as before.
+
 ## [0.3.11] — 2026-11-09
 
 - **Gentler on the disk, especially on btrfs (StartOS):** the scan databases are created without
