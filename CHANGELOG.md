@@ -2,7 +2,7 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.11] — 2026-11-09
 
 - **Gentler on the disk, especially on btrfs (StartOS):** the scan databases are created without
   copy-on-write on btrfs (`chattr +C` on each network's data directory; other file systems are unaffected).

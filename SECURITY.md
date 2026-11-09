@@ -33,7 +33,7 @@ With the [GitHub CLI](https://cli.github.com/):
 
 ```sh
 # Docker image (covers all architectures)
-gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.3.10 --repo MarkSierra/BitcoinMonetaryView
+gh attestation verify oci://ghcr.io/marksierra/bitcoinmonetaryview:0.3.11 --repo MarkSierra/BitcoinMonetaryView
 ```
 
 A successful check prints the workflow and commit the file was built from. If it fails, do not install the file.
