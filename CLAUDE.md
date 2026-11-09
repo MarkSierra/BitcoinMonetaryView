@@ -65,7 +65,8 @@ Practical notes from the first releases through the fork:
 - Downloading and running third-party node binaries here (e.g. a Roots release) is blocked; test such nodes
   in CI only (the regtest matrix).
 - Promotion: a blank issue on the fork (none of the fork's issue templates fits), stating what was tested on
-  which build. Categories (Bitcoin) are set by Start9 on request.
+  which build. Categories (Bitcoin) are set by Start9 on request. Check the Community Registry first: Start9
+  sometimes promotes on its own soon after merging (0.3.10:1 and 0.3.12:0 needed no issue).
 - Version numbers may skip: a package version that never reached a registry can be replaced by a newer one
   in the same PR (0.3.8:0 became 0.3.10:0); the release notes then cover everything since the last
   published version.
@@ -93,11 +94,10 @@ Practical notes from the first releases through the fork:
 
 ## State (2026-11-09)
 
-App v0.3.12. StartOS: 0.3.10:0 in the Community Registry; Matt's 0.3.10:1 (nocow migration, Start9 PR #6)
-on Community Beta; 0.3.12:0 submitted as Start9-Community PR #7 (0.3.10:1 kept as a historical version in
-`startos/versions/v0.3.10_1.ts`; 0.3.11:0 was never submitted). Umbrel community store 0.3.12; official
-Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Open: Start9 PR #7, then
-promotion and the Bitcoin category; the Umbrel review; Roots wording once Roots is on community-prod.
+App v0.3.12. StartOS 0.3.12:0 in the Community Registry and on Community Beta, Bitcoin category set (Start9
+promoted it on its own within hours of merging #7; promotion issue #8 was filed after that and can be
+closed). Umbrel community store 0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12,
+waiting for review. Open: the Umbrel review; Roots wording once Roots is on community-prod.
 
 Lessons from 0.3.10:1-0.3.12: a StartOS user's btrfs data drive went read-only during a first full scan
 (fsync of a fragmented copy-on-write SQLite file). The app now creates its per-network directory
