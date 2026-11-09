@@ -80,8 +80,8 @@ Practical notes from the first releases through the fork:
   (`.../compare/main...MarkSierra:BitcoinMonetaryView-startos:<branch>?expand=1&title=...`). A PR from our
   branch updates itself on every push; Start9's build checks run on their own. Keep the PR title and
   description in step with the version (the maintainer edits them).
-- A helper session for reading the fork: `session_014Xu9HKAQ8jL94y4Y7ZwcfN` (send_message, read-only). It
-  may no longer exist in a later session; create a new one with the fork as source if needed.
+- A helper session for reading the fork: create one when needed (`create_session` with the fork as source,
+  read-only instructions; talk to it with `send_message`) and archive it after the merge.
 - Watching a PR or issue there: scheduled tasks (minimum interval one hour; two hourly tasks at different
   minutes give ~30 min) that run `git ls-remote` on the fork and ask the helper for comments; delete them
   after the merge. Matt Hill (Start9) usually answers in the US afternoon/evening; helix-a is Start9's AI
