@@ -10,6 +10,7 @@ node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of the Mo
 - The scan databases are never included in backups.
 - Never ask for tokens or passwords in chat.
 - Security and standard procedures come first. Test everything before it ships.
+- No Claude session links (`claude.ai/code/session_...`) in PR descriptions or commit messages.
 
 ## Repositories
 
