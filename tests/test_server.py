@@ -107,7 +107,9 @@ class Basics(ServerTest):
     def test_no_inline_scripts_or_external_resources(self):
         html = open(os.path.join(ROOT, "bitcoinmonetaryview", "static", "index.html")).read()
         self.assertIsNone(re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html))
-        self.assertNotRegex(html, r"(src|href)=\"https?://(?!github\.com/sambitcoin)")
+        # links only (nothing is loaded from elsewhere): the rules' project and this app's own source
+        self.assertNotRegex(html, r"(src|href)=\"https?://(?!github\.com/(sambitcoin/|MarkSierra/BitcoinMonetaryView\"))")
+        self.assertNotRegex(html, r"src=\"https?://")
         static = os.path.join(ROOT, "bitcoinmonetaryview", "static")
         names = ["app.js"] + [f"i18n/{n}" for n in os.listdir(os.path.join(static, "i18n"))]
         for name in names:

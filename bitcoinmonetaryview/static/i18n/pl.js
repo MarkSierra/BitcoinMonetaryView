@@ -218,7 +218,7 @@
     "Waiting for the node's UTXO set size": "Czekam na rozmiar zbioru UTXO węzła",
     "Your node's UTXO set": "Zbiór UTXO Twojego węzła",
     "on disk · read {ago}": "na dysku · odczytano {ago}",
-    "Read once a day (read-only)": "Odczytywany raz dziennie (tylko do odczytu)",
+    "Read once a week (read-only)": "Odczytywany raz w tygodniu (tylko do odczytu)",
     "By type": "Według rodzaju",
     "A Monetary Node keeps these out of its UTXO database. Stamps outputs are removed from blocks too; P2TR dust stays in block storage, where it costs less, and is looked up there if it is ever spent.":
       "Monetary Node trzyma je poza swoją bazą UTXO. Wyjścia Stamps są też usuwane z bloków; dust P2TR zostaje w przechowywanych blokach, gdzie kosztuje mniej, i jest tam wyszukiwany, jeśli kiedyś zostanie wydany.",
@@ -229,6 +229,8 @@
       "Monetary View (na GitHubie: BitcoinMonetaryView) odczytuje każdy blok z Twojego własnego węzła Bitcoin Core, Knots lub Roots i stosuje do niego reguły projektu Monetary Node. Pokazuje, ile miejsca w Twoim węźle i jego zbiorze UTXO zajmują dane, które nie są pieniądzem — i co zamiast tego przechowywałby Monetary Node.",
     "It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.":
       "Działa wyłącznie w trybie tylko do odczytu: używa tylko odczytujących wywołań RPC (stała biała lista egzekwowana w aplikacji), nigdy nie dotyka plików Twojego węzła i trzyma swoje wyniki w osobnej bazie danych.",
+    "Once a week it asks your node for the size of its UTXO set, to show what share of it is spam. To answer, Bitcoin Core first writes the part of the UTXO set it holds in memory to disk. That is the node's own data and nothing in it changes, but it is the one moment the app makes the node write.":
+      "Raz w tygodniu pyta Twój węzeł o rozmiar jego zbioru UTXO, aby pokazać, jaka jego część to spam. Aby odpowiedzieć, Bitcoin Core najpierw zapisuje na dysk tę część zbioru UTXO, którą trzyma w pamięci. To własne dane węzła i nic się w nich nie zmienia, ale to jedyny moment, w którym aplikacja sprawia, że węzeł coś zapisuje.",
     "Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.":
       "Monetary View to niezależny projekt. Nie jest powiązany z projektem Monetary Node ani przez niego popierany; korzysta z jego opublikowanych reguł dotyczących spamu bez zmian.",
     "A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.":

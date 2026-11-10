@@ -26,6 +26,6 @@ VOLUME ["/data"]
 EXPOSE 8338
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python3 -c "import urllib.request,os,sys; urllib.request.urlopen('http://127.0.0.1:%s/api/health' % os.environ.get('BMV_PORT','8338'), timeout=4); sys.exit(0)" || exit 1
+  CMD python3 -c "import http.client,os,sys; c=http.client.HTTPConnection('127.0.0.1', int(os.environ.get('BMV_PORT','8338')), timeout=4); c.request('GET','/api/health'); sys.exit(c.getresponse().status != 200)" || exit 1
 
 ENTRYPOINT ["python3", "-m", "bitcoinmonetaryview"]

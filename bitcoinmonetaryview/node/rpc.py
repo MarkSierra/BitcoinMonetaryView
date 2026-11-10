@@ -56,7 +56,7 @@ ALLOWED = {
     # verbosity 0 only: raw serialized block
     "getblock": lambda p: len(p) == 2 and _hash_param(p[0]) and p[1] == 0
     and not isinstance(p[1], bool),
-    # read-only, but heavy; hash_type "none" only (no hashing work, no index use)
+    # read-only, but heavy: Core writes its UTXO cache to disk first; "none": no hashing work
     "gettxoutsetinfo": lambda p: list(p) == ["none"],
 }
 

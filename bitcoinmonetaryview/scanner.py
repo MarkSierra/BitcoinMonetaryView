@@ -57,7 +57,8 @@ PHASE_LABELS = {
 }
 
 LIVE_POLL_SECONDS = 5
-UTXO_INFO_INTERVAL = 24 * 3600
+UTXO_INFO_INTERVAL = 7 * 24 * 3600      # Core flushes its UTXO cache to disk to answer gettxoutsetinfo
+UTXO_INFO_RETRY = 24 * 3600
 COMMIT_SECONDS = 2.0
 COMMIT_BLOCKS = 200
 FULL_BATCH = 100             # blocks per full-scan batch (between batches the loop re-checks the node)
@@ -984,6 +985,6 @@ class Scanner(threading.Thread):
             self.store.set_meta("utxo_info_time", time.time())
             self.status.event("info", f"UTXO set: {res.get('txouts', 0):,} entries")
         except NodeError as e:
-            self.store.set_meta("utxo_info_time", time.time() - UTXO_INFO_INTERVAL + 3600)
+            self.store.set_meta("utxo_info_time", time.time() - UTXO_INFO_INTERVAL + UTXO_INFO_RETRY)
             self.status.event("warning", f"Could not read the UTXO set size ({e}); will retry later")
         self.status.set(phase=prev_phase)

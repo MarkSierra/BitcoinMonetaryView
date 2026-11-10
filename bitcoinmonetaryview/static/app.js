@@ -519,6 +519,8 @@
     pb.hidden = !st.can_pause || st.phase === "live";
     pb.textContent = st.paused ? _t("Resume") : _t("Pause");
     $("#app-version").textContent = st.version || "";
+    // AGPL: the source of exactly this version (a modified copy must point to its own)
+    if (st.version) $("#source-link").href = `https://github.com/MarkSierra/BitcoinMonetaryView/tree/v${st.version}`;
     renderBanners();
   }
   function renderBanners() {
@@ -1024,9 +1026,10 @@
     const apply = () => {
       msg.textContent = "";
       if (mode.value === "date") {
-        const t0 = Date.parse(a.value + "T00:00:00Z") / 1000, t1 = Date.parse(b.value + "T23:59:59Z") / 1000;
+        const [d0, d1] = a.value <= b.value ? [a.value, b.value] : [b.value, a.value];   // both edge days count
+        const t0 = Date.parse(d0 + "T00:00:00Z") / 1000, t1 = Date.parse(d1 + "T23:59:59Z") / 1000;
         if (!isFinite(t0) || !isFinite(t1)) { msg.textContent = _t("Choose a start and an end date."); return; }
-        S.period = { id: "custom", q: { start: Math.min(t0, t1), end: Math.max(t0, t1) } };
+        S.period = { id: "custom", q: { start: t0, end: t1 } };
       } else {
         const x = parseInt(a.value, 10), y = parseInt(b.value, 10);
         if (!(x >= 0) || !(y >= 0)) { msg.textContent = _t("Enter two block heights."); return; }
@@ -1112,7 +1115,7 @@
         kpi(_t("Chainstate they occupy"), fmtBytes(u.disk_estimate), _t("{size} serialized × 1.35 database overhead", { size: fmtBytes(u.bytes) })),
         kpi(_t("Share of all UTXOs"), u.share_of_entries_pct != null ? fmtPct(u.share_of_entries_pct) : "–",
           nodeU ? _t("of {n} entries in your node's UTXO set", { n: fmtNum(nodeU.txouts) }) : _t("Waiting for the node's UTXO set size")),
-        kpi(_t("Your node's UTXO set"), nodeU ? fmtBytes(nodeU.disk_size) : "–", nodeU ? _t("on disk · read {ago}", { ago: timeAgo(nodeU.time) }) : _t("Read once a day (read-only)"))),
+        kpi(_t("Your node's UTXO set"), nodeU ? fmtBytes(nodeU.disk_size) : "–", nodeU ? _t("on disk · read {ago}", { ago: timeAgo(nodeU.time) }) : _t("Read once a week (read-only)"))),
       h("div", { class: "grid grid-2", style: { marginTop: "16px" } },
         h("div", { class: "card" }, h("h2", { text: _t("By type") }),
           h("p", { class: "sub", text: _t("A Monetary Node keeps these out of its UTXO database. Stamps outputs are removed from blocks too; P2TR dust stays in block storage, where it costs less, and is looked up there if it is ever spent.") }),
@@ -1129,6 +1132,7 @@
       h("h2", { text: _t("What this app shows") }),
       P(_t("Monetary View (on GitHub: BitcoinMonetaryView) reads every block from your own Bitcoin Core, Knots or Roots node and applies the rules of the Monetary Node project to it. It shows how much of your node's storage and UTXO set is taken up by data that is not money — and what a Monetary Node would store instead.")),
       P(_t("It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.")),
+      P(_t("Once a week it asks your node for the size of its UTXO set, to show what share of it is spam. To answer, Bitcoin Core first writes the part of the UTXO set it holds in memory to disk. That is the node's own data and nothing in it changes, but it is the one moment the app makes the node write.")),
       P(_t("Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.")),
       h("h2", { text: _t("What is a Monetary Node?") }),
       P(_t("A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.")),
@@ -1423,7 +1427,10 @@
       if (reloadIfUpdated(S.status.version)) return;
       renderStatus();
       const h0 = S.status.height;
-      const stale = Date.now() - S.lastDataFetch > (["full", "quick", "sample"].includes(S.status.phase) ? 15000 : 60000);
+      // a large table takes seconds to sum on small hardware: refresh it less often during the scan
+      const scanning = ["full", "quick", "sample"].includes(S.status.phase);
+      const large = S.summary && S.summary.blocks_scanned >= 100000;
+      const stale = Date.now() - S.lastDataFetch > (scanning && !large ? 15000 : 60000);
       if (h0 !== S.lastHeight && (S.lastHeight == null || stale || S.status.phase === "live")) {
         S.lastHeight = h0;
         await refreshData();

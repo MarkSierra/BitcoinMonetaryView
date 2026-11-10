@@ -30,5 +30,6 @@ Third-party code included in this repository
 
 2. Bitcoin Core test data — https://github.com/bitcoin/bitcoin
    License: MIT, Copyright (c) The Bitcoin Core developers
+   (full text: tests/fixtures/LICENSE-bitcoin-core)
      tests/fixtures/block413567.raw     (src/bench/data/block413567.raw)
      tests/fixtures/blockfilters.json   (src/test/data/blockfilters.json)
