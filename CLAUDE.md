@@ -157,6 +157,27 @@ unparsable settings.json from defaults) goes in with the next package release, n
 `0.3.14:1` if no app release is near); test it by writing invalid JSON into settings.json on the server. The maintainer's server runs
 StartOS 0.4.2 with Knots 29.3.
 
+Next release, agreed with the maintainer on 2026-11-10 and NOT started (it starts when start-sdk 4.1.1 is out;
+the maintainer has the full prompt): app 0.3.15, UI only (CSS and `app.js`), then package 0.3.15:0 with the
+SDK bump, then Umbrel.
+1. Status strip when up to date: one line ("Live · block N"); the five figures only in other phases.
+2. "Analysed blocks" on narrow screens: Height column fixed, fade at the right edge (the table is ~1046 px
+   wide in a 309 px `.table-wrap`); no columns removed.
+3. History: the three charts together, then Custom range; the "Biggest spam month" tile must still scroll to
+   its result.
+4. Phones (<720 px, static header today on purpose, commit 77b2155): brand row, tab row and status line
+   fixed; outside "up to date" only status text and progress bar are fixed, the figures scroll away. Static
+   as today on low screens (height under ~500 px). Scroll targets must land below the fixed header.
+5. Latest-block tile font size stays.
+6. Blocks page: 16 rows, "Load more" adds 16 (today 50); server limits unchanged.
+Hard stop before any merge: before/after screenshots to the maintainer (phone 390x844 live and scanning, at
+the top and scrolled; Blocks table; History; desktop strip; one long-text language; landscape), then wait
+for the OK. No 0.4.0 planned: the maintainer declined a mempool view (empty on Knots) and fees paid by spam
+(per-transaction fees need prevout data); the share card, history by type, records and exports already exist,
+so check the dashboard before proposing features. The next reason for a feature release would be new rules
+from the Monetary Node project. `tests.test_browser` `test_biggest_spam_month_opens_as_custom_range` timed
+out once in CI (French run, docs-only PR #78) and passed on a re-run.
+
 Lessons from 0.3.13-0.3.14: `release.yml` checks that `pyproject.toml` and `__init__.py` agree (a test now
 checks it in CI too); stage every changed file in a release commit. In shell steps where one step depends
 on another (a tag that must exist, a checkout that must succeed), chain with `&&` or `set -e`: a `;` pushed
