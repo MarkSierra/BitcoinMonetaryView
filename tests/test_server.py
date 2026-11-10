@@ -277,6 +277,23 @@ class InvalidLoginValueAtStart(DamagedSettingsAtStart):
     test_deleting_the_file_unlocks_too = None
 
 
+class DamagedSettingsAtStartOnUmbrel(ServerTest):
+    """On Umbrel its own proxy does the login, so there is no app login a damaged file could hide."""
+    env = {"BMV_MANAGED_BY": "umbrel"}
+    settings = "{not json"
+
+    def test_not_locked(self):
+        self.assertFalse(self.config.auth_unknown)
+        self.assertIn("carrier_policy", self.config.unknown)      # the spam rules stay protected
+        for path in ("/", "/api/status", "/api/settings"):
+            r, _ = self.req("GET", path)
+            self.assertEqual(r.status, 200, path)
+        r, _ = self.post("/api/settings", {"changes": {"scan_window": "01:00-05:00"}}, token=self.csrf())
+        self.assertEqual(r.status, 403)                           # the damaged file is still not overwritten
+        with open(os.path.join(self.dir, "settings.json")) as f:
+            self.assertEqual(f.read(), "{not json")
+
+
 class DamagedSettingsWithLoginFromEnvironment(ServerTest):
     """The login comes from the environment, which beats the file: a damaged file changes nothing."""
     env = {"BMV_AUTH_USER": "bob", "BMV_AUTH_PASSWORD": "pw"}

@@ -16,7 +16,8 @@ defaults. Right after a start there is nothing to keep, so the default applies, 
 fail safe instead:
 
 - **Web login** (`auth_user`, `auth_password`): while the file cannot say whether a login is set, the web
-  interface answers 503 on everything except `/api/health`, until the file is repaired or deleted.
+  interface answers 503 on everything except `/api/health`, until the file is repaired or deleted. Not on
+  Umbrel, where Umbrel's own login protects the dashboard.
 - **Spam rules** (`carrier_policy`, `dust_start_height`): if the defaults differ from the rules the stored
   results were made with, the scan stops with an error and the results are kept until the file is repaired.
   (Deleting the file selects the default rules, which rescans.)

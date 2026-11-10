@@ -199,6 +199,7 @@ def default_data_dir():
 
 
 OWN_SETTINGS_PLATFORMS = ("umbrel",)
+PROXY_LOGIN_PLATFORMS = ("umbrel",)     # their proxy does the web login; the app's own is not used there
 
 
 class Config:
@@ -238,6 +239,8 @@ class Config:
     @property
     def auth_unknown(self):
         """True while a damaged settings file leaves open whether a web login is set."""
+        if self.managed_by in PROXY_LOGIN_PLATFORMS:
+            return False
         return bool(self.unknown & {"auth_user", "auth_password"})
 
     def _read_file(self):

@@ -9,8 +9,8 @@ All notable changes are documented here. This project uses [semantic versioning]
   settings fall back to their defaults while the app was running. For the web login the default is "none",
   and for the spam rules a changed value means "delete the results and rescan". Now the app keeps what the
   file said before and shows a warning. If the file is already unreadable when the app starts, the web
-  interface stays locked (503) until it is repaired or deleted, and a scan made with non-default spam rules
-  is put on hold with its results kept. The settings page refuses to save into a damaged file instead of
+  interface stays locked (503) until it is repaired or deleted (not on Umbrel, whose own login protects the
+  dashboard), and a scan made with non-default spam rules is put on hold with its results kept. The settings page refuses to save into a damaged file instead of
   overwriting it. Settings from the command line or the environment are unaffected.
 
 ## [0.3.12] — 2026-11-09
