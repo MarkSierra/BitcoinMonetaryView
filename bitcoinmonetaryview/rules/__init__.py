@@ -9,4 +9,3 @@ witness commitment) in the same single parse.
 
 UPSTREAM_REPO = "https://github.com/sambitcoin/BitcoinMonetaryNode"
 UPSTREAM_COMMIT = "492539256d43151973cb4cdf73c91d67c4be203c"
-UPSTREAM_DATE = "2026-09-24"

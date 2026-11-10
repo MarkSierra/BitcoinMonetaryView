@@ -516,7 +516,7 @@
     $("#m-elapsed").textContent = fmtDur(st.now - (st.full_started_at || st.started_at));
     $("#m-eta").textContent = st.phase === "live" ? _t("done") : st.eta_seconds ? "~" + fmtDur(st.eta_seconds) : "–";
     const pb = $("#pause-btn");
-    pb.hidden = !st.can_pause || st.phase === "live";
+    pb.hidden = st.phase === "live";
     pb.textContent = st.paused ? _t("Resume") : _t("Pause");
     $("#app-version").textContent = st.version || "";
     // AGPL: the source of exactly this version (a modified copy must point to its own)
@@ -1243,7 +1243,7 @@
       h("div", { class: "form-row" }, h("label", null, _t("Scan window"), pinnedNote(win)), h("div", { class: "inline-fields" }, winInput, tzInput, saveWin),
         h("div", { class: "help", text: _t("Optional: only scan history during these hours. New blocks are always analysed.") })),
       h("div", { class: "form-row" }, h("label", { text: _t("Scanning") }), h("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-        st.can_pause ? h("button", { class: "btn", type: "button", text: st.paused ? _t("Resume") : _t("Pause"), onclick: togglePause }) : null,
+        h("button", { class: "btn", type: "button", text: st.paused ? _t("Resume") : _t("Pause"), onclick: togglePause }),
         st.can_rescan ? h("button", { class: "btn btn-danger", type: "button", text: _t("Rescan from scratch"), onclick: async () => {
           if (!confirm(_t("Delete this app's results and scan the whole chain again? Your node is not affected."))) return;
           await post("/api/control", { action: "rescan" }).catch((e) => alert(_ts(e.message)));

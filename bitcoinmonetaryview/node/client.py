@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """High-level, read-only view of a Bitcoin Core/Knots/Roots node (RPC + optional REST)."""
 
-import time
-
 from ..rules import monetary_rules as mr
 from .rest import RESTClient
 from .rpc import NodeAuthError, NodeError, NodeUnreachable, RPCClient, RPCError
@@ -17,7 +15,6 @@ class Node:
                              timeout=timeout, proxy=proxy, cafile=cafile)
         self.rest = RESTClient(self.rpc.transport)
         self.use_rest = use_rest
-        self.last_latency = 0.0
         self.batch_ok = True
 
     @property
@@ -69,22 +66,30 @@ class Node:
 
     def block(self, block_hash):
         """Raw serialized block bytes (REST binary if available, else hex RPC)."""
-        t = time.monotonic()
         if self.rest.available:
-            raw = self.rest.block(block_hash)
-        else:
-            raw = bytes.fromhex(self.rpc.call("getblock", block_hash, 0))
-        self.last_latency = time.monotonic() - t
-        return raw
-
-    def utxo_set_info(self):
-        return self.rpc.call("gettxoutsetinfo", "none")
+            return self.rest.block(block_hash)
+        return bytes.fromhex(self.rpc.call("getblock", block_hash, 0))
 
     def close(self):
         self.rpc.close()
 
 
 NETWORKS = {"main": "mainnet", "test": "testnet3", "testnet4": "testnet4", "signet": "signet", "regtest": "regtest"}
+
+
+def make_node(config, timeout=None):
+    """The node connection the settings describe (timeout: rpc_timeout unless given)."""
+    c = config
+    proxy = None
+    if c.tor_proxy:
+        host, port = c.tor_proxy.rsplit(":", 1)
+        proxy = (host.strip("[]"), int(port))
+    node = Node(c.rpc_url, user=c.rpc_user or None, password=c.rpc_password,
+                cookie_file=c.rpc_cookie_file or None, proxy=proxy, cafile=c.rpc_cafile or None,
+                timeout=timeout or c.rpc_timeout, use_rest=c.use_rest)
+    # On a platform (StartOS, Umbrel) the app reaches the node over its internal network.
+    node.transport.trusted_network = c.platform
+    return node
 
 
 def network_name(chain):

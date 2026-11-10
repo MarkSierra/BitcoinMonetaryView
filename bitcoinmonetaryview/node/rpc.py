@@ -49,7 +49,6 @@ ALLOWED = {
     "getblockchaininfo": _no_params,
     "getnetworkinfo": _no_params,
     "getbestblockhash": _no_params,
-    "getblockcount": _no_params,
     "getblockhash": lambda p: len(p) == 1 and _height(p[0]),
     "getblockheader": lambda p: len(p) in (1, 2) and _hash_param(p[0])
     and (len(p) == 1 or isinstance(p[1], bool)),

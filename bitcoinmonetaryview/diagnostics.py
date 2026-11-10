@@ -3,21 +3,20 @@
 
 import time
 
+from .node.client import make_node
 from .node.rpc import NodeAuthError, NodeError, RPCError
 from .node.transport import NodeUnreachable
 
 
-def run_connection_test(scanner_or_config):
+def run_connection_test(config):
     """Return a list of checks: {name, status: ok|warn|fail, message, hint}."""
-    config = getattr(scanner_or_config, "config", scanner_or_config)
-    from .scanner import Scanner
     checks = []
 
     def add(name, status, message, hint=""):
         checks.append({"name": name, "status": status, "message": message, "hint": hint})
 
     try:
-        node = Scanner(config).make_node()
+        node = make_node(config)
     except ValueError as e:
         add("Settings", "fail", str(e), "Set rpc_url and either rpc_cookie_file or rpc_user/rpc_password.")
         return checks

@@ -58,6 +58,12 @@ All notable changes are documented here. This project uses [semantic versioning]
 - **Docker health check** no longer goes through proxy settings in the container's environment.
 - **Build:** every GitHub Action in the build and release workflows is pinned to an exact commit, so a moved
   or compromised release tag of a third-party action cannot change the published image.
+- **Removed:** the setting `allow_pause_when_managed` (Pause is always available; an old value in
+  `settings.json` is ignored) and the option `--print-settings-schema`, which nothing used. The settings API
+  now returns only what the dashboard shows. `getblockcount` is no longer on the RPC whitelist; the app never
+  called it.
+- **Internal:** unused code removed in the node, store and settings layers; one shared way to build the node
+  connection; a test for the built-in HTTPS server.
 
 ## [0.3.12] — 2026-11-09
 

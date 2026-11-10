@@ -97,17 +97,6 @@ class MockNode:
                         return self._send(404, b"not found", "text/plain")
                     time.sleep(node.delay)
                     return self._send(200, node.raw(i), "application/octet-stream")
-                if p.startswith("/rest/headers/"):
-                    rest = p[len("/rest/headers/"):]
-                    if "?count=" in rest:
-                        hx, cnt = rest.split(".bin?count=")
-                    else:
-                        cnt, hx = rest[:-4].split("/")
-                    i = node.chain.find(hx)
-                    if i is None:
-                        return self._send(404, b"not found", "text/plain")
-                    hs = b"".join(r[:80] for r, _ in node.chain.blocks[i:i + int(cnt)])
-                    return self._send(200, hs, "application/octet-stream")
                 return self._send(404, b"not found", "text/plain")
 
             def do_POST(self):
@@ -178,8 +167,6 @@ class MockNode:
             return ok({"version": 290000, "subversion": "/Satoshi:29.0.0/", "connections": 8})
         if m == "getbestblockhash":
             return ok(self.chain.tip_hex())
-        if m == "getblockcount":
-            return ok(len(blocks) - 1)
         if m == "getblockhash":
             if not 0 <= p[0] < len(blocks):
                 return err(-8, "Block height out of range")

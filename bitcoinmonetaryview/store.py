@@ -19,8 +19,6 @@ import os
 import sqlite3
 import struct
 import sys
-import threading
-import time
 
 try:
     import fcntl
@@ -245,27 +243,20 @@ class Bloom:
 
 
 class Store:
-    def __init__(self, path, readonly=False, cache_mb=64):
+    def __init__(self, path, cache_mb=64):
         self.path = path
-        self.readonly = readonly
-        if readonly:
-            uri = "file:" + path + "?mode=ro"
-            self.db = sqlite3.connect(uri, uri=True, check_same_thread=False, timeout=30)
-        else:
-            os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
-            no_cow(os.path.dirname(path))
-            self.db = sqlite3.connect(path, check_same_thread=False, timeout=30, isolation_level=None)
-            self._refuse_newer_schema()
-            self.db.execute("PRAGMA journal_mode=WAL")
-            self.db.execute("PRAGMA synchronous=NORMAL")
-            self.db.execute(f"PRAGMA wal_autocheckpoint={WAL_CHECKPOINT_PAGES}")
-            self.db.execute(f"PRAGMA journal_size_limit={WAL_SIZE_LIMIT}")
-            self.db.executescript(DDL)
-            if self.get_meta("schema_version") is None:
-                self.set_meta("schema_version", SCHEMA_VERSION)
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+        no_cow(os.path.dirname(path))
+        self.db = sqlite3.connect(path, check_same_thread=False, timeout=30, isolation_level=None)
+        self._refuse_newer_schema()
+        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA synchronous=NORMAL")
+        self.db.execute(f"PRAGMA wal_autocheckpoint={WAL_CHECKPOINT_PAGES}")
+        self.db.execute(f"PRAGMA journal_size_limit={WAL_SIZE_LIMIT}")
+        self.db.executescript(DDL)
+        if self.get_meta("schema_version") is None:
+            self.set_meta("schema_version", SCHEMA_VERSION)
         self.db.execute(f"PRAGMA cache_size=-{int(cache_mb) * 1024}")
-        self.lock = threading.RLock()
-        self._seq = 0
         self.in_tx = False
 
     def _refuse_newer_schema(self):
@@ -478,10 +469,6 @@ class Store:
                 return
             yield rows
 
-    def spam_utxo_count(self):
-        r = self.db.execute("SELECT COALESCE(SUM(count),0) FROM utxo_hist").fetchone()
-        return r[0]
-
     def reset(self):
         """Delete all analysis results (e.g. after a rules change). Settings are untouched."""
         self.begin()
@@ -494,21 +481,8 @@ class Store:
         self.discard_saved_bloom()
         self.commit()
 
-    def size_on_disk(self):
-        total = 0
-        for suffix in ("", "-wal", "-shm"):
-            try:
-                total += os.path.getsize(self.path + suffix)
-            except OSError:
-                pass
-        return total
-
     def close(self):
         try:
             self.commit()
         finally:
             self.db.close()
-
-
-def now():
-    return time.time()

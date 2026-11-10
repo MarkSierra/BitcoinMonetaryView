@@ -122,81 +122,53 @@ def _hosts(v):
 
 
 class Setting:
-    def __init__(self, name, conv, default, help, secret=False, file_ok=True,
-                 ui_editable=False, kind="string", choices=None, group="general"):
+    def __init__(self, name, conv, default, help, secret=False, ui_editable=False, kind="string"):
         self.name, self.conv, self.default, self.help = name, conv, default, help
-        self.secret, self.file_ok, self.ui_editable = secret, file_ok, ui_editable
-        self.kind, self.choices, self.group = kind, choices, group
+        self.secret, self.ui_editable, self.kind = secret, ui_editable, kind
 
 
 SCHEMA = [
     # --- node connection
-    Setting("rpc_url", _url, "http://127.0.0.1:8332", "Bitcoin Core/Knots/Roots RPC URL", group="node"),
-    Setting("rpc_user", _str, "", "RPC username (leave empty when using a cookie file)", group="node"),
-    Setting("rpc_password", _str, "", "RPC password", secret=True, group="node"),
-    Setting("rpc_cookie_file", _str, "", "Path to bitcoind's .cookie file (read-only)", group="node"),
-    Setting("rpc_cafile", _str, "", "Extra CA certificate (PEM) to trust for https RPC, e.g. Start9 root CA",
-            group="node"),
-    Setting("tor_proxy", _hostport, "", "SOCKS5 proxy for .onion RPC, e.g. 127.0.0.1:9050", group="node"),
+    Setting("rpc_url", _url, "http://127.0.0.1:8332", "Bitcoin Core/Knots/Roots RPC URL"),
+    Setting("rpc_user", _str, "", "RPC username (leave empty when using a cookie file)"),
+    Setting("rpc_password", _str, "", "RPC password", secret=True),
+    Setting("rpc_cookie_file", _str, "", "Path to bitcoind's .cookie file (read-only)"),
+    Setting("rpc_cafile", _str, "", "Extra CA certificate (PEM) to trust for https RPC, e.g. Start9 root CA"),
+    Setting("tor_proxy", _hostport, "", "SOCKS5 proxy for .onion RPC, e.g. 127.0.0.1:9050"),
     Setting("use_rest", _bool, True, "Use bitcoind's REST interface if it is already enabled (faster)",
-            kind="boolean", group="node"),
-    Setting("rpc_timeout", _int(5, 900), 120, "RPC timeout in seconds", kind="integer", group="node"),
+            kind="boolean"),
+    Setting("rpc_timeout", _int(5, 900), 120, "RPC timeout in seconds", kind="integer"),
     # --- scanning
     Setting("speed_profile", _choice("eco", "balanced", "full"), "eco",
-            "eco = gentlest on the node, full = fastest", ui_editable=True, kind="string",
-            choices=["eco", "balanced", "full"], group="scan"),
+            "eco = gentlest on the node, full = fastest", ui_editable=True, kind="string"),
     Setting("scan_window", _window, "", "Only scan history during this daily time window, e.g. 01:00-07:00",
-            ui_editable=True, group="scan"),
+            ui_editable=True),
     Setting("timezone", _tz, "UTC", "Time zone for scan_window (IANA name, e.g. Europe/Berlin)",
-            ui_editable=True, group="scan"),
+            ui_editable=True),
     Setting("quick_pass_blocks", _int(0, 50000), 1000, "Recent blocks analysed first for a quick result",
-            kind="integer", group="scan"),
+            kind="integer"),
     Setting("sample_every", _int(0, 100000), 100,
             "Before the full scan, analyse every Nth block of the history for an early whole-chain estimate "
-            "(0 = off)", kind="integer", group="scan"),
+            "(0 = off)", kind="integer"),
     Setting("carrier_policy", _bool, True,
             "Keep oversized OP_RETURNs that are verified payment-protocol envelopes (upstream carrier policy)",
-            kind="boolean", group="scan"),
+            kind="boolean"),
     Setting("dust_start_height", _opt_int(0, 10_000_000), None,
             "Height from which P2TR dust counts (auto: 767430 on mainnet, 0 on test networks)",
-            kind="integer", group="scan"),
-    Setting("bloom_mb", _int(8, 4096), 256, "Memory for the spent-output filter (MB)", kind="integer",
-            group="scan"),
+            kind="integer"),
+    Setting("bloom_mb", _int(8, 4096), 256, "Memory for the spent-output filter (MB)", kind="integer"),
     # --- web interface
-    Setting("bind", _str, "127.0.0.1", "Address the web interface listens on", file_ok=True, group="web"),
-    Setting("port", _int(1, 65535), 8338, "Port of the web interface", kind="integer", group="web"),
-    Setting("auth_user", _str, "", "Username for the web interface (optional basic auth)", group="web"),
-    Setting("auth_password", _str, "", "Password for the web interface", secret=True, group="web"),
-    Setting("tls_cert", _str, "", "TLS certificate (PEM) to serve the web interface over https", group="web"),
-    Setting("tls_key", _str, "", "TLS private key (PEM)", group="web"),
+    Setting("bind", _str, "127.0.0.1", "Address the web interface listens on"),
+    Setting("port", _int(1, 65535), 8338, "Port of the web interface", kind="integer"),
+    Setting("auth_user", _str, "", "Username for the web interface (optional basic auth)"),
+    Setting("auth_password", _str, "", "Password for the web interface", secret=True),
+    Setting("tls_cert", _str, "", "TLS certificate (PEM) to serve the web interface over https"),
+    Setting("tls_key", _str, "", "TLS private key (PEM)"),
     Setting("allowed_hosts", _hosts, [], "Extra Host names allowed for the web interface (comma separated)",
-            kind="array", group="web"),
-    Setting("allow_pause_when_managed", _bool, True, "Keep the pause/resume button in managed mode",
-            kind="boolean", group="web"),
-    Setting("log_level", _choice("debug", "info", "warning", "error"), "info", "Log verbosity",
-            choices=["debug", "info", "warning", "error"], group="general"),
+            kind="array"),
+    Setting("log_level", _choice("debug", "info", "warning", "error"), "info", "Log verbosity"),
 ]
 BY_NAME = {s.name: s for s in SCHEMA}
-
-
-def json_schema():
-    props = {}
-    for s in SCHEMA:
-        p = {"description": s.help}
-        p["type"] = {"string": "string", "boolean": "boolean", "integer": "integer", "array": "array"}[s.kind]
-        if s.name == "dust_start_height":
-            p["type"] = ["integer", "null"]
-        if s.choices:
-            p["enum"] = s.choices
-        if s.kind == "array":
-            p["items"] = {"type": "string"}
-        p["default"] = s.default
-        if s.secret:
-            p["writeOnly"] = True
-        props[s.name] = p
-    return {"$schema": "https://json-schema.org/draft/2020-12/schema",
-            "title": "Monetary View settings", "type": "object",
-            "additionalProperties": True, "properties": props}
 
 
 def default_data_dir():
@@ -277,12 +249,12 @@ class Config:
         if fdata is None:
             if self._file_values is None:
                 warnings.append(f"{SETTINGS_FILE} could not be read ({error}); using defaults")
-                return {}, {s.name for s in SCHEMA if s.file_ok}
+                return {}, {s.name for s in SCHEMA}
             warnings.append(f"{SETTINGS_FILE} could not be read ({error}); keeping the previous settings")
             return self._file_values, self._file_unknown
         previous, good, unknown = self._file_values or {}, {}, set()
         for s in SCHEMA:
-            if not (s.file_ok and s.name in fdata):
+            if s.name not in fdata:
                 continue
             try:
                 good[s.name] = s.conv(fdata[s.name])
@@ -373,9 +345,7 @@ class Config:
             v = self.values[s.name]
             if s.secret:
                 v = "********" if v else ""
-            out.append({"name": s.name, "value": v, "default": s.default, "help": s.help,
-                        "source": self.sources[s.name], "editable": self.can_edit(s.name),
-                        "choices": s.choices, "group": s.group, "secret": s.secret})
+            out.append({"name": s.name, "value": v, "source": self.sources[s.name], "editable": self.can_edit(s.name)})
         return out
 
 
@@ -409,7 +379,6 @@ def build_arg_parser():
             ap.add_argument(flag, dest=s.name, default=None, type=_bool, metavar="true|false", help=s.help)
         else:
             ap.add_argument(flag, dest=s.name, default=None, help=s.help)
-    ap.add_argument("--print-settings-schema", action="store_true", help="print the settings JSON Schema and exit")
     ap.add_argument("--check", action="store_true", help="run the connection test and exit")
     ap.add_argument("--version", action="store_true", help="print version and exit")
     return ap

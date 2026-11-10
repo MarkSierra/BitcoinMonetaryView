@@ -14,6 +14,7 @@ import unittest
 from bitcoinmonetaryview.analytics import csv_safe
 from bitcoinmonetaryview.config import Config
 from bitcoinmonetaryview.scanner import Status
+from bitcoinmonetaryview.node.client import make_node
 from bitcoinmonetaryview.server import host_allowed, make_server
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -385,9 +386,9 @@ class OnUmbrel(ServerTest):
 
     def test_internal_rpc_over_http_is_trusted(self):
         from bitcoinmonetaryview.scanner import Scanner
-        self.assertFalse(Scanner(self.config).make_node().transport.plaintext_remote)
+        self.assertFalse(make_node(self.config).transport.plaintext_remote)
         plain = Config(self.dir, cli={"rpc_url": "http://10.21.21.8:8332", "rpc_user": "u", "rpc_password": "p"}, env={})
-        self.assertTrue(Scanner(plain).make_node().transport.plaintext_remote)
+        self.assertTrue(make_node(plain).transport.plaintext_remote)
 
 
 class OnDemandLookup(ServerTest):
@@ -810,3 +811,37 @@ class ConnectionCap(ServerTest):
         r, _ = self.req("GET", "/api/health")
         self.assertEqual(r.status, 200)
         idle[1].close()
+
+
+@unittest.skipUnless(shutil.which("openssl"), "openssl not installed")
+class BuiltInTLS(unittest.TestCase):
+    """S5: the web interface over https with tls_cert/tls_key, as the README recommends for LAN use."""
+
+    def test_serves_https_only(self):
+        import ssl
+        import subprocess
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1", "-subj",
+                        "/CN=localhost", "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1",
+                        "-keyout", "key.pem", "-out", "cert.pem"], cwd=d, check=True, capture_output=True)
+        port = free_port()
+        cfg = Config(d, cli={"port": str(port), "tls_cert": os.path.join(d, "cert.pem"),
+                             "tls_key": os.path.join(d, "key.pem")}, env={})
+        srv = make_server(cfg, StubScanner())
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        ctx = ssl.create_default_context(cafile=os.path.join(d, "cert.pem"))
+        c = http.client.HTTPSConnection("127.0.0.1", port, context=ctx, timeout=10)
+        c.request("GET", "/api/health", headers={"Host": f"127.0.0.1:{port}"})
+        r = c.getresponse()
+        self.assertEqual(r.status, 200)
+        self.assertTrue(json.loads(r.read())["ok"])
+        self.assertGreaterEqual(c.sock.version(), "TLSv1.2")
+        c.close()
+        plain = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        with self.assertRaises((http.client.HTTPException, ConnectionError, OSError)):
+            plain.request("GET", "/api/health")
+            plain.getresponse()
+        plain.close()
