@@ -56,6 +56,8 @@ All notable changes are documented here. This project uses [semantic versioning]
   version.
 - **Custom range:** dates entered in reverse order (end before start) now include both edge days.
 - **Docker health check** no longer goes through proxy settings in the container's environment.
+- **Build:** every GitHub Action in the build and release workflows is pinned to an exact commit, so a moved
+  or compromised release tag of a third-party action cannot change the published image.
 
 ## [0.3.12] — 2026-11-09
 
