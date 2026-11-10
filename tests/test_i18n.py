@@ -93,7 +93,8 @@ class Coverage(unittest.TestCase):
     def test_every_server_message_has_a_translation(self):
         """The fixed start of every message the server sends must appear in each language file,
         so a new message cannot be added without its translations."""
-        calls = {"event": 1, "set": None, "add": 2, "append": 0, "Restart": 0, "reset_results": 0}
+        calls = {"event": 1, "set": None, "add": 2, "append": 0, "Restart": 0, "reset_results": 0,
+                 "SettingsDamaged": 0}
         starts = []
         for name in ("scanner.py", "diagnostics.py", "server.py", "config.py", "analytics.py"):
             with open(os.path.join(ROOT, "bitcoinmonetaryview", name), encoding="utf-8") as f:
@@ -143,6 +144,8 @@ class ServerPatterns(unittest.TestCase):
     """Real messages through i18n.js's server() in Node.js."""
 
     SAMPLES_DE = {
+        "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
+            "settings.json konnte nicht gelesen werden (Expecting value: line 1 column 1 (char 0)); die bisherigen Einstellungen gelten weiter",
         "Loading spent-output filter: 48,000,000 entries": "Lade Filter für ausgegebene Outputs: 48.000.000 Einträge",
         "Spent-output filter loaded from its saved copy (47,998,812 entries)":
             "Filter für ausgegebene Outputs aus der gespeicherten Kopie geladen (47.998.812 Einträge)",
@@ -166,6 +169,8 @@ class ServerPatterns(unittest.TestCase):
     }
 
     SAMPLES_ES = {
+        "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
+            "No se pudo leer settings.json (Expecting value: line 1 column 1 (char 0)); se mantienen los ajustes anteriores",
         "Loading spent-output filter: 48,000,000 entries":
             "Cargando el filtro de outputs gastados: 48.000.000 entradas",
         "Spent-output filter loaded from its saved copy (47,998,812 entries)":
@@ -197,6 +202,8 @@ class ServerPatterns(unittest.TestCase):
     }
 
     SAMPLES_FR = {
+        "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
+            "Impossible de lire settings.json (Expecting value: line 1 column 1 (char 0))\u00a0; les paramètres précédents sont conservés",
         "Loading spent-output filter: 48,000,000 entries":
             "Chargement du filtre des outputs dépensés\u00a0: 48\u202f000\u202f000 entrées",
         "Spent-output filter loaded from its saved copy (47,998,812 entries)":
@@ -228,6 +235,8 @@ class ServerPatterns(unittest.TestCase):
     }
 
     SAMPLES_PL = {
+        "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
+            "Nie udało się odczytać settings.json (Expecting value: line 1 column 1 (char 0)); zachowuję poprzednie ustawienia",
         "Loading spent-output filter: 48,000,000 entries":
             "Wczytuję filtr wydanych wyjść: 48\u00a0000\u00a0000 wpisów",
         "Spent-output filter loaded from its saved copy (47,998,812 entries)":

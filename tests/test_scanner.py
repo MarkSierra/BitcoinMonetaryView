@@ -482,6 +482,100 @@ class PrunedNode(ScannerTest):
         self.assertEqual(meta["full_start_height"], "30")
 
 
+class DamagedSettings(unittest.TestCase):
+    """Non-default spam rules in settings.json, and the file becomes unreadable or gets a bad value:
+    the results must not be deleted because the rules silently fell back to their defaults."""
+    setUp, tearDown = ScannerTest.setUp, ScannerTest.tearDown
+    config, start, wait_phase, tip_ok = ScannerTest.config, ScannerTest.start, ScannerTest.wait_phase, ScannerTest.tip_ok
+
+    def write(self, text):
+        with open(os.path.join(self.dir, "settings.json"), "w") as f:
+            f.write(text)
+
+    def results(self):
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        n = db.execute("SELECT COUNT(*) FROM blocks WHERE utxo_done=1").fetchone()[0]
+        rid = db.execute("SELECT value FROM meta WHERE key='rules_id'").fetchone()[0]
+        db.close()
+        return n, rid
+
+    def block_fetches(self):
+        return sum(1 for m, p in list(self.node.calls) if m == "getblock" or (m == "REST" and "/rest/block/" in p))
+
+    def wait_warning(self, s, text, timeout=30):
+        t = time.time()
+        while time.time() - t < timeout:
+            if any(text in w for w in s.config.warnings):
+                return
+            time.sleep(0.05)
+        self.fail(f"no warning with {text!r}: {s.config.warnings}")
+
+    def assert_results_kept(self, s):
+        n, rid = self.results()
+        self.assertEqual(n, 40)
+        self.assertIn("policy:off", rid)
+        self.assertNotIn("Spam rules changed", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+
+    def scanned_with_policy_off(self):
+        self.write('{"carrier_policy": false}')
+        s = self.start()
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        self.assertEqual(self.results()[0], 40)
+        return s
+
+    def test_file_damaged_while_running_keeps_rules_and_results(self):
+        s = self.scanned_with_policy_off()
+        self.write('{"carrier_policy": false,')                 # cut short
+        self.wait_warning(s, "could not be read")
+        time.sleep(1.5)                                         # time for a (wrong) restart and reset
+        self.assertFalse(s.config.carrier_policy)
+        self.assert_results_kept(s)
+        self.write('{"carrier_policy": "flase"}')               # one bad value
+        self.wait_warning(s, "invalid value")
+        time.sleep(1.5)
+        self.assertFalse(s.config.carrier_policy)
+        self.assert_results_kept(s)
+        self.assertEqual(s.status.get("phase"), "live")
+
+    def test_file_damaged_at_start_holds_the_scan_and_keeps_results(self):
+        s = self.scanned_with_policy_off()
+        s.stop()
+        s.join(20)
+        self.write('{"carrier_policy": false,')
+        fetched = self.block_fetches()
+        s2 = self.start()
+        self.wait_phase(s2, "error", timeout=20)
+        self.assertIn("settings.json", s2.status.get("detail"))
+        self.assert_results_kept(s2)
+        self.write('{"carrier_policy": false}')                 # repaired: the scan goes on, nothing rescanned
+        s2.wake.set()
+        self.wait_phase(s2, "live", cond=self.tip_ok(s2))
+        self.assert_results_kept(s2)
+        self.assertEqual(self.block_fetches(), fetched)
+
+    def test_bad_rules_value_at_start_holds_the_scan(self):
+        s = self.scanned_with_policy_off()
+        s.stop()
+        s.join(20)
+        self.write('{"carrier_policy": "flase"}')
+        s2 = self.start()
+        self.wait_phase(s2, "error", timeout=20)
+        self.assert_results_kept(s2)
+
+    def test_damaged_file_at_start_with_default_rules_scans_on(self):
+        s = self.start()                                        # no settings file: default rules
+        self.wait_phase(s, "live", cond=self.tip_ok(s))
+        s.stop()
+        s.join(20)
+        self.write("{not json")
+        self.chain.append(spending_maker(self.chain))
+        s2 = self.start()
+        self.wait_phase(s2, "live", cond=self.tip_ok(s2))
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM blocks WHERE utxo_done=1").fetchone()[0], 41)
+        db.close()
+
+
 class StoreRegressions(unittest.TestCase):
     def test_reset_clears_completion_flags(self):
         from bitcoinmonetaryview.store import Store
@@ -704,6 +798,89 @@ class Misc(unittest.TestCase):
             self.assertEqual(c.speed_profile, "eco")
         finally:
             shutil.rmtree(d)
+
+    def settings_dir(self, text):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        with open(os.path.join(d, "settings.json"), "w") as f:
+            f.write(text)
+        return d
+
+    def rewrite(self, d, text):
+        with open(os.path.join(d, "settings.json"), "w") as f:
+            f.write(text)
+
+    def test_unreadable_file_keeps_the_previous_settings(self):
+        d = self.settings_dir('{"auth_user": "bob", "auth_password": "pw", "carrier_policy": false, "bloom_mb": 64}')
+        c = Config(d, env={})
+        self.assertEqual(c.unknown, set())
+        for damaged in ('{"auth_user": "bob",', "", "[1, 2]"):
+            self.rewrite(d, damaged)
+            c.load()
+            self.assertEqual((c.auth_user, c.auth_password, c.carrier_policy, c.bloom_mb), ("bob", "pw", False, 64))
+            self.assertEqual(c.sources["auth_user"], "file")
+            self.assertEqual(c.unknown, set())
+            self.assertIn("keeping the previous settings", " ".join(c.warnings))
+        self.rewrite(d, '{"bloom_mb": 32}')                      # a valid file is applied as written
+        c.load()
+        self.assertEqual((c.auth_user, c.carrier_policy, c.bloom_mb), ("", True, 32))
+        self.assertEqual(c.warnings, [])
+
+    def test_invalid_value_keeps_the_previous_value(self):
+        d = self.settings_dir('{"carrier_policy": false, "speed_profile": "full"}')
+        c = Config(d, env={})
+        self.rewrite(d, '{"carrier_policy": "flase", "speed_profile": "balanced"}')
+        c.load()
+        self.assertFalse(c.carrier_policy)
+        self.assertEqual(c.speed_profile, "balanced")
+        self.assertEqual(c.unknown, set())
+        self.assertIn("keeping the previous value", " ".join(c.warnings))
+
+    def test_unreadable_file_at_start_marks_its_settings_unknown(self):
+        d = self.settings_dir('{"auth_user": "bob",')
+        c = Config(d, env={})
+        self.assertTrue(c.auth_unknown)
+        self.assertTrue({"auth_user", "auth_password", "carrier_policy", "dust_start_height"} <= c.unknown)
+        self.assertIn("using defaults", " ".join(c.warnings))
+        c.load()                                                 # reading it again changes nothing
+        self.assertTrue(c.auth_unknown)
+        # what the environment or the command line sets is known whatever the file says
+        e = Config(d, env={"BMV_AUTH_USER": "bob", "BMV_AUTH_PASSWORD": "pw", "BMV_CARRIER_POLICY": "false"},
+                   cli={"dust_start_height": "0"})
+        self.assertFalse(e.auth_unknown)
+        self.assertFalse(e.unknown & {"carrier_policy", "dust_start_height"})
+        self.rewrite(d, '{"auth_user": "bob", "auth_password": "pw"}')
+        c.load()
+        self.assertEqual(c.unknown, set())
+        self.assertEqual(c.auth_user, "bob")
+
+    def test_invalid_value_without_a_previous_one_is_unknown(self):
+        d = self.settings_dir('{"auth_user": ["bob"], "auth_password": "pw", "carrier_policy": "flase", "port": "abc"}')
+        c = Config(d, env={})
+        self.assertEqual(c.unknown, {"auth_user", "carrier_policy", "port"})
+        self.assertTrue(c.auth_unknown)
+        self.assertEqual((c.auth_user, c.carrier_policy, c.port), ("", True, 8338))      # defaults meanwhile
+
+    def test_absent_file_is_not_damaged(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        c = Config(d, env={})
+        self.assertEqual(c.unknown, set())
+        self.assertFalse(c.auth_unknown)
+        self.rewrite(d, "{broken")                              # appears damaged later: defaults stay
+        c.load()
+        self.assertEqual(c.unknown, set())
+
+    def test_damaged_file_is_not_overwritten_by_a_settings_change(self):
+        d = self.settings_dir('{"auth_user": "bob", "auth_password": "pw"}')
+        c = Config(d, env={})
+        self.rewrite(d, '{"auth_user": "bob", "auth_password": "pw",')
+        c.load()
+        with self.assertRaises(PermissionError):
+            c.update_file({"scan_window": "02:00-03:00"})
+        with open(os.path.join(d, "settings.json")) as f:
+            self.assertEqual(f.read(), '{"auth_user": "bob", "auth_password": "pw",')
+        self.assertEqual(c.auth_user, "bob")
 
     def test_settings_file_private(self):
         d = tempfile.mkdtemp()

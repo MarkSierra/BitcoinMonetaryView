@@ -504,6 +504,10 @@
     "That block is not in your node's main chain.": "Tego bloku nie ma w głównym łańcuchu Twojego węzła.",
     "Your node has pruned this block, so it cannot be analysed.": "Twój węzeł przyciął ten blok, więc nie można go przeanalizować.",
     "Your node does not know this block.": "Twój węzeł nie zna tego bloku.",
+    "settings.json is damaged, so the spam rules to use are not known. The scan is on hold and the results are kept until the file is repaired.":
+      "Plik settings.json jest uszkodzony, więc nie wiadomo, jakie reguły spamu zastosować. Skanowanie jest wstrzymane, a wyniki pozostają zachowane do czasu naprawienia pliku.",
+    "settings.json is damaged; repair or delete it before changing settings here":
+      "Plik settings.json jest uszkodzony; napraw go lub usuń, zanim zmienisz tutaj ustawienia",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "Interfejs WWW jest dostępny z Twojej sieci bez hasła. Ustaw auth_user/auth_password (a najlepiej też tls_cert/tls_key).",
   };
@@ -572,6 +576,8 @@
     [/^Could not reach the node: (.+)$/s, (m, e) => `Nie udało się połączyć z węzłem: ${e}`],
     [/^(\S+) could not be read \((.+)\); using defaults$/s, (m, f, e) => `Nie udało się odczytać ${f} (${e}); używam wartości domyślnych`],
     [/^setting (\S+): invalid value in (\S+) \((.+)\); using default$/s, (m, n, f, e) => `Ustawienie ${n}: nieprawidłowa wartość w ${f} (${e}); używam domyślnej`],
+    [/^(\S+) could not be read \((.+)\); keeping the previous settings$/s, (m, f, e) => `Nie udało się odczytać ${f} (${e}); zachowuję poprzednie ustawienia`],
+    [/^setting (\S+): invalid value in (\S+) \((.+)\); keeping the previous value$/s, (m, n, f, e) => `Ustawienie ${n}: nieprawidłowa wartość w ${f} (${e}); zachowuję poprzednią wartość`],
     [/^setting (\S+): invalid environment value \((.+)\); ignored$/s, (m, n, e) => `Ustawienie ${n}: nieprawidłowa wartość zmiennej środowiskowej (${e}); zignorowano`],
   ];
   function server(msg) {

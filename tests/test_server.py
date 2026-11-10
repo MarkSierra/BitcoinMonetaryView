@@ -47,9 +47,16 @@ class StubScanner:
 class ServerTest(unittest.TestCase):
     env = {}
     cli_extra = {}
+    settings = None             # text of settings.json present when the app starts
+
+    def write_settings(self, text):
+        with open(os.path.join(self.dir, "settings.json"), "w") as f:
+            f.write(text)
 
     def setUp(self):
         self.dir = tempfile.mkdtemp()
+        if self.settings is not None:
+            self.write_settings(self.settings)
         self.port = free_port()
         cli = {"port": str(self.port), "rpc_password": "rpc-s3cret", "rpc_user": "alice"}
         cli.update(self.cli_extra)
@@ -195,6 +202,91 @@ class BasicAuth(ServerTest):
         r, _ = self.req("GET", "/", headers={"Authorization": good})
         self.assertEqual(r.status, 200)
         r, _ = self.req("GET", "/api/health")
+        self.assertEqual(r.status, 200)
+
+
+class LoginInSettingsFile(ServerTest):
+    """The web login is set in settings.json (as on StartOS) and the file gets damaged while the app runs."""
+    env = {"BMV_MANAGED_BY": "startos"}
+    settings = '{"auth_user": "bob", "auth_password": "pw"}'
+    good = {"Authorization": "Basic " + base64.b64encode(b"bob:pw").decode()}
+
+    def check_login_still_required(self):
+        for path in ("/", "/api/status", "/api/export.csv"):
+            r, _ = self.req("GET", path)
+            self.assertEqual(r.status, 401, path)
+        r, _ = self.req("GET", "/api/status", headers=self.good)
+        self.assertEqual(r.status, 200)
+
+    def test_unreadable_file_does_not_switch_the_login_off(self):
+        self.check_login_still_required()
+        self.write_settings('{"auth_user": "bob", "auth_password": "pw",')      # cut short
+        self.config.load()                                                       # what the scanner does on a change
+        self.check_login_still_required()
+        self.assertIn("keeping the previous settings", " ".join(self.config.warnings))
+
+    def test_invalid_value_does_not_switch_the_login_off(self):
+        self.write_settings('{"auth_user": ["bob"], "auth_password": "pw"}')
+        self.config.load()
+        self.check_login_still_required()
+        self.write_settings('{"auth_user": "bob", "auth_password": {"a": 1}}')
+        self.config.load()
+        self.check_login_still_required()
+
+    def test_removing_the_login_from_a_valid_file_still_works(self):
+        self.write_settings("{}")
+        self.config.load()
+        r, _ = self.req("GET", "/api/status")
+        self.assertEqual(r.status, 200)
+
+
+class DamagedSettingsAtStart(ServerTest):
+    """settings.json cannot be read when the app starts: nobody knows whether a login was set."""
+    env = {"BMV_MANAGED_BY": "startos"}
+    settings = '{"auth_user": "bob", "auth_password": "pw",'
+    good = {"Authorization": "Basic " + base64.b64encode(b"bob:pw").decode()}
+
+    def test_interface_is_locked_until_the_file_is_repaired(self):
+        for path in ("/", "/app.js", "/api/status", "/api/session", "/api/settings", "/api/export.json"):
+            for headers in ({}, self.good):
+                r, d = self.req("GET", path, headers=headers)
+                self.assertEqual(r.status, 503, path)
+                self.assertIn(b"settings.json", d)
+        r, _ = self.post("/api/control", {"action": "pause"}, token="x")
+        self.assertEqual(r.status, 503)
+        self.assertEqual(self.scanner.actions, [])
+        r, d = self.req("GET", "/api/health")                # container health checks keep working
+        self.assertEqual(r.status, 200)
+        self.assertTrue(json.loads(d)["ok"])
+        self.write_settings('{"auth_user": "bob", "auth_password": "pw"}')
+        self.config.load()
+        r, _ = self.req("GET", "/api/status")
+        self.assertEqual(r.status, 401)
+        r, _ = self.req("GET", "/api/status", headers=self.good)
+        self.assertEqual(r.status, 200)
+
+    def test_deleting_the_file_unlocks_too(self):
+        os.unlink(os.path.join(self.dir, "settings.json"))
+        self.config.load()
+        r, _ = self.req("GET", "/api/status")
+        self.assertEqual(r.status, 200)
+
+
+class InvalidLoginValueAtStart(DamagedSettingsAtStart):
+    settings = '{"auth_user": ["bob"], "auth_password": "pw"}'
+    test_deleting_the_file_unlocks_too = None
+
+
+class DamagedSettingsWithLoginFromEnvironment(ServerTest):
+    """The login comes from the environment, which beats the file: a damaged file changes nothing."""
+    env = {"BMV_AUTH_USER": "bob", "BMV_AUTH_PASSWORD": "pw"}
+    settings = "{not json"
+
+    def test_not_locked(self):
+        r, _ = self.req("GET", "/api/status")
+        self.assertEqual(r.status, 401)
+        good = {"Authorization": "Basic " + base64.b64encode(b"bob:pw").decode()}
+        r, _ = self.req("GET", "/api/status", headers=good)
         self.assertEqual(r.status, 200)
 
 

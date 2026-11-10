@@ -454,6 +454,10 @@
     "That block is not in your node's main chain.": "Dieser Block ist nicht in der Hauptkette deines Nodes.",
     "Your node has pruned this block, so it cannot be analysed.": "Dein Node hat diesen Block gepruned, deshalb kann er nicht analysiert werden.",
     "Your node does not know this block.": "Dein Node kennt diesen Block nicht.",
+    "settings.json is damaged, so the spam rules to use are not known. The scan is on hold and the results are kept until the file is repaired.":
+      "settings.json ist beschädigt, daher ist nicht bekannt, welche Spam-Regeln gelten. Der Scan ist angehalten und die Ergebnisse bleiben erhalten, bis die Datei repariert ist.",
+    "settings.json is damaged; repair or delete it before changing settings here":
+      "settings.json ist beschädigt; repariere oder lösche die Datei, bevor du hier Einstellungen änderst",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "Die Weboberfläche ist aus deinem Netzwerk ohne Passwort erreichbar. Setze auth_user/auth_password (und idealerweise tls_cert/tls_key).",
   };
@@ -515,6 +519,8 @@
     [/^Could not reach the node: (.+)$/s, (m, e) => `Node nicht erreichbar: ${e}`],
     [/^(\S+) could not be read \((.+)\); using defaults$/s, (m, f, e) => `${f} konnte nicht gelesen werden (${e}); nutze Standardwerte`],
     [/^setting (\S+): invalid value in (\S+) \((.+)\); using default$/s, (m, n, f, e) => `Einstellung ${n}: ungültiger Wert in ${f} (${e}); nutze Standardwert`],
+    [/^(\S+) could not be read \((.+)\); keeping the previous settings$/s, (m, f, e) => `${f} konnte nicht gelesen werden (${e}); die bisherigen Einstellungen gelten weiter`],
+    [/^setting (\S+): invalid value in (\S+) \((.+)\); keeping the previous value$/s, (m, n, f, e) => `Einstellung ${n}: ungültiger Wert in ${f} (${e}); der bisherige Wert gilt weiter`],
     [/^setting (\S+): invalid environment value \((.+)\); ignored$/s, (m, n, e) => `Einstellung ${n}: ungültiger Wert in der Umgebungsvariable (${e}); ignoriert`],
   ];
   function server(msg) {

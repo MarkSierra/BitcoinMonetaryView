@@ -504,6 +504,10 @@
     "That block is not in your node's main chain.": "Ce bloc n’est pas dans la chaîne principale de votre nœud.",
     "Your node has pruned this block, so it cannot be analysed.": "Votre nœud a élagué ce bloc, il ne peut donc pas être analysé.",
     "Your node does not know this block.": "Votre nœud ne connaît pas ce bloc.",
+    "settings.json is damaged, so the spam rules to use are not known. The scan is on hold and the results are kept until the file is repaired.":
+      "settings.json est endommagé : on ne sait donc pas quelles règles de spam appliquer. L’analyse est suspendue et les résultats sont conservés jusqu’à ce que le fichier soit réparé.",
+    "settings.json is damaged; repair or delete it before changing settings here":
+      "settings.json est endommagé ; réparez-le ou supprimez-le avant de modifier les paramètres ici",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "L’interface web est accessible depuis votre réseau sans mot de passe. Définissez auth_user/auth_password (et idéalement tls_cert/tls_key).",
   };
@@ -565,6 +569,8 @@
     [/^Could not reach the node: (.+)$/s, (m, e) => `Impossible de joindre le nœud : ${e}`],
     [/^(\S+) could not be read \((.+)\); using defaults$/s, (m, f, e) => `Impossible de lire ${f} (${e}) ; utilisation des valeurs par défaut`],
     [/^setting (\S+): invalid value in (\S+) \((.+)\); using default$/s, (m, n, f, e) => `Paramètre ${n} : valeur invalide dans ${f} (${e}) ; valeur par défaut utilisée`],
+    [/^(\S+) could not be read \((.+)\); keeping the previous settings$/s, (m, f, e) => `Impossible de lire ${f} (${e}) ; les paramètres précédents sont conservés`],
+    [/^setting (\S+): invalid value in (\S+) \((.+)\); keeping the previous value$/s, (m, n, f, e) => `Paramètre ${n} : valeur invalide dans ${f} (${e}) ; la valeur précédente est conservée`],
     [/^setting (\S+): invalid environment value \((.+)\); ignored$/s, (m, n, e) => `Paramètre ${n} : valeur invalide dans la variable d’environnement (${e}) ; ignorée`],
   ];
   function server(msg) {

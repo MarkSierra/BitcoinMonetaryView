@@ -50,6 +50,8 @@ def main(argv=None):
 
     log.info("Monetary View %s — read-only: nothing on your node is changed", __version__)
     log.info("Data directory: %s", data_dir)
+    if config.auth_unknown:
+        log.error("settings.json is damaged: the web interface stays locked until it is repaired or deleted")
     if config.managed:
         log.info("Managed by %s: settings are read-only in the web interface", config.managed_by)
     elif config.platform:
