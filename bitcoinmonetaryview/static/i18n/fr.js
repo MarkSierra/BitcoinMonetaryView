@@ -491,6 +491,8 @@
     "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. On Start9 the RPC credentials are shown in the Bitcoin Core/Knots/Roots service's properties.":
       "Vérifiez rpc_user/rpc_password, ou faites pointer rpc_cookie_file vers le fichier .cookie du nœud. Sur Start9, les identifiants RPC figurent dans les propriétés du service Bitcoin Core/Knots/Roots.",
     "The node may still be starting up. Try again in a minute.": "Le nœud est peut-être encore en train de démarrer. Réessayez dans une minute.",
+    "The node writes this file when it starts, so it may still be starting. If it is running, check rpc_cookie_file.":
+      "Le nœud écrit ce fichier au démarrage, il est donc peut-être encore en train de démarrer. S’il tourne, vérifiez rpc_cookie_file.",
     "Scanning starts automatically once the node is fully synced.": "L’analyse démarre automatiquement dès que le nœud est entièrement synchronisé.",
     "Node is fully synced": "Le nœud est entièrement synchronisé",
     "Block statistics cover the available range only; the exact spam UTXO figure needs a non-pruned node.":
@@ -537,6 +539,7 @@
     [/^Loading spent-output filter: ([\d,]+) entries$/, (m, n) => `Chargement du filtre des outputs dépensés : ${N(n)} entrées`],
     [/^Spent-output filter loaded \(([\d,]+) spam outputs\)$/, (m, n) => `Filtre des outputs dépensés chargé (${N(n)} outputs de spam)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Votre nœud est encore en cours de synchronisation (${N(p)} %). L’analyse démarrera une fois terminé.`],
+    [/^Waiting for the node to write its RPC cookie file \((.+)\)$/, (m, p) => `En attente que le nœud écrive son fichier cookie RPC (${p})`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `L’analyse de l’historique tourne chaque jour ${w} (${tz}). Les nouveaux blocs restent affichés.`],
     [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `L’analyse de l’historique tourne chaque jour ${w} (${tz}).`],
     [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `La base de données d’analyse a été écrite par une version plus récente de Monetary View (schéma ${a}, cette version connaît le ${b}). Elle est laissée telle quelle : mettez l’application à jour ou supprimez la base de données pour relancer l’analyse.`],
@@ -561,6 +564,7 @@
     [/^UTXO set: ([\d,]+) entries$/, (m, n) => `Ensemble UTXO : ${N(n)} entrées`],
     [/^Could not read the UTXO set size \((.+)\); will retry later$/s, (m, e) => `Impossible de lire la taille de l’ensemble UTXO (${e}) ; nouvel essai plus tard`],
     // connection test
+    [/^RPC cookie file (.+) does not exist yet$/, (m, p) => `Le fichier cookie RPC ${p} n’existe pas encore`],
     [/^Connected to (\S+) \((\d+) ms\)$/, (m, u, ms) => `Connecté à ${u} (${ms} ms)`],
     [/^Node answered with an error: (.+)$/s, (m, e) => `Le nœud a répondu par une erreur : ${e}`],
     [/^Chain: (\S+), height ([\d,]+)$/, (m, c, h) => `Chaîne : ${c}, hauteur ${N(h)}`],

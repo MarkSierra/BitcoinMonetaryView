@@ -4,7 +4,7 @@
 import time
 
 from .node.client import make_node
-from .node.rpc import NodeAuthError, NodeError, RPCError
+from .node.rpc import CookieMissing, NodeAuthError, NodeError, RPCError
 from .node.transport import NodeUnreachable
 
 
@@ -30,6 +30,10 @@ def run_connection_test(config):
         ms = (time.monotonic() - t0) * 1000
         add("Reachable", "ok", f"Connected to {t.describe()} ({ms:.0f} ms)")
         add("Authentication", "ok", "RPC credentials accepted")
+    except CookieMissing as e:
+        add("Authentication", "warn", str(e),
+            "The node writes this file when it starts, so it may still be starting. If it is running, check rpc_cookie_file.")
+        return checks
     except NodeAuthError as e:
         add("Authentication", "fail", str(e),
             "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. "

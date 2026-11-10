@@ -22,6 +22,10 @@ class RPCForbidden(NodeError):
     """A call outside the read-only whitelist was attempted (never sent)."""
 
 
+class CookieMissing(NodeError):
+    """The cookie file does not exist (yet): the node writes it when it starts."""
+
+
 class RPCError(NodeError):
     def __init__(self, code, message, method=""):
         super().__init__(f"{method}: {message} (code {code})" if method else f"{message} (code {code})")
@@ -101,6 +105,8 @@ class RPCClient:
             if self._cookie_file:
                 try:
                     cred = read_cookie(self._cookie_file)
+                except FileNotFoundError:
+                    raise CookieMissing(f"RPC cookie file {self._cookie_file} does not exist yet") from None
                 except OSError as e:
                     raise NodeAuthError(f"cannot read RPC cookie file: {e.strerror}") from None
             else:
@@ -167,5 +173,5 @@ class RPCClient:
         self.transport.close()
 
 
-__all__ = ["RPCClient", "RPCError", "RPCForbidden", "NodeError", "NodeAuthError",
+__all__ = ["RPCClient", "RPCError", "RPCForbidden", "NodeError", "NodeAuthError", "CookieMissing",
            "NodeUnreachable", "check_allowed", "ALLOWED", "RPC_IN_WARMUP"]

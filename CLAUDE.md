@@ -100,9 +100,10 @@ Practical notes from the first releases through the fork:
   back once Roots is on community-prod and tested against the Roots package on StartOS. The app itself and
   its README may name Roots.
 - `next` in our StartOS workspace is a copy of Start9-Community's own `next` branch; leave it (not ours).
-- Release notes follow the guide's format: "Updated Monetary View to X.Y.Z." then short bullets
-  (New/Fix/Internal), then a link to the GitHub release, in all five languages (FR: no-break space before
-  ":" and ";").
+- Release notes follow the guide (`versions.md`): "Updated Monetary View to X.Y.Z.", then bullets under bold
+  headers once several categories are covered (**Security**, **Changes**, **Fixes**; localized), then a link
+  to the GitHub release, in all five languages (FR: no-break space before ":" and ";"). Only what users
+  observe: no mechanism, no internal package changes, no defect history.
 
 ## Umbrel official App Store
 
@@ -131,19 +132,14 @@ Practical notes from the first releases through the fork:
 
 ## State (2026-11-10)
 
-App 0.3.13 merged on `main` (fixes from a full code and security review: a damaged settings.json fails safe,
+App v0.3.14 (0.3.13: fixes from a full code and security review — a damaged settings.json fails safe,
 weekly instead of daily gettxoutsetinfo, mutated-block check, request handling, actions pinned by commit,
-unused code removed); `release.yml` not run yet. Released: v0.3.12. StartOS 0.3.12:0 in the Community Registry
-and on Community Beta, Bitcoin category set (Start9 promoted it on its own within hours of merging #7;
-promotion issue #8 closed). The maintainer's server runs StartOS 0.4.2 with Knots 29.3. Umbrel community store
-0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Open: release
-0.3.13 and the package updates (StartOS: exclude `.<net>.nocow`/`.<net>.old` from backups, mention the weekly
-UTXO-size request in the descriptions); the Umbrel review; Roots wording once Roots is on community-prod.
-
-Idea for a later release (maintainer: "maybe later", not now): a missing RPC cookie file right after a
-reboot (the node has not written it yet) shows as a red "Authentication problem" until the 30 s retry
-connects; show it as waiting for the node instead (`scanner.py` NodeAuthError, `node/rpc.py`), keeping red
-for wrong credentials.
+unused code removed; 0.3.14: a missing cookie after a reboot shows as waiting for the node). StartOS
+0.3.12:0 in the Community Registry and on Community Beta, Bitcoin category set (Start9 promoted it on its own
+within hours of merging #7; promotion issue #8 closed). StartOS 0.3.14:0 in preparation (0.3.13:0 was only a
+test build, never submitted). The maintainer's server runs StartOS 0.4.2 with Knots 29.3. Umbrel community
+store 0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Open: the
+Start9 PR for 0.3.14:0, then Umbrel; the Umbrel review; Roots wording once Roots is on community-prod.
 
 Lessons from 0.3.10:1-0.3.12: a StartOS user's btrfs data drive went read-only during a first full scan
 (fsync of a fragmented copy-on-write SQLite file). The app now creates its per-network directory

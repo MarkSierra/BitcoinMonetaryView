@@ -441,6 +441,8 @@
     "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. On Start9 the RPC credentials are shown in the Bitcoin Core/Knots/Roots service's properties.":
       "Prüfe rpc_user/rpc_password oder lass rpc_cookie_file auf die .cookie-Datei des Nodes zeigen. Auf Start9 stehen die RPC-Zugangsdaten in den Eigenschaften des Bitcoin-Core-/Knots-/Roots-Dienstes.",
     "The node may still be starting up. Try again in a minute.": "Der Node startet vielleicht noch. Versuche es in einer Minute erneut.",
+    "The node writes this file when it starts, so it may still be starting. If it is running, check rpc_cookie_file.":
+      "Der Node schreibt diese Datei beim Start, er startet also vielleicht noch. Wenn er läuft, prüfe rpc_cookie_file.",
     "Scanning starts automatically once the node is fully synced.": "Das Scannen startet automatisch, sobald der Node vollständig synchronisiert ist.",
     "Node is fully synced": "Node ist vollständig synchronisiert",
     "Block statistics cover the available range only; the exact spam UTXO figure needs a non-pruned node.":
@@ -487,6 +489,7 @@
     [/^Loading spent-output filter: ([\d,]+) entries$/, (m, n) => `Lade Filter für ausgegebene Outputs: ${N(n)} Einträge`],
     [/^Spent-output filter loaded \(([\d,]+) spam outputs\)$/, (m, n) => `Filter für ausgegebene Outputs geladen (${N(n)} Spam-Outputs)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Dein Node synchronisiert noch (${N(p)} %). Das Scannen startet, sobald er fertig ist.`],
+    [/^Waiting for the node to write its RPC cookie file \((.+)\)$/, (m, p) => `Warte darauf, dass der Node seine RPC-Cookie-Datei schreibt (${p})`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `Der Scan der Historie läuft täglich ${w} (${tz}). Neue Blöcke werden weiterhin angezeigt.`],
     [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `Der Scan der Historie läuft täglich ${w} (${tz}).`],
     [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `Die Scan-Datenbank wurde von einer neueren Version von Monetary View geschrieben (Schema ${a}, diese Version kennt ${b}). Sie bleibt unverändert: Aktualisiere die App oder lösche die Datenbank, um neu zu scannen.`],
@@ -511,6 +514,7 @@
     [/^UTXO set: ([\d,]+) entries$/, (m, n) => `UTXO-Set: ${N(n)} Einträge`],
     [/^Could not read the UTXO set size \((.+)\); will retry later$/s, (m, e) => `Größe des UTXO-Sets konnte nicht gelesen werden (${e}); neuer Versuch später`],
     // connection test
+    [/^RPC cookie file (.+) does not exist yet$/, (m, p) => `RPC-Cookie-Datei ${p} existiert noch nicht`],
     [/^Connected to (\S+) \((\d+) ms\)$/, (m, u, ms) => `Verbunden mit ${u} (${ms} ms)`],
     [/^Node answered with an error: (.+)$/s, (m, e) => `Node antwortete mit einem Fehler: ${e}`],
     [/^Chain: (\S+), height ([\d,]+)$/, (m, c, h) => `Chain: ${c}, Höhe ${N(h)}`],

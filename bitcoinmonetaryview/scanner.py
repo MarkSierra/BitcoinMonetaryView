@@ -18,7 +18,7 @@ import time
 
 from . import __version__
 from .node.client import default_dust_start, make_node, network_name
-from .node.rpc import RPC_IN_WARMUP, NodeAuthError, NodeError, RPCError
+from .node.rpc import RPC_IN_WARMUP, CookieMissing, NodeAuthError, NodeError, RPCError
 from .node.transport import NodeUnreachable
 from .rules import UPSTREAM_COMMIT
 from .rules import monetary_rules as mr
@@ -258,6 +258,10 @@ class Scanner(threading.Thread):
                 self.status.set(phase="error", detail=str(e), last_error=str(e))
                 self.status.event("error", str(e))
                 self.sleep(60)
+            except CookieMissing:
+                self.status.set(phase="waiting_node", detail=f"Waiting for the node to write its RPC cookie file "
+                                                             f"({self.config.rpc_cookie_file})")
+                self.sleep(10)
             except NodeAuthError as e:
                 self.status.set(phase="error", detail=str(e), last_error=str(e))
                 self.status.event("error", f"Authentication problem: {e}")

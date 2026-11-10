@@ -1187,3 +1187,67 @@ class TrendsReuseHistory(unittest.TestCase):
             a.history()
             a.trends()
             self.assertEqual(h.call_count, 1)
+
+
+class CookieNotWrittenYet(unittest.TestCase):
+    """Right after a reboot the node has not written its cookie file yet: that is waiting for the node, not
+    an authentication problem. A cookie the node refuses is still one."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.cookie = os.path.join(self.dir, ".cookie")
+        self.chain = MockChain()
+        self.chain.build(5)
+        self.node = MockNode(self.chain, cookie_path=self.cookie)
+        self.scanners = []
+
+    def tearDown(self):
+        for s in self.scanners:
+            s.stop()
+            s.join(10)
+        self.node.stop()
+        shutil.rmtree(self.dir)
+
+    def start(self):
+        cfg = Config(os.path.join(self.dir, "data"), cli={"rpc_url": self.node.url, "rpc_cookie_file": self.cookie,
+                                                        "quick_pass_blocks": "0", "sample_every": "0"}, env={})
+        s = Scanner(cfg)
+        self.scanners.append(s)
+        s.start()
+        return s
+
+    def wait(self, s, phase, timeout=30):
+        t = time.time()
+        while time.time() - t < timeout:
+            if s.status.get("phase") == phase:
+                return
+            time.sleep(0.05)
+        self.fail(f"phase {phase} not reached: {s.status.snapshot()}")
+
+    def test_missing_cookie_is_waiting_for_the_node(self):
+        os.unlink(self.cookie)
+        s = self.start()
+        self.wait(s, "waiting_node")
+        self.assertIn("cookie", s.status.get("detail"))
+        self.assertIn(self.cookie, s.status.get("detail"))        # a wrong path shows up here
+        time.sleep(0.5)
+        self.assertEqual(s.status.get("phase"), "waiting_node")
+        self.assertNotIn("Authentication problem", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+        self.node.rotate_cookie()                                 # the node has started and written it
+        s.wake.set()
+        self.wait(s, "live")
+
+    def test_refused_cookie_is_still_an_authentication_problem(self):
+        with open(self.cookie, "w") as f:
+            f.write("__cookie__:wrong")
+        s = self.start()
+        self.wait(s, "error")
+        self.assertIn("Authentication problem", " ".join(e["message"] for e in s.status.snapshot()["activity"]))
+
+    def test_connection_test_says_the_node_may_be_starting(self):
+        from bitcoinmonetaryview.diagnostics import run_connection_test
+        os.unlink(self.cookie)
+        cfg = Config(os.path.join(self.dir, "data"), cli={"rpc_url": self.node.url, "rpc_cookie_file": self.cookie}, env={})
+        checks = {c["name"]: c for c in run_connection_test(cfg)}
+        self.assertEqual(checks["Authentication"]["status"], "warn")
+        self.assertIn("starts", checks["Authentication"]["hint"])
