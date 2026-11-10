@@ -144,8 +144,8 @@ StartOS: 0.3.14:0 merged in Start9-Community/bitcoinmonetaryview-startos#9 (merg
 results kept, health checks, Bitcoin restart and server reboot without an authentication error; clean install
 not tested (no second server). Matt's review removed the package-side settings guard (ab369b2): the SDK will
 rebuild unparsable file models from `.catch()` defaults (start-sdk 4.1.1, Start9Labs/start-technologies#4670).
-Open: the maintainer deletes `claude/bold-planck-14e4f1` in our workspace; check Community Beta, then the
-Community Registry (promotion issue only if Start9 does not promote on its own). Previously released: 0.3.12:0.
+Released on Community Beta and the Community Registry (Start9 promoted it on its own; no issue needed).
+All package branches besides `main` and `next` are deleted in our workspace.
 
 Umbrel: 0.3.14 merged in the community store (MarkSierra/umbrel-community-app-store#16). Official store:
 the fork's `bitcoinmonetaryview` branch is at 8011111 (0.3.14), tested by umbrelOS run
