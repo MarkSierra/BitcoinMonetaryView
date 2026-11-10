@@ -3,9 +3,12 @@
 Settings: one schema, three sources.
 
 Precedence: command line > environment (BMV_<NAME>) > <data-dir>/settings.json
-> defaults. The settings file is self-healing: unknown keys are ignored and
-missing or invalid values fall back to defaults with a warning, so a platform
-(e.g. a StartOS action writing the file) can never crash the app with a bad value.
+> defaults. A bad settings file never crashes the app: unknown keys are ignored and
+a missing value is its default. A file that cannot be read, or an invalid value,
+keeps what the file said before, with a warning. When there is no earlier value
+(the app has just started), the default applies and the setting is listed in
+`Config.unknown`: the web server and the scanner refuse to act on a web login or
+on spam rules they do not know.
 """
 
 import argparse
@@ -196,6 +199,7 @@ def default_data_dir():
 
 
 OWN_SETTINGS_PLATFORMS = ("umbrel",)
+PROXY_LOGIN_PLATFORMS = ("umbrel",)     # their proxy does the web login; the app's own is not used there
 
 
 class Config:
@@ -209,7 +213,10 @@ class Config:
         self.values = {}
         self.sources = {}
         self.warnings = []
+        self.unknown = set()         # settings the file should give but cannot, with no earlier value to keep
         self._file_mtime = None
+        self._file_values = None     # valid values of the last readable file (None: none read yet)
+        self._file_unknown = set()
         self._lock = threading.Lock()
         self.load()
 
@@ -229,47 +236,79 @@ class Config:
         Umbrel has no settings UI for apps, so there the app's own settings stay editable."""
         return self.platform and self.managed_by not in OWN_SETTINGS_PLATFORMS
 
+    @property
+    def auth_unknown(self):
+        """True while a damaged settings file leaves open whether a web login is set."""
+        if self.managed_by in PROXY_LOGIN_PLATFORMS:
+            return False
+        return bool(self.unknown & {"auth_user", "auth_password"})
+
     def _read_file(self):
+        """(settings, None), or (None, reason) when the file exists but cannot be read."""
         try:
             st = os.stat(self.path)
         except FileNotFoundError:
             self._file_mtime = None
-            return {}
+            return {}, None
         self._file_mtime = st.st_mtime_ns
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if not isinstance(data, dict):
                 raise ValueError("top level must be an object")
-            return data
+            return data, None
         except (ValueError, OSError) as e:
-            self.warnings.append(f"{SETTINGS_FILE} could not be read ({e}); using defaults")
-            return {}
+            return None, str(e)
+
+    def _file_settings(self, warnings):
+        """Valid values from the settings file and the names it leaves unknown. What cannot be read
+        keeps its earlier value; without one it is unknown."""
+        fdata, error = self._read_file()
+        if fdata is None:
+            if self._file_values is None:
+                warnings.append(f"{SETTINGS_FILE} could not be read ({error}); using defaults")
+                return {}, {s.name for s in SCHEMA if s.file_ok}
+            warnings.append(f"{SETTINGS_FILE} could not be read ({error}); keeping the previous settings")
+            return self._file_values, self._file_unknown
+        previous, good, unknown = self._file_values or {}, {}, set()
+        for s in SCHEMA:
+            if not (s.file_ok and s.name in fdata):
+                continue
+            try:
+                good[s.name] = s.conv(fdata[s.name])
+            except Exception as e:      # ValueError, TypeError and whatever zoneinfo raises
+                if s.name in previous:
+                    good[s.name] = previous[s.name]
+                    warnings.append(f"setting {s.name}: invalid value in {SETTINGS_FILE} ({e}); "
+                                    f"keeping the previous value")
+                else:
+                    unknown.add(s.name)
+                    warnings.append(f"setting {s.name}: invalid value in {SETTINGS_FILE} ({e}); "
+                                    f"using default")
+        self._file_values, self._file_unknown = good, unknown
+        return good, unknown
 
     def load(self):
         with self._lock:
-            self.warnings = []
-            fdata = self._read_file()
+            warnings = []
+            from_file, unknown = self._file_settings(warnings)
             values, sources = {}, {}
             for s in SCHEMA:
                 val, src = s.default, "default"
-                if s.file_ok and s.name in fdata:
-                    try:
-                        val, src = s.conv(fdata[s.name]), "file"
-                    except (ValueError, TypeError, KeyError, Exception) as e:  # zoneinfo raises various
-                        self.warnings.append(f"setting {s.name}: invalid value in {SETTINGS_FILE} ({e}); "
-                                             f"using default")
+                if s.name in from_file:
+                    val, src = from_file[s.name], "file"
                 ev = self.env.get("BMV_" + s.name.upper())
                 if ev is not None:
                     try:
                         val, src = s.conv(ev), "env"
                     except Exception as e:
-                        self.warnings.append(f"setting {s.name}: invalid environment value ({e}); ignored")
+                        warnings.append(f"setting {s.name}: invalid environment value ({e}); ignored")
                 if s.name in self.cli:
                     val, src = s.conv(self.cli[s.name]), "cli"   # CLI errors are user errors: raise
                 values[s.name], sources[s.name] = val, src
-            self.values, self.sources = values, sources
-            for w in self.warnings:
+            self.values, self.sources, self.warnings = values, sources, warnings
+            self.unknown = {n for n in unknown if sources[n] == "default"}   # environment and CLI still decide
+            for w in warnings:
                 log.warning(w)
 
     def file_changed(self):
@@ -300,14 +339,16 @@ class Config:
                 raise PermissionError(f"setting {k} cannot be changed here")
             clean[k] = BY_NAME[k].conv(v)
         with self._lock:
-            existing = {}
             try:
                 with open(self.path, "r", encoding="utf-8") as f:
                     existing = json.load(f)
                 if not isinstance(existing, dict):
-                    existing = {}
-            except (FileNotFoundError, ValueError):
+                    raise ValueError
+            except FileNotFoundError:
                 existing = {}
+            except ValueError:          # rewriting it would drop the settings it still holds, the login too
+                raise PermissionError(f"{SETTINGS_FILE} is damaged; repair or delete it before "
+                                      "changing settings here") from None
             existing.update(clean)
             write_private_json(self.path, existing)
         self.load()

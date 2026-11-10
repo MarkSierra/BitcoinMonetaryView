@@ -6,9 +6,23 @@ Every setting can be given in three ways (highest precedence first):
 2. environment: `BMV_RPC_URL=http://…`
 3. `settings.json` in the data directory: `{"rpc_url": "http://…"}`
 
-`settings.json` is **self-healing**: unknown keys are ignored, and a missing or invalid value falls back to its
-default with a warning in the log — a bad value never crashes the app. Changes to the file are picked up
-while the app runs. This is the file a platform package (e.g. a StartOS action) writes.
+A bad `settings.json` never crashes the app. Unknown keys are ignored and a missing value is its default.
+Changes to the file are picked up while the app runs. This is the file a platform package (e.g. a StartOS
+action) writes.
+
+If the file cannot be read (damaged, cut short, a typo), or one value in it is invalid, the app keeps what
+the file said before and shows a warning; a valid file is applied as written, and a deleted file means
+defaults. Right after a start there is nothing to keep, so the default applies, with two exceptions that
+fail safe instead:
+
+- **Web login** (`auth_user`, `auth_password`): while the file cannot say whether a login is set, the web
+  interface answers 503 on everything except `/api/health`, until the file is repaired or deleted. Not on
+  Umbrel, where Umbrel's own login protects the dashboard.
+- **Spam rules** (`carrier_policy`, `dust_start_height`): if the defaults differ from the rules the stored
+  results were made with, the scan stops with an error and the results are kept until the file is repaired.
+  (Deleting the file selects the default rules, which rescans.)
+
+Settings given on the command line or in the environment are not affected by the file.
 
 The machine-readable JSON Schema is printed by `python3 -m bitcoinmonetaryview --print-settings-schema`.
 

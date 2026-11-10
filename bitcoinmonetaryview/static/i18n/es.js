@@ -505,6 +505,10 @@
     "That block is not in your node's main chain.": "Ese bloque no está en la cadena principal de tu nodo.",
     "Your node has pruned this block, so it cannot be analysed.": "Tu nodo ha podado este bloque, así que no se puede analizar.",
     "Your node does not know this block.": "Tu nodo no conoce este bloque.",
+    "settings.json is damaged, so the spam rules to use are not known. The scan is on hold and the results are kept until the file is repaired.":
+      "settings.json está dañado, así que no se sabe qué reglas de spam aplicar. El escaneo está en espera y los resultados se conservan hasta que se repare el archivo.",
+    "settings.json is damaged; repair or delete it before changing settings here":
+      "settings.json está dañado; repáralo o elimínalo antes de cambiar ajustes aquí",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "La interfaz web es accesible desde tu red sin contraseña. Define auth_user/auth_password (e idealmente tls_cert/tls_key).",
   };
@@ -566,6 +570,8 @@
     [/^Could not reach the node: (.+)$/s, (m, e) => `No se pudo contactar con el nodo: ${e}`],
     [/^(\S+) could not be read \((.+)\); using defaults$/s, (m, f, e) => `No se pudo leer ${f} (${e}); se usan los valores predeterminados`],
     [/^setting (\S+): invalid value in (\S+) \((.+)\); using default$/s, (m, n, f, e) => `Ajuste ${n}: valor no válido en ${f} (${e}); se usa el predeterminado`],
+    [/^(\S+) could not be read \((.+)\); keeping the previous settings$/s, (m, f, e) => `No se pudo leer ${f} (${e}); se mantienen los ajustes anteriores`],
+    [/^setting (\S+): invalid value in (\S+) \((.+)\); keeping the previous value$/s, (m, n, f, e) => `Ajuste ${n}: valor no válido en ${f} (${e}); se mantiene el valor anterior`],
     [/^setting (\S+): invalid environment value \((.+)\); ignored$/s, (m, n, e) => `Ajuste ${n}: valor no válido en la variable de entorno (${e}); ignorado`],
   ];
   function server(msg) {

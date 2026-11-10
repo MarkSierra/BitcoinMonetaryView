@@ -327,6 +327,10 @@ class Store:
         self.db.execute(f"INSERT OR REPLACE INTO blocks({','.join(BLOCK_COLS)}) "
                         f"VALUES({','.join('?' * len(BLOCK_COLS))})", row)
 
+    def drop_quick_blocks_below(self, height):
+        """Remove results without UTXO effects (quick pass) below a height; the full scan's stay."""
+        self.db.execute("DELETE FROM blocks WHERE utxo_done=0 AND height<?", (height,))
+
     def lowest_block_from(self, height):
         """Lowest stored block height >= height (None if there is none)."""
         return self.db.execute("SELECT MIN(height) FROM blocks WHERE height>=?", (height,)).fetchone()[0]

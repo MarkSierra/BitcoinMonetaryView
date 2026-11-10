@@ -143,6 +143,10 @@ class Restart(Exception):
     """Settings changed in a way that needs a new session."""
 
 
+class SettingsDamaged(Exception):
+    """The settings file cannot say which spam rules the stored results were made for."""
+
+
 class Scanner(threading.Thread):
     def __init__(self, config, status=None):
         super().__init__(name="scanner", daemon=True)
@@ -262,6 +266,10 @@ class Scanner(threading.Thread):
                 self.status.event("info", f"Restarting scanner: {r}")
                 backoff = 2
                 continue
+            except SettingsDamaged as e:
+                self.status.set(phase="error", detail=str(e), last_error=str(e))
+                self.status.event("error", str(e))
+                self.sleep(60)
             except NodeAuthError as e:
                 self.status.set(phase="error", detail=str(e), last_error=str(e))
                 self.status.event("error", f"Authentication problem: {e}")
@@ -338,6 +346,9 @@ class Scanner(threading.Thread):
             self.reset_results("Rescan started: previous results deleted", "info")
         old = self.store.get_meta("rules_id")
         if old is not None and old != rid and self.store.has_any_blocks():
+            if self.config.unknown.intersection(RULES_KEYS):
+                raise SettingsDamaged("settings.json is damaged, so the spam rules to use are not known. The scan "
+                                      "is on hold and the results are kept until the file is repaired.")
             self.reset_results("Spam rules changed; previous results were deleted and the chain "
                                "will be rescanned with the new rules")
         self.store.set_meta("rules_id", rid)
@@ -652,6 +663,9 @@ class Scanner(threading.Thread):
     # ------------------------------------------------------------- passes
     def quick_pass(self, tip, q):
         start = max(0, tip - q + 1)
+        # A pass that was stopped earlier may have left blocks below today's range, with unscanned
+        # blocks in between; coverage and estimate take the results at the top as one range.
+        self.store.drop_quick_blocks_below(start)
         todo = [h for h in range(start, tip + 1) if not self.store.has_block(h)]
         self.status.event("info", f"Quick pass: analysing the latest {q:,} blocks ({start:,}–{tip:,})")
         t0 = time.monotonic()

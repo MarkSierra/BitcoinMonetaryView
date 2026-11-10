@@ -327,6 +327,11 @@ def make_handler(app):
             if not host_allowed(self.headers.get("Host"), c.bind, c.allowed_hosts, c.platform):
                 self.send_text("Host not allowed. Add it to allowed_hosts if you use this name.", 421)
                 return False
+            if c.auth_unknown and self.path != "/api/health":
+                self.send_text("settings.json is damaged, so it is not known whether a login is set. The web "
+                               "interface stays locked until the file is repaired (or deleted, which returns every "
+                               "setting to its default).", 503)
+                return False
             if c.auth_user and self.path != "/api/health":
                 hdr = self.headers.get("Authorization", "")
                 ok = False

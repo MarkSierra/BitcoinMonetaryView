@@ -2,6 +2,23 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+- **A damaged `settings.json` no longer switches the web login off or deletes the scan results.** Until now a
+  settings file that could not be read (cut short, a typo), or a single invalid value, made the affected
+  settings fall back to their defaults while the app was running. For the web login the default is "none",
+  and for the spam rules a changed value means "delete the results and rescan". Now the app keeps what the
+  file said before and shows a warning. If the file is already unreadable when the app starts, the web
+  interface stays locked (503) until it is repaired or deleted (not on Umbrel, whose own login protects the
+  dashboard), and a scan made with non-default spam rules is put on hold with its results kept. The settings page refuses to save into a damaged file instead of
+  overwriting it. Settings from the command line or the environment are unaffected.
+
+- **Quick pass after an interruption:** if the app was stopped during the quick pass and started again after
+  the chain had grown by more blocks than the pass had already done, the old piece stayed behind, with
+  unscanned blocks between it and the latest 1,000. The dashboard then reported that stretch as scanned and
+  left it out of the whole-chain estimate until the full scan reached it. A new quick pass now drops such
+  leftovers, so the latest blocks are always one unbroken range.
+
 ## [0.3.12] — 2026-11-09
 
 - **Quieter log:** when a browser leaves before an answer arrives (the page is reloaded or closed while it
