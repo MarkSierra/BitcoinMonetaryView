@@ -32,6 +32,7 @@ def csv_safe(v):
 
 class Analytics:
     POOL_SIZE = 4       # idle read-only connections kept for reuse
+    LARGE = 100_000     # from this many scanned blocks the slow queries are cached longer
 
     def __init__(self, db_path):
         self.db_path = db_path
@@ -41,6 +42,7 @@ class Analytics:
         self._idle = []
         self._open = set()
         self._closed = False
+        self._blocks = 0
 
     def db(self):
         """The calling thread's read-only connection, taken from the pool until release()."""
@@ -123,8 +125,11 @@ class Analytics:
         return dict(db.execute("SELECT key, value FROM meta").fetchall())
 
     # ------------------------------------------------------------------ summary
+    def ttl(self, small, large):
+        return large if self._blocks >= self.LARGE else small
+
     def summary(self):
-        return self.cached("summary", 3, self._summary)
+        return self.cached("summary", self.ttl(3, 15), self._summary)
 
     def _summary(self):
         db = self.db()
@@ -138,6 +143,7 @@ class Analytics:
         cols = ",".join(f"COALESCE(SUM({c}),0)" for c in SUM_COLS)
         r = db.execute(f"SELECT COUNT(*), MIN(height), MAX(height), {cols} FROM blocks").fetchone()
         count, lo, hi = r[0], r[1], r[2]
+        self._blocks = count
         tot = dict(zip(SUM_COLS, r[3:]))
         if not count:
             return {"empty": True, "meta": _public_meta(m)}
@@ -416,7 +422,7 @@ class Analytics:
 
     # ------------------------------------------------------------------ trends
     def trends(self):
-        return self.cached("trends", 30, self._trends)
+        return self.cached("trends", self.ttl(30, 120), self._trends)
 
     def _trends(self):
         db = self.db()
@@ -473,7 +479,7 @@ class Analytics:
         recent = window("recent", hi - 999, hi)
         year_ago = window("year_ago", hi - BLOCKS_PER_YEAR - 999, hi - BLOCKS_PER_YEAR)
         b = db.execute(f"SELECT height, time, size, {spam} AS s FROM blocks ORDER BY s DESC, height LIMIT 1").fetchone()
-        months = self._history_in(db)["months"]
+        months = self.cached("history", self.ttl(30, 120), lambda: self._history_in(db))["months"]
         worst = max(months, key=lambda mo: sum(mo[k] for k in mr.CARRIERS), default=None)
         return {
             "empty": False,
@@ -488,7 +494,7 @@ class Analytics:
         }
 
     def history(self):
-        return self.cached("history", 30, self._history)
+        return self.cached("history", self.ttl(30, 120), self._history)
 
     def _history(self):
         db = self.db()

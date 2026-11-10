@@ -43,6 +43,19 @@ All notable changes are documented here. This project uses [semantic versioning]
 - **Status texts:** while paused or outside the scan window, the status line no longer says "New blocks are
   still shown" when the quick pass is off, because then they are not; the progress and ETA figures are
   recalculated after an interrupted scan step.
+- **UTXO set size once a week instead of daily:** to show what share of the UTXO set is spam, the app asks the
+  node for the size of its UTXO set. To answer, Bitcoin Core first writes the part of the UTXO set it holds
+  in memory to disk and then reads the whole set, which takes a few minutes of the node's disk and CPU. The
+  app now asks once a week (after a failure again a day later, not an hour later), and the README and the
+  About page say plainly what the request does.
+- **Lighter dashboard on large scans:** the trends no longer repeat the monthly history query (on a fully
+  scanned chain 0.1 s instead of about 1 s on a desktop, several times that on small hardware), and once
+  more than 100,000 blocks are scanned the overview is refreshed every minute and its figures are cached
+  longer.
+- **Source code link:** "Free software (AGPL-3.0)" in the footer now links to the source code of the running
+  version.
+- **Custom range:** dates entered in reverse order (end before start) now include both edge days.
+- **Docker health check** no longer goes through proxy settings in the container's environment.
 
 ## [0.3.12] — 2026-11-09
 

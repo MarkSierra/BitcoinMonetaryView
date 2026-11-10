@@ -19,7 +19,7 @@ upstream rule logic:
   protocol envelope is retained. The size test itself is unchanged, so with
   ``carrier_policy=None`` the result is byte-identical to upstream.
 
-tests/test_rules_parity.py asserts that parity against the vendored upstream.
+tests/test_rules.py asserts that parity against the vendored upstream.
 """
 
 import struct

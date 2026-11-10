@@ -237,6 +237,10 @@ exemptions: the OP_RETURN size test stays upstream's script-length rule.
   requests and with forbidden parameters. REST (`rest=1`) is used only if you have already enabled it.
 - **No access to the node's files.** Only the RPC cookie file is read, if you point to it — opened read-only.
   No `dumptxoutset` (it would write a large file on the node).
+- **One exception, once a week:** to show what share of the UTXO set is spam, the app asks the node for the
+  size of its UTXO set (`gettxoutsetinfo`). To answer, Bitcoin Core first writes the part of the UTXO set it
+  holds in memory to disk. That is the node's own data and nothing in it changes, but it is a write the app
+  causes, and the node needs a few minutes of disk and CPU for it (much less with `coinstatsindex=1`).
 - **Web interface**: listens on `127.0.0.1` by default. If you expose it (`--bind 0.0.0.0`), set
   `--auth-user/--auth-password` and ideally `--tls-cert/--tls-key`. State-changing requests (pause, rescan,
   scan settings — all affecting only this app — and the on-demand block lookup, which only reads one block)

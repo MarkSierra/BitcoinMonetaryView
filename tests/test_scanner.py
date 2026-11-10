@@ -1126,3 +1126,64 @@ class QueryCache(unittest.TestCase):
             a.period(lo=0, hi=100 + i)
         self.assertLessEqual(len(a._cache), 130)
         a.close()
+
+
+class UtxoInfoSchedule(unittest.TestCase):
+    """M1: the node is asked for its UTXO set size once a week; after a failure again after a day."""
+    setUp, tearDown, config = ScannerTest.setUp, ScannerTest.tearDown, ScannerTest.config
+
+    def test_weekly_and_a_day_after_a_failure(self):
+        from unittest import mock
+        from bitcoinmonetaryview import scanner as sc
+
+        class Prepared(Scanner):
+            def loop(self):
+                pass
+
+        s = Prepared(self.config(quick_pass_blocks="0", sample_every="0"))
+        s.session()
+        self.addCleanup(s.store.close)
+        self.addCleanup(s.node.close)
+        asked = lambda: sum(1 for m, *_ in list(self.node.calls) if m == "gettxoutsetinfo")
+        handle, failing = self.node.handle, {"on": False}
+
+        def maybe_fail(r):
+            if failing["on"] and r.get("method") == "gettxoutsetinfo":
+                self.node.calls.append(("gettxoutsetinfo", r.get("params")))
+                return {"result": None, "error": {"code": -1, "message": "busy"}, "id": r.get("id")}
+            return handle(r)
+        self.node.handle = maybe_fail
+        day, t0 = 86400, time.time()
+
+        def at(seconds):
+            with mock.patch.object(sc.time, "time", return_value=t0 + seconds):
+                s.maybe_utxo_info()
+            return asked()
+
+        self.assertEqual(at(0), 1)
+        self.assertEqual(at(6 * day), 1)               # not daily any more
+        self.assertEqual(at(7 * day + 60), 2)          # weekly
+        failing["on"] = True
+        self.assertEqual(at(14 * day + 120), 3)        # fails
+        self.assertEqual(at(14 * day + 120 + 2 * 3600), 3)     # no retry after an hour or two
+        self.assertEqual(at(15 * day + 240), 4)        # but a day later
+
+
+class TrendsReuseHistory(unittest.TestCase):
+    """L10: the trends use the cached monthly history instead of running that query again."""
+
+    def test_history_query_runs_once(self):
+        from unittest import mock
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        path = os.path.join(d, "regtest", "bmv.sqlite")
+        s = Store(path)
+        raw, _ = bg.mixed_block(5)
+        s.put_block(5, mr.analyze_block(raw, 5, dust_start_height=0), utxo_done=False)
+        s.close()
+        a = Analytics(path)
+        self.addCleanup(a.close)
+        with mock.patch.object(Analytics, "_history_in", side_effect=Analytics._history_in, autospec=True) as h:
+            a.history()
+            a.trends()
+            self.assertEqual(h.call_count, 1)

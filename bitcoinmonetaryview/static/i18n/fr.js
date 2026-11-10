@@ -219,7 +219,7 @@
     "Waiting for the node's UTXO set size": "En attente de la taille de l’ensemble UTXO du nœud",
     "Your node's UTXO set": "L’ensemble UTXO de votre nœud",
     "on disk · read {ago}": "sur disque · lu {ago}",
-    "Read once a day (read-only)": "Lu une fois par jour (en lecture seule)",
+    "Read once a week (read-only)": "Lu une fois par semaine (en lecture seule)",
     "By type": "Par type",
     "A Monetary Node keeps these out of its UTXO database. Stamps outputs are removed from blocks too; P2TR dust stays in block storage, where it costs less, and is looked up there if it is ever spent.":
       "Un Monetary Node les garde hors de sa base de données UTXO. Les outputs Stamps sont aussi retirés des blocs ; le dust P2TR reste dans le stockage des blocs, où il coûte moins, et y est consulté s’il est un jour dépensé.",
@@ -231,6 +231,8 @@
       "Monetary View (sur GitHub : BitcoinMonetaryView) lit chaque bloc de votre propre nœud Bitcoin Core, Knots ou Roots et lui applique les règles du projet Monetary Node. Elle montre quelle part du stockage et de l’ensemble UTXO de votre nœud est occupée par des données qui ne sont pas de la monnaie — et ce qu’un Monetary Node stockerait à la place.",
     "It is strictly read-only: it only uses read-only RPC calls (a fixed whitelist enforced inside the app), never touches your node's files and keeps its own results in a separate database.":
       "Elle fonctionne strictement en lecture seule : elle n’utilise que des appels RPC de lecture (une liste blanche fixe appliquée dans l’application), ne touche jamais aux fichiers de votre nœud et garde ses propres résultats dans une base de données séparée.",
+    "Once a week it asks your node for the size of its UTXO set, to show what share of it is spam. To answer, Bitcoin Core first writes the part of the UTXO set it holds in memory to disk. That is the node's own data and nothing in it changes, but it is the one moment the app makes the node write.":
+      "Une fois par semaine, elle demande à votre nœud la taille de son ensemble UTXO, pour montrer quelle part en est du spam. Pour répondre, Bitcoin Core écrit d’abord sur le disque la partie de l’ensemble UTXO qu’il garde en mémoire. Ce sont les données du nœud lui-même et rien n’y change, mais c’est le seul moment où l’application fait écrire le nœud.",
     "Monetary View is an independent project. It is not affiliated with or endorsed by the Monetary Node project; it uses its published spam rules unchanged.":
       "Monetary View est un projet indépendant. Il n’est ni affilié au projet Monetary Node ni approuvé par lui ; il utilise ses règles anti-spam publiées sans modification.",
     "A Monetary Node is a Bitcoin node that validates every consensus rule and every block, and then drops the spam from its block storage: inscription witness data, oversized OP_RETURN outputs and Stamps-style fake-key outputs are removed after validation. No fork, no confiscation, nobody's permission required.":
