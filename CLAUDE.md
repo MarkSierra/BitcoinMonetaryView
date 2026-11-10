@@ -140,11 +140,12 @@ bit-layout copy (S8), phase/progress in /api/health (S12), signature checks for 
 lock file against two processes (N11), and refusing state-changing requests on an open LAN bind.
 
 StartOS: 0.3.14:0 ready on `claude/bold-planck-14e4f1` in our workspace (upstream at v0.3.14, settings guard
-in `startos/init/settingsGuard.ts`, notes with headers). 0.3.13:0 was only a test build and never submitted.
+notes with headers). 0.3.13:0 was only a test build and never submitted.
 Tested by the maintainer as 0.3.14-beta.0:0 on StartOS 0.4.2 with Knots 29.3: update with results kept, new
 init ran, health checks, Bitcoin restart and server reboot without an authentication error. Clean install not
 tested (no second server; stated in the PR text). Submitted as Start9-Community/bitcoinmonetaryview-startos#9
-(head 034a2f9, Start9's build checks green, waiting for review; test branches already deleted). After the merge:
+(test branches already deleted). Matt's review: the settings guard came out again (commit ab369b2); the SDK
+will rebuild unparsable file models from `.catch()` defaults (start-sdk 4.1.1, Start9Labs/start-technologies#4670). After the merge:
 sync our `main` from the fork, ask the maintainer to delete `claude/bold-planck-14e4f1` in our workspace,
 archive the read-only helper session. Released there: 0.3.12:0 (Community Registry and Community Beta,
 Bitcoin category set).
@@ -158,8 +159,8 @@ StartOS 0.4.2 with Knots 29.3.
 Lessons from 0.3.13-0.3.14: `release.yml` checks that `pyproject.toml` and `__init__.py` agree (a test now
 checks it in CI too); stage every changed file in a release commit. In shell steps where one step depends
 on another (a tag that must exist, a checkout that must succeed), chain with `&&` or `set -e`: a `;` pushed
-a test branch with the wrong submodule once. StartOS runs a package's init at every start, and the SDK's
-FileHelper merge throws on a file it cannot parse; guard files that init merges.
+a test branch with the wrong submodule once. StartOS runs a package's init at every start; a gap in the SDK (FileHelper merge throwing on
+unparsable files) is reported to Start9 for the SDK, not guarded per package with raw `fs` (Matt on PR #9).
 
 Lessons from 0.3.10:1-0.3.12: a StartOS user's btrfs data drive went read-only during a first full scan
 (fsync of a fragmented copy-on-write SQLite file). The app now creates its per-network directory
