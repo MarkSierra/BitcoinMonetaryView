@@ -59,6 +59,7 @@ test. `release.yml`: multi-arch image to ghcr.io.
    `.s9pk` artifact link. `X.Y.Z:0-beta.N` < `X.Y.Z:0`, so the published build arrives as a normal update.
    The maintainer sideloads and tests: update over the installed version, a clean install, tasks/actions,
    sign-in, health checks. Fixes go on the final-version branch; the next test build is `-beta.N+1`.
+   The first test build of a version is `-beta.0` (maintainer's choice, from 0.3.14 on; 0.3.13 used `-beta.1`).
 4. PR from the final-version branch (never a test branch) to `Start9-Community/bitcoinmonetaryview-startos`
    `main`. This session cannot post or open PRs there (Claude's GitHub App is not installed on that org):
    give the maintainer a prefilled compare link plus the description in a plain code block. Leave
