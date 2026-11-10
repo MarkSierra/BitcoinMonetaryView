@@ -153,7 +153,9 @@ Bitcoin category set).
 Umbrel: 0.3.14 merged in the community store (MarkSierra/umbrel-community-app-store#16). Official store:
 the fork's `bitcoinmonetaryview` branch is at 8011111 (0.3.14), tested by umbrelOS run
 https://github.com/MarkSierra/BitcoinMonetaryView/actions/runs/42839460691 (the maintainer puts that link in
-the PR text); getumbrel/umbrel-apps#6328 is still waiting for Umbrel's review. Open beyond that: Roots wording once Roots is on community-prod. The maintainer's server runs
+the PR text); getumbrel/umbrel-apps#6328 is still waiting for Umbrel's review. Open beyond that: Roots wording once Roots is on community-prod; start-sdk 4.1.1 (rebuilds an
+unparsable settings.json from defaults) goes in with the next package release, no release of its own (or
+`0.3.14:1` if no app release is near); test it by writing invalid JSON into settings.json on the server. The maintainer's server runs
 StartOS 0.4.2 with Knots 29.3.
 
 Lessons from 0.3.13-0.3.14: `release.yml` checks that `pyproject.toml` and `__init__.py` agree (a test now
