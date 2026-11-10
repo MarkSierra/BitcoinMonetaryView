@@ -128,15 +128,14 @@ Practical notes from the first releases through the fork:
 
 ## State (2026-11-10)
 
-App 0.3.13 merged on `main` (fixes from a full code and security review: a damaged settings.json fails
-safe, weekly instead of daily gettxoutsetinfo, mutated-block check, request handling, actions pinned by
-commit, unused code removed); `release.yml` not run yet. Released: v0.3.12. StartOS 0.3.12:0 in the
-Community Registry and on Community Beta, Bitcoin category set (Start9 promoted it on its own within hours
-of merging #7; promotion issue #8 closed). The maintainer's server runs StartOS 0.4.2 with Knots 29.3. Umbrel
-community store 0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review.
-Open: release 0.3.13 and the
-package updates (StartOS: exclude `.<net>.nocow`/`.<net>.old` from backups, mention the weekly UTXO-size
-request in the descriptions); the Umbrel review; Roots wording once Roots is on community-prod.
+App 0.3.13 merged on `main` (fixes from a full code and security review: a damaged settings.json fails safe,
+weekly instead of daily gettxoutsetinfo, mutated-block check, request handling, actions pinned by commit,
+unused code removed); `release.yml` not run yet. Released: v0.3.12. StartOS 0.3.12:0 in the Community Registry
+and on Community Beta, Bitcoin category set (Start9 promoted it on its own within hours of merging #7;
+promotion issue #8 closed). The maintainer's server runs StartOS 0.4.2 with Knots 29.3. Umbrel community store
+0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Open: release
+0.3.13 and the package updates (StartOS: exclude `.<net>.nocow`/`.<net>.old` from backups, mention the weekly
+UTXO-size request in the descriptions); the Umbrel review; Roots wording once Roots is on community-prod.
 
 Idea for a later release (maintainer: "maybe later", not now): a missing RPC cookie file right after a
 reboot (the node has not written it yet) shows as a red "Authentication problem" until the 30 s retry
