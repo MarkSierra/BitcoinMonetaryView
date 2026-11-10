@@ -16,7 +16,7 @@ MAX_HEADERS = 2000
 
 
 def _check_hash(h):
-    if not isinstance(h, str) or not _HEX64.match(h):
+    if not isinstance(h, str) or not _HEX64.fullmatch(h):
         raise ValueError("invalid block hash")
     return h
 

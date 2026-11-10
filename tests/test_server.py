@@ -670,3 +670,141 @@ class ClientGone(ServerTest):
                 except Exception:
                     self.srv.handle_error(None, ("127.0.0.1", 1))
             self.assertEqual(err.getvalue() == "", quiet, type(exc).__name__)
+
+
+def raw_exchange(port, data, wait=1.5):
+    """Send raw bytes on one connection; return everything the server sends until it closes or goes quiet."""
+    s = socket.create_connection(("127.0.0.1", port))
+    s.settimeout(wait)
+    s.sendall(data)
+    out = b""
+    try:
+        while True:
+            chunk = s.recv(65536)
+            if not chunk:
+                break
+            out += chunk
+    except socket.timeout:
+        pass
+    s.close()
+    return out
+
+
+class RequestParsing(ServerTest):
+    """A body the server does not read must never be parsed as the next request (L4)."""
+
+    def test_get_with_a_body_is_not_a_second_request(self):
+        inner = b"GET /api/health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+        for head in (b"GET /favicon.svg", b"HEAD /favicon.svg"):
+            out = raw_exchange(self.port, head + b" HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: %d\r\n\r\n"
+                               % len(inner) + inner)
+            self.assertEqual(out.count(b"HTTP/1.1 "), 1, head)
+        out = raw_exchange(self.port, b"GET /favicon.svg HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked"
+                           b"\r\n\r\n" + inner)
+        self.assertEqual(out.count(b"HTTP/1.1 "), 1)
+
+    def test_chunked_post_is_refused(self):
+        tok = self.csrf()
+        inner = b"GET /api/health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+        out = raw_exchange(self.port, b"POST /api/control HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json"
+                           b"\r\nX-CSRF-Token: " + tok.encode() + b"\r\nTransfer-Encoding: chunked\r\n\r\n" + inner)
+        self.assertEqual(out.count(b"HTTP/1.1 "), 1)
+        self.assertTrue(out.startswith(b"HTTP/1.1 400"), out[:40])
+        self.assertEqual(self.scanner.actions, [])
+
+    def test_keep_alive_still_works_for_normal_requests(self):
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        for _ in range(3):
+            c.request("GET", "/api/health", headers={"Host": f"127.0.0.1:{self.port}"})
+            r = c.getresponse()
+            r.read()
+            self.assertEqual(r.status, 200)
+        c.close()
+
+
+class MalformedInput(ServerTest):
+    """Malformed input is a 400 (or 403), never a 500 with a traceback, never a dropped connection (N2)."""
+
+    def setUp(self):
+        super().setUp()
+        from bitcoinmonetaryview.store import Store
+        path = os.path.join(self.dir, "regtest", "bmv.sqlite")
+        Store(path).close()
+        self.scanner.store_path = path
+
+    def test_unknown_time_zone(self):
+        tok = self.csrf()
+        with self.assertNoLogs("bmv.server", level="ERROR"):
+            for tz in ("Nope/Zone", "Europe", "../../etc/passwd"):
+                r, d = self.post("/api/settings", {"changes": {"timezone": tz}}, token=tok)
+                self.assertEqual(r.status, 400, tz)
+
+    def test_integers_beyond_64_bits(self):
+        big = "9" * 30
+        with self.assertNoLogs("bmv.server", level="ERROR"):
+            for p in (f"/api/range?from=0&to={big}", f"/api/period?start=0&end={big}",
+                      f"/api/period?from=0&to={big}", f"/api/blocks?before={big}", f"/api/blocks?limit={big}"):
+                r, _ = self.req("GET", p)
+                self.assertIn(r.status, (200, 400), p)
+                self.assertNotEqual(r.status, 500, p)
+
+    def test_non_ascii_csrf_token(self):
+        out = raw_exchange(self.port, b"POST /api/control HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json"
+                           b"\r\nX-CSRF-Token: \xc3\xa4\r\nContent-Length: 2\r\n\r\n{}")
+        self.assertTrue(out.startswith(b"HTTP/1.1 403"), out[:40])
+
+    def test_hash_with_a_trailing_newline_is_refused(self):
+        from bitcoinmonetaryview.node import rest, rpc
+        from bitcoinmonetaryview import server
+        h = "ab" * 32
+        rpc.check_allowed("getblock", [h, 0])
+        for bad in (h + "\n", "1\n"):
+            with self.assertRaises(rpc.RPCForbidden):
+                rpc.check_allowed("getblock", [bad, 0])
+            with self.assertRaises(ValueError):
+                rest._check_hash(bad)
+            self.assertFalse(server.valid_hash(bad))
+            self.assertFalse(server.valid_height(bad))
+        self.assertTrue(server.valid_hash(h) and server.valid_height("123"))
+
+
+class FailedLogins(ServerTest):
+    cli_extra = {"auth_user": "bob", "auth_password": "pw"}
+
+    def test_failed_login_is_slowed_down_and_logged(self):
+        import time
+        bad = {"Authorization": "Basic " + base64.b64encode(b"bob:nope").decode()}
+        with self.assertLogs("bmv.server", level="WARNING") as logs:
+            t = time.monotonic()
+            r, _ = self.req("GET", "/api/status", headers=bad)
+            self.assertGreaterEqual(time.monotonic() - t, 0.4)
+        self.assertEqual(r.status, 401)
+        self.assertIn("failed", " ".join(logs.output).lower())
+        t = time.monotonic()                     # a browser's first request carries no credentials: no delay
+        r, _ = self.req("GET", "/api/status")
+        self.assertEqual(r.status, 401)
+        self.assertLess(time.monotonic() - t, 0.3)
+
+
+class ConnectionCap(ServerTest):
+    def setUp(self):
+        from bitcoinmonetaryview import server
+        self._old, server.Server.MAX_CONNECTIONS = server.Server.MAX_CONNECTIONS, 2
+        super().setUp()
+
+    def tearDown(self):
+        from bitcoinmonetaryview import server
+        server.Server.MAX_CONNECTIONS = self._old
+        super().tearDown()
+
+    def test_connections_beyond_the_cap_are_closed(self):
+        import time
+        idle = [socket.create_connection(("127.0.0.1", self.port)) for _ in range(2)]
+        time.sleep(0.3)
+        out = raw_exchange(self.port, b"GET /api/health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n", wait=2)
+        self.assertEqual(out, b"")
+        idle[0].close()
+        time.sleep(0.3)
+        r, _ = self.req("GET", "/api/health")
+        self.assertEqual(r.status, 200)
+        idle[1].close()
