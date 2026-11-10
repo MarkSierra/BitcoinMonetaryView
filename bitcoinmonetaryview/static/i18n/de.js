@@ -404,6 +404,7 @@
       "RPC läuft über unverschlüsseltes HTTP zu einem anderen Rechner: Dein RPC-Passwort wird im Klartext gesendet. Nutze besser https, Tor oder einen SSH-Tunnel.",
     "Loading spent-output filter from the database": "Lade Filter für ausgegebene Outputs aus der Datenbank",
     "Scanning is paused. New blocks are still shown.": "Scannen ist pausiert. Neue Blöcke werden weiterhin angezeigt.",
+    "Scanning is paused.": "Scannen ist pausiert.",
     "Up to date. Waiting for the next block.": "Auf dem neuesten Stand. Warte auf den nächsten Block.",
     "Full history scan complete — now following new blocks live": "Vollständiger Scan der Historie abgeschlossen – neue Blöcke werden jetzt live verfolgt",
     "Asking the node for the total UTXO set size (read-only, may take a few minutes)":
@@ -485,6 +486,8 @@
     [/^Spent-output filter loaded \(([\d,]+) spam outputs\)$/, (m, n) => `Filter für ausgegebene Outputs geladen (${N(n)} Spam-Outputs)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Dein Node synchronisiert noch (${N(p)} %). Das Scannen startet, sobald er fertig ist.`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `Der Scan der Historie läuft täglich ${w} (${tz}). Neue Blöcke werden weiterhin angezeigt.`],
+    [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `Der Scan der Historie läuft täglich ${w} (${tz}).`],
+    [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `Die Scan-Datenbank wurde von einer neueren Version von Monetary View geschrieben (Schema ${a}, diese Version kennt ${b}). Sie bleibt unverändert: Aktualisiere die App oder lösche die Datenbank, um neu zu scannen.`],
     [/^Pruned node: history before block ([\d,]+) is not available; spam UTXO figures will be incomplete$/,
       (m, h) => `Gepruneter Node: Historie vor Block ${N(h)} ist nicht verfügbar; die Spam-UTXO-Zahlen bleiben unvollständig`],
     [/^Chain reorganisation: blocks ([\d,]+)–([\d,]+) were replaced; results rolled back and will be re-analysed$/,

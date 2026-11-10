@@ -454,6 +454,7 @@
       "RPC passe par HTTP non chiffré vers une autre machine : votre mot de passe RPC est envoyé en clair. Préférez https, Tor ou un tunnel SSH.",
     "Loading spent-output filter from the database": "Chargement du filtre des outputs dépensés depuis la base de données",
     "Scanning is paused. New blocks are still shown.": "L’analyse est en pause. Les nouveaux blocs restent affichés.",
+    "Scanning is paused.": "L’analyse est en pause.",
     "Up to date. Waiting for the next block.": "À jour. En attente du prochain bloc.",
     "Full history scan complete — now following new blocks live": "Analyse complète de l’historique terminée — les nouveaux blocs sont maintenant suivis en direct",
     "Asking the node for the total UTXO set size (read-only, may take a few minutes)":
@@ -535,6 +536,8 @@
     [/^Spent-output filter loaded \(([\d,]+) spam outputs\)$/, (m, n) => `Filtre des outputs dépensés chargé (${N(n)} outputs de spam)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Votre nœud est encore en cours de synchronisation (${N(p)} %). L’analyse démarrera une fois terminé.`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `L’analyse de l’historique tourne chaque jour ${w} (${tz}). Les nouveaux blocs restent affichés.`],
+    [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `L’analyse de l’historique tourne chaque jour ${w} (${tz}).`],
+    [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `La base de données d’analyse a été écrite par une version plus récente de Monetary View (schéma ${a}, cette version connaît le ${b}). Elle est laissée telle quelle : mettez l’application à jour ou supprimez la base de données pour relancer l’analyse.`],
     [/^Pruned node: history before block ([\d,]+) is not available; spam UTXO figures will be incomplete$/,
       (m, h) => `Nœud élagué : l’historique avant le bloc ${N(h)} n’est pas disponible ; les chiffres des UTXO de spam seront incomplets`],
     [/^Chain reorganisation: blocks ([\d,]+)–([\d,]+) were replaced; results rolled back and will be re-analysed$/,

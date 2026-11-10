@@ -102,6 +102,29 @@ class Carriers(unittest.TestCase):
 
 
 class Integrity(unittest.TestCase):
+    def test_duplicated_last_transaction_is_refused(self):
+        """CVE-2012-2459: with an odd number of transactions, repeating the last one keeps the merkle
+        root (and the witness commitment) unchanged; Core marks such a block mutated, so must we."""
+        payment = bg.tx([(bg.fake_prev(1), 0, b"\x00" * 107)], [(50000, bg.p2wpkh(b"a"))])
+        spam = bg.tx([(bg.fake_prev(99), 0, b"\x00" * 107)], [(0, bg.op_return(300))])
+        ins1 = bg.tx([(bg.fake_prev(2), 0, b"")], [(546, bg.p2tr(b"p"))], witnesses=[bg.inscription_witness(1200)])
+        ins2 = bg.tx([(bg.fake_prev(3), 0, b"")], [(546, bg.p2tr(b"q"))], witnesses=[bg.inscription_witness(900)])
+        for txs in ([payment, spam], [ins1, ins2]):
+            raw, h = bg.block(txs, 100, b"\x11" * 32)
+            mr.verify_block(mr.analyze_block(raw, 100, dust_start_height=0), expected_hash=h)
+            self.assertEqual(raw[80], 3)
+            mutated = raw[:80] + bytes([4]) + raw[81:] + txs[-1][0]
+            with self.assertRaises(mr.BlockInvalid):
+                mr.verify_block(mr.analyze_block(mutated, 100, dust_start_height=0), expected_hash=h)
+
+    def test_merkle_root_matches_upstream(self):
+        rnd = random.Random(5)
+        for n in range(1, 40):
+            hashes = [rnd.randbytes(32) for _ in range(n)]
+            self.assertEqual(mr.merkle_root(hashes), (up.merkle_root(hashes), False))
+        self.assertTrue(mr.merkle_root([b"a" * 32, b"b" * 32, b"c" * 32, b"c" * 32])[1])
+        self.assertTrue(mr.merkle_root([b"a" * 32, b"a" * 32])[1])
+
     def test_wrong_hash(self):
         raw, h = bg.mixed_block(800000)
         res = mr.analyze_block(raw, 800000)

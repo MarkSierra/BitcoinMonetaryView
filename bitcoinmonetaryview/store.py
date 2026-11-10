@@ -109,6 +109,10 @@ CREATE TABLE IF NOT EXISTS utxo_hist (
 OP_ADD, OP_SPEND = 1, 2
 
 
+class SchemaTooNew(RuntimeError):
+    """The database was written by a newer version of the app."""
+
+
 class Bloom:
     """
     Blocked Bloom filter over outpoints: all K bits of an entry lie in one 512-bit
@@ -251,6 +255,7 @@ class Store:
             os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
             no_cow(os.path.dirname(path))
             self.db = sqlite3.connect(path, check_same_thread=False, timeout=30, isolation_level=None)
+            self._refuse_newer_schema()
             self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute("PRAGMA synchronous=NORMAL")
             self.db.execute(f"PRAGMA wal_autocheckpoint={WAL_CHECKPOINT_PAGES}")
@@ -262,6 +267,17 @@ class Store:
         self.lock = threading.RLock()
         self._seq = 0
         self.in_tx = False
+
+    def _refuse_newer_schema(self):
+        try:
+            r = self.db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+        except sqlite3.OperationalError:            # a new database: no meta table yet
+            return
+        if r is not None and int(r[0]) > SCHEMA_VERSION:
+            self.db.close()
+            raise SchemaTooNew(f"The scan database was written by a newer version of Monetary View (schema "
+                               f"{int(r[0])}, this version knows {SCHEMA_VERSION}). It is left as it is: update the "
+                               f"app, or delete the database to scan again.")
 
     # ----------------------------------------------------------------- meta
     def get_meta(self, key, default=None):

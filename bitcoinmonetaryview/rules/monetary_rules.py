@@ -343,6 +343,20 @@ def _analyze(raw, height, op_return_limit, scriptsig_limit,
     return out
 
 
+def merkle_root(hashes):
+    """(root, mutated) as Bitcoin Core's ComputeMerkleRoot: mutated is True when two equal neighbouring
+    hashes on any level would let a duplicated transaction keep the root (CVE-2012-2459)."""
+    if not hashes:
+        return b"\x00" * 32, False
+    level, mutated = list(hashes), False
+    while len(level) > 1:
+        mutated = mutated or any(level[i] == level[i + 1] for i in range(0, len(level) - 1, 2))
+        if len(level) & 1:
+            level.append(level[-1])
+        level = [up.dsha(level[i] + level[i + 1]) for i in range(0, len(level), 2)]
+    return level[0], mutated
+
+
 def verify_block(result, expected_hash=None, expected_prev=None):
     """
     Check that analysed block bytes are exactly the block the header commits to.
@@ -352,6 +366,7 @@ def verify_block(result, expected_hash=None, expected_prev=None):
     * if any transaction carries witness data, the coinbase witness commitment
       (BIP141) equals the merkle root over wtxids -- without this, tampered
       witness bytes (where inscriptions live) would go unnoticed
+    * no duplicated transaction keeps either root unchanged (Core's "mutated" check)
     * optionally, the header's prev-hash links to the expected parent
 
     Raises BlockInvalid. Hashes are internal byte order (not hex display order).
@@ -361,8 +376,11 @@ def verify_block(result, expected_hash=None, expected_prev=None):
         raise BlockInvalid("block hash does not match the requested hash")
     if expected_prev is not None and header[4:36] != expected_prev:
         raise BlockInvalid("block does not connect to the expected parent")
-    if up.merkle_root(result["txids"]) != header[36:68]:
+    root, mutated = merkle_root(result["txids"])
+    if root != header[36:68]:
         raise BlockInvalid("merkle root mismatch: transaction data was altered")
+    if mutated:
+        raise BlockInvalid("duplicated transactions: the block is mutated")
 
     commitment = None
     for spk in result["coinbase_outputs"]:
@@ -374,9 +392,11 @@ def verify_block(result, expected_hash=None, expected_prev=None):
         wit = result["coinbase_witness"]
         if len(wit) != 1 or len(wit[0]) != 32:
             raise BlockInvalid("invalid coinbase witness reserved value")
-        wtxids = [b"\x00" * 32] + list(result["wtxids"][1:])
-        if up.dsha(up.merkle_root(wtxids) + wit[0]) != commitment:
+        wroot, wmutated = merkle_root([b"\x00" * 32] + list(result["wtxids"][1:]))
+        if up.dsha(wroot + wit[0]) != commitment:
             raise BlockInvalid("witness commitment mismatch: witness data was altered")
+        if wmutated:
+            raise BlockInvalid("duplicated transactions: the block is mutated")
     return True
 
 

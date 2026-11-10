@@ -454,6 +454,7 @@
       "RPC działa przez nieszyfrowane HTTP do innego komputera: Twoje hasło RPC jest wysyłane bez szyfrowania. Lepiej użyj https, Tora albo tunelu SSH.",
     "Loading spent-output filter from the database": "Wczytuję filtr wydanych wyjść z bazy danych",
     "Scanning is paused. New blocks are still shown.": "Skanowanie jest wstrzymane. Nowe bloki są nadal pokazywane.",
+    "Scanning is paused.": "Skanowanie jest wstrzymane.",
     "Up to date. Waiting for the next block.": "Aktualne. Czekam na następny blok.",
     "Full history scan complete — now following new blocks live": "Pełne skanowanie historii zakończone — teraz nowe bloki są śledzone na żywo",
     "Asking the node for the total UTXO set size (read-only, may take a few minutes)":
@@ -540,6 +541,8 @@
       (m, n) => `Filtr wydanych wyjść wczytany (${N(n)} ${F(n, "wyjście", "wyjścia", "wyjść")} spamu)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Twój węzeł wciąż się synchronizuje (${N(p)} %). Skanowanie zacznie się, gdy skończy.`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `Skanowanie historii działa codziennie ${w} (${tz}). Nowe bloki są nadal pokazywane.`],
+    [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `Skanowanie historii działa codziennie ${w} (${tz}).`],
+    [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `Bazę danych skanowania zapisała nowsza wersja Monetary View (schemat ${a}, ta wersja zna ${b}). Pozostaje bez zmian: zaktualizuj aplikację albo usuń bazę danych, aby skanować od nowa.`],
     [/^Pruned node: history before block ([\d,]+) is not available; spam UTXO figures will be incomplete$/,
       (m, h) => `Przycięty węzeł: historia przed blokiem ${N(h)} jest niedostępna; liczby spamowych UTXO będą niepełne`],
     [/^Chain reorganisation: blocks ([\d,]+)–([\d,]+) were replaced; results rolled back and will be re-analysed$/,

@@ -617,6 +617,85 @@ class InterruptedQuickPass(unittest.TestCase):
         self.assertEqual((cov["gap"]["from"], cov["gap"]["to"]), (0, 49))
 
 
+class NewerDatabase(unittest.TestCase):
+    """A database written by a newer schema is refused and left as it is (L8)."""
+
+    def make(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        path = os.path.join(d, "regtest", "bmv.sqlite")
+        s = Store(path)
+        s.db.execute("INSERT INTO blocks(height, hash, utxo_done) VALUES(7, x'00', 1)")
+        s.set_meta("schema_version", 99)
+        s.close()
+        return d, path
+
+    def test_refused_and_untouched(self):
+        from bitcoinmonetaryview import store
+        d, path = self.make()
+        before = open(path, "rb").read()
+        with self.assertRaises(store.SchemaTooNew) as cm:
+            Store(path)
+        self.assertIn("newer version", str(cm.exception))
+        self.assertEqual(open(path, "rb").read(), before)
+        db = sqlite3.connect(path)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM blocks").fetchone()[0], 1)
+        db.close()
+
+    def test_scanner_reports_it(self):
+        d, path = self.make()
+        chain = MockChain()
+        chain.build(3)
+        node = MockNode(chain)
+        self.addCleanup(node.stop)
+        s = Scanner(Config(d, cli={"rpc_url": node.url, "rpc_user": "u", "rpc_password": "p"}, env={}))
+        s.start()
+        t = time.time()
+        while s.status.get("phase") != "error" and time.time() - t < 20:
+            time.sleep(0.05)
+        s.stop()
+        s.join(10)
+        self.assertEqual(s.status.get("phase"), "error")
+        self.assertIn("newer version", s.status.get("detail"))
+        db = sqlite3.connect(path)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM blocks").fetchone()[0], 1)
+        db.close()
+
+
+class StatusTexts(ScannerTest):
+    def test_pause_without_quick_pass_does_not_promise_new_blocks(self):
+        """N3: with no quick pass, new blocks are not followed while paused, so the text must not say so."""
+        self.node.delay = 0.05
+        s = self.start(quick_pass_blocks="0", speed_profile="eco", sample_every="0")
+        time.sleep(0.3)
+        s.pause()
+        self.wait_phase(s, "paused", timeout=20)
+        self.assertNotIn("New blocks", s.status.get("detail"))
+        self.assertIn("paused", s.status.get("detail"))
+
+    def test_processed_bytes_follow_the_database_after_a_rollback(self):
+        """N4: blocks rolled back must not stay counted in the progress figure."""
+        calls = {"n": 0}
+        orig = Scanner.throttle
+
+        def failing(scanner, latency):
+            calls["n"] += 1
+            if calls["n"] == 5:
+                raise RuntimeError("boom")
+            return orig(scanner, latency)
+
+        Scanner.throttle = failing
+        self.addCleanup(setattr, Scanner, "throttle", orig)
+        s = self.start(quick_pass_blocks="0", speed_profile="eco", sample_every="0")
+        self.wait_phase(s, "error", timeout=30)
+        s.stop()
+        s.join(10)
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        stored = db.execute("SELECT COALESCE(SUM(size),0) FROM blocks WHERE utxo_done=1").fetchone()[0]
+        db.close()
+        self.assertIn(s.processed_bytes, (0, stored))     # 0: re-read from the database on the next pass
+
+
 class StoreRegressions(unittest.TestCase):
     def test_reset_clears_completion_flags(self):
         from bitcoinmonetaryview.store import Store
