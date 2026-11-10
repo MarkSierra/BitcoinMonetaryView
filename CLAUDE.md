@@ -132,14 +132,34 @@ Practical notes from the first releases through the fork:
 
 ## State (2026-11-10)
 
-App v0.3.14 (0.3.13: fixes from a full code and security review — a damaged settings.json fails safe,
-weekly instead of daily gettxoutsetinfo, mutated-block check, request handling, actions pinned by commit,
-unused code removed; 0.3.14: a missing cookie after a reboot shows as waiting for the node). StartOS
-0.3.12:0 in the Community Registry and on Community Beta, Bitcoin category set (Start9 promoted it on its own
-within hours of merging #7; promotion issue #8 closed). StartOS 0.3.14:0 in preparation (0.3.13:0 was only a
-test build, never submitted). The maintainer's server runs StartOS 0.4.2 with Knots 29.3. Umbrel community
-store 0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Open: the
-Start9 PR for 0.3.14:0, then Umbrel; the Umbrel review; Roots wording once Roots is on community-prod.
+App v0.3.14 released (tag and GitHub release; image `ghcr.io/marksierra/bitcoinmonetaryview:0.3.14@sha256:8523028d9603977d65bbc85d38395ce326980c3c0112c30a84e1e35c67a0e598`,
+amd64/arm64/riscv64). 0.3.13 was a full code and security review (findings in `review-report.md`, only in this
+session's container, never committed); 0.3.14 adds the missing-cookie wait. Left out on purpose after that review:
+deleting gettxoutsetinfo (S1, kept weekly instead), replacing the connection pool (S7) or the second Bloom
+bit-layout copy (S8), phase/progress in /api/health (S12), signature checks for CI node binaries (N8), a
+lock file against two processes (N11), and refusing state-changing requests on an open LAN bind.
+
+StartOS: 0.3.14:0 merged in Start9-Community/bitcoinmonetaryview-startos#9 (merge 4a527e8; our `main` and
+`next` synced to it). Tested by the maintainer as 0.3.14-beta.0:0 on StartOS 0.4.2 with Knots 29.3: update with
+results kept, health checks, Bitcoin restart and server reboot without an authentication error; clean install
+not tested (no second server). Matt's review removed the package-side settings guard (ab369b2): the SDK will
+rebuild unparsable file models from `.catch()` defaults (start-sdk 4.1.1, Start9Labs/start-technologies#4670).
+Open: the maintainer deletes `claude/bold-planck-14e4f1` in our workspace; check Community Beta, then the
+Community Registry (promotion issue only if Start9 does not promote on its own). Previously released: 0.3.12:0.
+
+Umbrel: 0.3.14 merged in the community store (MarkSierra/umbrel-community-app-store#16). Official store:
+the fork's `bitcoinmonetaryview` branch is at 8011111 (0.3.14), tested by umbrelOS run
+https://github.com/MarkSierra/BitcoinMonetaryView/actions/runs/42839460691 (the maintainer puts that link in
+the PR text); getumbrel/umbrel-apps#6328 is still waiting for Umbrel's review. Open beyond that: Roots wording once Roots is on community-prod; start-sdk 4.1.1 (rebuilds an
+unparsable settings.json from defaults) goes in with the next package release, no release of its own (or
+`0.3.14:1` if no app release is near); test it by writing invalid JSON into settings.json on the server. The maintainer's server runs
+StartOS 0.4.2 with Knots 29.3.
+
+Lessons from 0.3.13-0.3.14: `release.yml` checks that `pyproject.toml` and `__init__.py` agree (a test now
+checks it in CI too); stage every changed file in a release commit. In shell steps where one step depends
+on another (a tag that must exist, a checkout that must succeed), chain with `&&` or `set -e`: a `;` pushed
+a test branch with the wrong submodule once. StartOS runs a package's init at every start; a gap in the SDK (FileHelper merge throwing on
+unparsable files) is reported to Start9 for the SDK, not guarded per package with raw `fs` (Matt on PR #9).
 
 Lessons from 0.3.10:1-0.3.12: a StartOS user's btrfs data drive went read-only during a first full scan
 (fsync of a fragmented copy-on-write SQLite file). The app now creates its per-network directory
