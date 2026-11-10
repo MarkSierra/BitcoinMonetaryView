@@ -149,6 +149,14 @@ class Integrity(unittest.TestCase):
         with self.assertRaisesRegex(mr.BlockInvalid, "witness"):
             mr.verify_block(res, expected_hash=h)
 
+    def test_not_connecting_is_its_own_error(self):
+        """S10: the scanner tells "does not connect" (a reorganisation) from bad data by type, not by text."""
+        raw, h = bg.mixed_block(800000)
+        res = mr.analyze_block(raw, 800000)
+        with self.assertRaises(mr.BlockNotConnected):
+            mr.verify_block(res, expected_hash=h, expected_prev=b"\x22" * 32)
+        self.assertTrue(issubclass(mr.BlockNotConnected, mr.BlockInvalid))
+
     def test_wrong_parent(self):
         raw, h = bg.mixed_block(800000, prev=b"\x22" * 32)
         res = mr.analyze_block(raw, 800000)

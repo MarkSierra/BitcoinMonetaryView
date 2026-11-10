@@ -82,8 +82,7 @@ class NoCow(unittest.TestCase):
         seen = []
         with mock.patch.object(store, "no_cow", side_effect=seen.append):
             store.Store(os.path.join(self.dir, "mainnet", "bmv.sqlite")).close()
-            store.Store(os.path.join(self.dir, "mainnet", "bmv.sqlite"), readonly=True).db.close()
-        self.assertEqual(seen, [os.path.join(self.dir, "mainnet")])   # the writer only
+        self.assertEqual(seen, [os.path.join(self.dir, "mainnet")])
 
 
 @unittest.skipUnless(BTRFS_DIR, "no btrfs test directory (set BMV_BTRFS_DIR)")

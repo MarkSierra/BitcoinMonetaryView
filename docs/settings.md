@@ -24,8 +24,6 @@ fail safe instead:
 
 Settings given on the command line or in the environment are not affected by the file.
 
-The machine-readable JSON Schema is printed by `python3 -m bitcoinmonetaryview --print-settings-schema`.
-
 Special environment variables (not settings): `BMV_DATA_DIR` (data directory) and `BMV_MANAGED_BY`, set by
 platform packages. With any value the platform's proxy fronts the web interface (Host check and login are left
 to it) and plain-HTTP RPC on its internal network is not flagged. `startos` additionally shows the settings
@@ -72,7 +70,6 @@ Umbrel has no settings screen for apps.
 | `tls_cert` | empty | TLS certificate (PEM) to serve the web interface over https. |
 | `tls_key` | empty | TLS private key (PEM). |
 | `allowed_hosts` | empty | Extra Host names allowed for the web interface (comma separated). |
-| `allow_pause_when_managed` | true | Keep the pause/resume button in managed mode. |
 
 ## General
 

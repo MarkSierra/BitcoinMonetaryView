@@ -17,8 +17,8 @@ import threading
 import time
 
 from . import __version__
-from .node.client import Node, default_dust_start, network_name
-from .node.rpc import RPC_IN_WARMUP, NodeAuthError, NodeError, RPCError, RPCClient
+from .node.client import default_dust_start, make_node, network_name
+from .node.rpc import RPC_IN_WARMUP, NodeAuthError, NodeError, RPCError
 from .node.transport import NodeUnreachable
 from .rules import UPSTREAM_COMMIT
 from .rules import monetary_rules as mr
@@ -36,9 +36,9 @@ RULES_KEYS = ("carrier_policy", "dust_start_height")
 PROFILES = {
     # workers: parallel block requests; pause: sleep after each block as a multiple of its fetch time
     # procs: analysis worker processes (CPU cores used for parsing; one core is always left free)
-    "eco": {"workers": 1, "procs": 0, "pause": 1.0, "min_sleep": 0.05, "label": "Eco"},
-    "balanced": {"workers": 2, "procs": 2, "pause": 0.25, "min_sleep": 0.0, "label": "Balanced"},
-    "full": {"workers": 4, "procs": 4, "pause": 0.0, "min_sleep": 0.0, "label": "Full speed"},
+    "eco": {"workers": 1, "procs": 0, "pause": 1.0, "min_sleep": 0.05},
+    "balanced": {"workers": 2, "procs": 2, "pause": 0.25, "min_sleep": 0.0},
+    "full": {"workers": 4, "procs": 4, "pause": 0.0, "min_sleep": 0.0},
 }
 
 PHASE_LABELS = {
@@ -230,19 +230,6 @@ class Scanner(threading.Thread):
         self.status.set(profile=self.config.speed_profile, scan_window=self.config.scan_window,
                         timezone=self.config.timezone)
 
-    def make_node(self):
-        c = self.config
-        proxy = None
-        if c.tor_proxy:
-            host, port = c.tor_proxy.rsplit(":", 1)
-            proxy = (host.strip("[]"), int(port))
-        node = Node(c.rpc_url, user=c.rpc_user or None, password=c.rpc_password,
-                    cookie_file=c.rpc_cookie_file or None, proxy=proxy, cafile=c.rpc_cafile or None,
-                    timeout=c.rpc_timeout, use_rest=c.use_rest)
-        # On a platform (StartOS, Umbrel) the app reaches the node over its internal network.
-        node.transport.trusted_network = c.platform
-        return node
-
     def policy(self):
         return cp.Policy() if self.config.carrier_policy else None
 
@@ -321,7 +308,7 @@ class Scanner(threading.Thread):
         self._conn_sig = self._sig(CONNECTION_KEYS)
         self._rules_sig = self._sig(RULES_KEYS)
         self.status.set(phase="connecting", detail=f"Connecting to {self.config.rpc_url}")
-        self.node = self.make_node()
+        self.node = make_node(self.config)
         info = self.node.chain_info()
         net = network_name(info.get("chain"))
         rest = self.node.probe_rest()
@@ -552,9 +539,8 @@ class Scanner(threading.Thread):
         """
         prof = PROFILES[self.config.speed_profile]
         workers = prof["workers"]
-        if self.latency_ewma and self.latency_floor and self.latency_ewma > 3 * self.latency_floor \
-                and self.latency_ewma > 0.5:
-            workers = 1      # node seems busy: back off
+        if self.node_busy():
+            workers = 1      # back off
         apool = self.analysis_pool(prof["procs"])
 
         def job(h, hx):
@@ -625,7 +611,7 @@ class Scanner(threading.Thread):
         for attempt in range(3):
             if not isinstance(res, Exception):
                 if expected_prev is not None and res["header"][4:36] != expected_prev:
-                    raise mr.BlockInvalid("block does not connect to the expected parent")
+                    raise mr.BlockNotConnected("block does not connect to the expected parent")
                 return res
             if attempt == 2:
                 raise res
@@ -650,6 +636,11 @@ class Scanner(threading.Thread):
             self._pool = None
             self._pool_workers = None
 
+    def node_busy(self):
+        """The node answers more than three times slower than its best, and slower than 0.5 s."""
+        return bool(self.latency_ewma and self.latency_floor and self.latency_ewma > 3 * self.latency_floor
+                    and self.latency_ewma > 0.5)
+
     def throttle(self, latency):
         prof = PROFILES[self.config.speed_profile]
         a = 0.2
@@ -659,8 +650,8 @@ class Scanner(threading.Thread):
         else:
             self.latency_floor *= 1.0005      # let the baseline drift up slowly
         delay = max(prof["min_sleep"], prof["pause"] * latency)
-        if self.latency_ewma > 3 * self.latency_floor and self.latency_ewma > 0.5:
-            delay = max(delay, self.latency_ewma)      # adaptive backoff: node is busy
+        if self.node_busy():
+            delay = max(delay, self.latency_ewma)      # adaptive backoff
         if delay > 0:
             self.wake.wait(delay)
             self.wake.clear()
@@ -880,14 +871,12 @@ class Scanner(threading.Thread):
                 h = heights[i]
                 try:
                     res = self.accept(h, hashes[i], res, expected_prev)
-                except mr.BlockInvalid as e:
-                    if "parent" in str(e):
-                        self.store.commit()
-                        self.status.event("warning", f"Block {h:,} does not connect: chain changed while "
-                                                     "scanning; checking for a reorganisation")
-                        self.handle_reorg(int(self.node.chain_info()["blocks"]))
-                        return
-                    raise
+                except mr.BlockNotConnected:
+                    self.store.commit()
+                    self.status.event("warning", f"Block {h:,} does not connect: chain changed while "
+                                                 "scanning; checking for a reorganisation")
+                    self.handle_reorg(int(self.node.chain_info()["blocks"]))
+                    return
                 delta = self.store.apply_block_utxo(h, res, self.bloom)
                 self.store.put_block(h, res, utxo_done=True, utxo_delta=delta)
                 self.store.set_meta("full_next_height", h + 1)
@@ -969,17 +958,12 @@ class Scanner(threading.Thread):
         prev_phase = self.status.get("phase")
         self.status.set(phase="utxo_info", detail="Asking the node for the total UTXO set size "
                                                   "(read-only, may take a few minutes)")
-        c = self.config
         try:
-            proxy = None
-            if c.tor_proxy:
-                host, port = c.tor_proxy.rsplit(":", 1)
-                proxy = (host.strip("[]"), int(port))
-            slow = RPCClient(c.rpc_url, user=c.rpc_user or None, password=c.rpc_password,
-                             cookie_file=c.rpc_cookie_file or None, timeout=1800, proxy=proxy,
-                             cafile=c.rpc_cafile or None)
-            res = slow.call("gettxoutsetinfo", "none")
-            slow.close()
+            slow = make_node(self.config, timeout=1800)       # a full walk of the UTXO set without an index
+            try:
+                res = slow.rpc.call("gettxoutsetinfo", "none")
+            finally:
+                slow.close()
             import json
             self.store.set_meta("utxo_info", json.dumps(res))
             self.store.set_meta("utxo_info_time", time.time())

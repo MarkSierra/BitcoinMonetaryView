@@ -8,7 +8,7 @@ import threading
 import unittest
 
 from bitcoinmonetaryview.node import rpc as rpcmod
-from bitcoinmonetaryview.node.client import Node as _Node
+from bitcoinmonetaryview.node.client import Node as _Node, make_node
 from bitcoinmonetaryview.node.transport import NodeUnreachable, is_local_host, socks5_connect
 from bitcoinmonetaryview.rules import monetary_rules as mr
 from tests.mocknode import MockChain, MockNode
@@ -142,8 +142,6 @@ class Client(unittest.TestCase):
             raw_rest = n.block(h)
             self.assertEqual(raw_rpc, raw_rest)
             self.assertEqual(n.block_hashes(0, 5), [mr.hash_to_hex(b[1]) for b in self.chain.blocks])
-            hdrs = n.rest.headers(n.block_hash(1), 3)
-            self.assertEqual(len(hdrs), 3)
         finally:
             node.stop()
 
@@ -242,9 +240,9 @@ class Client(unittest.TestCase):
         d = tempfile.mkdtemp()
         try:
             cli = {"rpc_url": "http://10.0.3.1:58332", "rpc_user": "u", "rpc_password": "p"}
-            plain = Scanner(Config(d, cli=cli, env={})).make_node()
+            plain = make_node(Config(d, cli=cli, env={}))
             self.assertTrue(plain.transport.plaintext_remote)
-            managed = Scanner(Config(d, cli=cli, env={"BMV_MANAGED_BY": "startos"})).make_node()
+            managed = make_node(Config(d, cli=cli, env={"BMV_MANAGED_BY": "startos"}))
             self.assertFalse(managed.transport.plaintext_remote)
         finally:
             shutil.rmtree(d)

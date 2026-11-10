@@ -821,12 +821,12 @@ class StoreRegressions(unittest.TestCase):
             st.apply_block_utxo(2, r2, bloom)
             st.put_block(2, r2, True)
             st.commit()
-            self.assertEqual(st.spam_utxo_count(), 0)
+            self.assertEqual(st.db.execute("SELECT COALESCE(SUM(count),0) FROM utxo_hist").fetchone()[0], 0)
             fresh = Bloom(1)                          # as if rebuilt after a restart
             st.begin()
             st.disconnect_block(2, fresh)
             st.commit()
-            self.assertEqual(st.spam_utxo_count(), len(spam))
+            self.assertEqual(st.db.execute("SELECT COALESCE(SUM(count),0) FROM utxo_hist").fetchone()[0], len(spam))
             self.assertTrue(all(fresh.maybe(t, v) for t, v, *_ in spam))
             st.close()
         finally:

@@ -48,6 +48,10 @@ class BlockInvalid(ValueError):
     """The block bytes do not match their header or are malformed."""
 
 
+class BlockNotConnected(BlockInvalid):
+    """The block's header does not link to the expected parent: the chain changed."""
+
+
 def classify_output(script, value, height, op_return_limit,
                     dust_start_height=MAINNET_DUST_START, carrier_policy=None):
     """
@@ -375,7 +379,7 @@ def verify_block(result, expected_hash=None, expected_prev=None):
     if expected_hash is not None and up.dsha(header) != expected_hash:
         raise BlockInvalid("block hash does not match the requested hash")
     if expected_prev is not None and header[4:36] != expected_prev:
-        raise BlockInvalid("block does not connect to the expected parent")
+        raise BlockNotConnected("block does not connect to the expected parent")
     root, mutated = merkle_root(result["txids"])
     if root != header[36:68]:
         raise BlockInvalid("merkle root mismatch: transaction data was altered")

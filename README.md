@@ -232,7 +232,7 @@ exemptions: the OP_RETURN size test stays upstream's script-length rule.
 ## Security
 
 - **Read-only by construction**: the RPC client refuses every method that is not on a short whitelist
-  (`getblockchaininfo`, `getnetworkinfo`, `getbestblockhash`, `getblockcount`, `getblockhash`,
+  (`getblockchaininfo`, `getnetworkinfo`, `getbestblockhash`, `getblockhash`,
   `getblockheader`, `getblock` with verbosity 0, `gettxoutsetinfo` with `hash_type=none`) — also inside batch
   requests and with forbidden parameters. REST (`rest=1`) is used only if you have already enabled it.
 - **No access to the node's files.** Only the RPC cookie file is read, if you point to it — opened read-only.

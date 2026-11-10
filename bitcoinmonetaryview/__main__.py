@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Entry point: python3 -m bitcoinmonetaryview"""
 
-import json
 import logging
 import os
 import signal
@@ -9,7 +8,7 @@ import sys
 import threading
 
 from . import __version__
-from .config import Config, build_arg_parser, default_data_dir, json_schema
+from .config import Config, build_arg_parser, default_data_dir
 
 
 def main(argv=None):
@@ -17,13 +16,10 @@ def main(argv=None):
     if args.version:
         print(f"Monetary View {__version__}")
         return 0
-    if args.print_settings_schema:
-        print(json.dumps(json_schema(), indent=2))
-        return 0
 
     data_dir = os.path.abspath(args.data_dir or default_data_dir())
     os.makedirs(data_dir, mode=0o700, exist_ok=True)
-    cli = {k: v for k, v in vars(args).items() if k not in ("data_dir", "print_settings_schema", "check", "version")}
+    cli = {k: v for k, v in vars(args).items() if k not in ("data_dir", "check", "version")}
     try:
         config = Config(data_dir, cli=cli)
     except Exception as e:

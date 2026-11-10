@@ -29,6 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from . import __version__
 from .analytics import Analytics, block_from_result
 from .diagnostics import run_connection_test
+from .node.client import make_node
 from .node.rpc import NodeError, RPCError
 from .rules import monetary_rules as mr
 from .rules import UPSTREAM_COMMIT, UPSTREAM_REPO
@@ -174,7 +175,7 @@ class App:
             self._lookup_last = time.monotonic()
             sc = self.scanner
             if self._lookup_node is None:
-                self._lookup_node = sc.make_node()
+                self._lookup_node = make_node(self.config)
             node = self._lookup_node
             try:
                 if hexhash is not None:
@@ -262,7 +263,6 @@ class App:
         s["managed"] = c.managed
         s["managed_by"] = c.managed_by
         s["platform"] = c.managed_by or None
-        s["can_pause"] = (not c.managed) or c.allow_pause_when_managed
         s["can_rescan"] = not c.managed
         s["upstream"] = {"repo": UPSTREAM_REPO, "commit": UPSTREAM_COMMIT}
         s["auth_enabled"] = bool(c.auth_user)
@@ -513,8 +513,6 @@ def make_handler(app):
                     action = body.get("action")
                     st = app.status()
                     if action in ("pause", "resume"):
-                        if not st["can_pause"]:
-                            return self.error(403, "managed by the platform")
                         app.scanner.pause() if action == "pause" else app.scanner.resume()
                         return self.send_json({"ok": True})
                     if action == "rescan":
