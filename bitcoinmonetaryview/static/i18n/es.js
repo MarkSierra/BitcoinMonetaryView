@@ -509,6 +509,8 @@
       "settings.json está dañado, así que no se sabe qué reglas de spam aplicar. El escaneo está en espera y los resultados se conservan hasta que se repare el archivo.",
     "settings.json is damaged; repair or delete it before changing settings here":
       "settings.json está dañado; repáralo o elimínalo antes de cambiar ajustes aquí",
+    "auth_user is set without auth_password: the web interface stays locked until both are set":
+      "auth_user está configurado sin auth_password: la interfaz web permanece bloqueada hasta que se configuren ambos",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "La interfaz web es accesible desde tu red sin contraseña. Define auth_user/auth_password (e idealmente tls_cert/tls_key).",
   };

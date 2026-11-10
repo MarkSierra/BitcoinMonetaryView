@@ -332,6 +332,10 @@ def make_handler(app):
                                "interface stays locked until the file is repaired (or deleted, which returns every "
                                "setting to its default).", 503)
                 return False
+            if c.auth_incomplete and self.path != "/api/health":
+                self.send_text("auth_user is set without auth_password, so no sign-in can be checked. The web "
+                               "interface stays locked until both are set.", 503)
+                return False
             if c.auth_user and self.path != "/api/health":
                 hdr = self.headers.get("Authorization", "")
                 ok = False

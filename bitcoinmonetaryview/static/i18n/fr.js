@@ -508,6 +508,8 @@
       "settings.json est endommagé : on ne sait donc pas quelles règles de spam appliquer. L’analyse est suspendue et les résultats sont conservés jusqu’à ce que le fichier soit réparé.",
     "settings.json is damaged; repair or delete it before changing settings here":
       "settings.json est endommagé ; réparez-le ou supprimez-le avant de modifier les paramètres ici",
+    "auth_user is set without auth_password: the web interface stays locked until both are set":
+      "auth_user est défini sans auth_password : l’interface web reste verrouillée tant que les deux ne sont pas définis",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "L’interface web est accessible depuis votre réseau sans mot de passe. Définissez auth_user/auth_password (et idéalement tls_cert/tls_key).",
   };

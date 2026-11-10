@@ -508,6 +508,8 @@
       "Plik settings.json jest uszkodzony, więc nie wiadomo, jakie reguły spamu zastosować. Skanowanie jest wstrzymane, a wyniki pozostają zachowane do czasu naprawienia pliku.",
     "settings.json is damaged; repair or delete it before changing settings here":
       "Plik settings.json jest uszkodzony; napraw go lub usuń, zanim zmienisz tutaj ustawienia",
+    "auth_user is set without auth_password: the web interface stays locked until both are set":
+      "auth_user jest ustawiony bez auth_password: interfejs WWW pozostaje zablokowany, dopóki oba nie zostaną ustawione",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "Interfejs WWW jest dostępny z Twojej sieci bez hasła. Ustaw auth_user/auth_password (a najlepiej też tls_cert/tls_key).",
   };

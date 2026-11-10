@@ -458,6 +458,8 @@
       "settings.json ist beschädigt, daher ist nicht bekannt, welche Spam-Regeln gelten. Der Scan ist angehalten und die Ergebnisse bleiben erhalten, bis die Datei repariert ist.",
     "settings.json is damaged; repair or delete it before changing settings here":
       "settings.json ist beschädigt; repariere oder lösche die Datei, bevor du hier Einstellungen änderst",
+    "auth_user is set without auth_password: the web interface stays locked until both are set":
+      "auth_user ist ohne auth_password gesetzt: Die Weboberfläche bleibt gesperrt, bis beides gesetzt ist",
     "The web interface is reachable from your network without a password. Set auth_user/auth_password (and ideally tls_cert/tls_key).":
       "Die Weboberfläche ist aus deinem Netzwerk ohne Passwort erreichbar. Setze auth_user/auth_password (und idealerweise tls_cert/tls_key).",
   };
