@@ -143,19 +143,16 @@ StartOS: 0.3.14:0 ready on `claude/bold-planck-14e4f1` in our workspace (upstrea
 in `startos/init/settingsGuard.ts`, notes with headers). 0.3.13:0 was only a test build and never submitted.
 Tested by the maintainer as 0.3.14-beta.0:0 on StartOS 0.4.2 with Knots 29.3: update with results kept, new
 init ran, health checks, Bitcoin restart and server reboot without an authentication error. Clean install not
-tested (no second server; stated in the PR text). The maintainer opens the PR to Start9-Community from the
-compare link; after the merge: sync our `main` from the fork, ask the maintainer to delete
-`test/0.3.13-beta.1`, `test/0.3.14-beta.0` and the merged branch. Released there: 0.3.12:0 (Community
-Registry and Community Beta, Bitcoin category set).
+tested (no second server; stated in the PR text). Submitted as Start9-Community/bitcoinmonetaryview-startos#9
+(head 034a2f9, Start9's build checks green, waiting for review; test branches already deleted). After the merge:
+sync our `main` from the fork, ask the maintainer to delete `claude/bold-planck-14e4f1` in our workspace,
+archive the read-only helper session. Released there: 0.3.12:0 (Community Registry and Community Beta,
+Bitcoin category set).
 
-Umbrel: community store PR MarkSierra/umbrel-community-app-store#16 (0.3.14) open. Official store:
-0.3.14 on the fork's test branch `claude/bold-planck-14e4f1` (MarkSierra/umbrel-apps, commit 8011111);
-umbrelOS run https://github.com/MarkSierra/BitcoinMonetaryView/actions/runs/42839460691 tests it
-(official_ref = that branch). When green: push that commit to the fork's `bitcoinmonetaryview` branch
-(getumbrel/umbrel-apps#6328 updates itself; the maintainer edits the run link in the PR text), merge #16,
-then run umbrel.yml once more so the community package is tested from `main` (umbrelOS adds the community
-store by its default branch, so it cannot be tested before merging). #6328 is still waiting for Umbrel's
-review. Open beyond that: Roots wording once Roots is on community-prod. The maintainer's server runs
+Umbrel: 0.3.14 merged in the community store (MarkSierra/umbrel-community-app-store#16). Official store:
+the fork's `bitcoinmonetaryview` branch is at 8011111 (0.3.14), tested by umbrelOS run
+https://github.com/MarkSierra/BitcoinMonetaryView/actions/runs/42839460691 (the maintainer puts that link in
+the PR text); getumbrel/umbrel-apps#6328 is still waiting for Umbrel's review. Open beyond that: Roots wording once Roots is on community-prod. The maintainer's server runs
 StartOS 0.4.2 with Knots 29.3.
 
 Lessons from 0.3.13-0.3.14: `release.yml` checks that `pyproject.toml` and `__init__.py` agree (a test now
