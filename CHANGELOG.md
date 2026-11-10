@@ -13,6 +13,12 @@ All notable changes are documented here. This project uses [semantic versioning]
   dashboard), and a scan made with non-default spam rules is put on hold with its results kept. The settings page refuses to save into a damaged file instead of
   overwriting it. Settings from the command line or the environment are unaffected.
 
+- **Quick pass after an interruption:** if the app was stopped during the quick pass and started again after
+  the chain had grown by more blocks than the pass had already done, the old piece stayed behind, with
+  unscanned blocks between it and the latest 1,000. The dashboard then reported that stretch as scanned and
+  left it out of the whole-chain estimate until the full scan reached it. A new quick pass now drops such
+  leftovers, so the latest blocks are always one unbroken range.
+
 ## [0.3.12] — 2026-11-09
 
 - **Quieter log:** when a browser leaves before an answer arrives (the page is reloaded or closed while it

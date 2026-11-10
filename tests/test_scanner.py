@@ -576,6 +576,47 @@ class DamagedSettings(unittest.TestCase):
         db.close()
 
 
+class InterruptedQuickPass(unittest.TestCase):
+    """A quick pass is stopped, the chain grows by more blocks than the pass had done, and the pass runs
+    again: the exact results at the top must stay one range, as coverage and estimate assume."""
+    setUp, tearDown, config = ScannerTest.setUp, ScannerTest.tearDown, ScannerTest.config
+
+    def stored(self):
+        db = sqlite3.connect(os.path.join(self.dir, "regtest", "bmv.sqlite"))
+        heights = [h for (h,) in db.execute("SELECT height FROM blocks ORDER BY height")]
+        done = db.execute("SELECT value FROM meta WHERE key='quick_done'").fetchone()
+        db.close()
+        return heights, done
+
+    def test_second_pass_after_chain_growth_leaves_no_hole(self):
+        from bitcoinmonetaryview import scanner as sc
+
+        class Prepared(Scanner):
+            def loop(self):             # connect and open the database as every session does, then return
+                pass
+
+        s = Prepared(self.config(speed_profile="eco", quick_pass_blocks="20", sample_every="0"))
+        s.session()
+        old, sc.COMMIT_SECONDS = sc.COMMIT_SECONDS, 0
+        try:
+            s.paused = True             # the pass ends at its first commit, as on a pause or a stop
+            s.quick_pass(39, 20)
+            self.assertEqual(self.stored(), ([20], None))
+            mk = spending_maker(self.chain)
+            for _ in range(30):         # the app was off for a while
+                self.chain.append(mk)
+            s.paused = False
+            s.quick_pass(69, 20)
+        finally:
+            sc.COMMIT_SECONDS = old
+            s.node.close()
+            s.store.close()
+        self.assertEqual(self.stored(), (list(range(50, 70)), ("1",)))
+        cov = Analytics(os.path.join(self.dir, "regtest", "bmv.sqlite")).summary()["coverage"]
+        self.assertEqual(cov["ranges"], [[50, 69]])
+        self.assertEqual((cov["gap"]["from"], cov["gap"]["to"]), (0, 49))
+
+
 class StoreRegressions(unittest.TestCase):
     def test_reset_clears_completion_flags(self):
         from bitcoinmonetaryview.store import Store

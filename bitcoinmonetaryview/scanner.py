@@ -663,6 +663,9 @@ class Scanner(threading.Thread):
     # ------------------------------------------------------------- passes
     def quick_pass(self, tip, q):
         start = max(0, tip - q + 1)
+        # A pass that was stopped earlier may have left blocks below today's range, with unscanned
+        # blocks in between; coverage and estimate take the results at the top as one range.
+        self.store.drop_quick_blocks_below(start)
         todo = [h for h in range(start, tip + 1) if not self.store.has_block(h)]
         self.status.event("info", f"Quick pass: analysing the latest {q:,} blocks ({start:,}–{tip:,})")
         t0 = time.monotonic()
