@@ -28,6 +28,13 @@ All notable changes are documented here. This project uses [semantic versioning]
   reports; a name other than main, test, testnet4, signet or regtest now stops the scan with an error instead
   of creating a directory for it (which could lie outside the data directory and outside the backup
   exclusions).
+- **Web server hardening:** a wrong web password is answered after half a second and logged, so guessing is
+  slow and visible; at most 64 connections are served at once; custom ranges and the per-block chart are
+  cached for 3 seconds like the overview. A request body the server does not expect (a GET with a body, a
+  chunked POST) can no longer be read as a second request on the same connection.
+- **Clear answers to bad input:** an unknown time zone on the Connection page is now reported as unknown
+  instead of "internal error"; out-of-range numbers in API requests and unusual characters in
+  request headers get a plain error instead of a logged traceback.
 
 ## [0.3.12] — 2026-11-09
 

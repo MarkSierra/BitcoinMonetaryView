@@ -37,7 +37,7 @@ def _no_params(p):
 
 
 def _hash_param(p):
-    return isinstance(p, str) and bool(_HEX64.match(p))
+    return isinstance(p, str) and bool(_HEX64.fullmatch(p))
 
 
 def _height(p):

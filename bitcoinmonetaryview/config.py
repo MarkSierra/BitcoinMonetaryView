@@ -102,7 +102,10 @@ def _window(v):
 def _tz(v):
     v = _str(v) or "UTC"
     from zoneinfo import ZoneInfo
-    ZoneInfo(v)     # raises on unknown zone
+    try:
+        ZoneInfo(v)
+    except Exception:           # ZoneInfoNotFoundError is a KeyError; bad paths raise ValueError or OSError
+        raise ValueError(f"unknown time zone {v[:64]!r}") from None
     return v
 
 

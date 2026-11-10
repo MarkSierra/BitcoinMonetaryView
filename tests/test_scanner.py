@@ -1028,3 +1028,22 @@ class Trends(unittest.TestCase):
         self.assertIsNone(t["pending"]["last_month"])
         self.assertIsNone(t["pending"]["year_ago"])
         self.assertTrue(Analytics(os.path.join(self.dir, "none.sqlite")).trends()["empty"])
+
+
+class QueryCache(unittest.TestCase):
+    """Custom ranges and the per-block chart are cached for 3 s like the summary (L5), and the cache is bounded."""
+
+    def test_period_and_range_cached_and_bounded(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        path = os.path.join(d, "regtest", "bmv.sqlite")
+        Store(path).close()
+        a = Analytics(path)
+        p1, r1 = a.period(lo=0, hi=10), a.range(0, 10, 50)
+        self.assertIs(a.period(lo=0, hi=10), p1)
+        self.assertIs(a.range(0, 10, 50), r1)
+        self.assertIsNot(a.period(lo=0, hi=11), p1)
+        for i in range(500):
+            a.period(lo=0, hi=100 + i)
+        self.assertLessEqual(len(a._cache), 130)
+        a.close()

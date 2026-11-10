@@ -93,11 +93,16 @@ class Analytics:
         with self._lock:
             return len(self._open)
 
+    CACHE_ENTRIES = 128
+
     def cached(self, key, ttl, fn):
         hit = self._cache.get(key)
         if hit and time.monotonic() - hit[0] < ttl:
             return hit[1]
         val = fn()
+        if len(self._cache) >= self.CACHE_ENTRIES:
+            for k in sorted(self._cache, key=lambda k: self._cache[k][0])[:self.CACHE_ENTRIES // 2]:
+                self._cache.pop(k, None)
         self._cache[key] = (time.monotonic(), val)
         return val
 
@@ -315,6 +320,9 @@ class Analytics:
         return None if r is None else _block_dict(r)
 
     def period(self, start=None, end=None, lo=None, hi=None):
+        return self.cached(("period", start, end, lo, hi), 3, lambda: self._period(start, end, lo, hi))
+
+    def _period(self, start=None, end=None, lo=None, hi=None):
         """
         Exact statistics for a time range (unix seconds, inclusive) or a height range, from the
         blocks scanned so far, plus how much of the range that covers. For time ranges the
@@ -386,6 +394,9 @@ class Analytics:
         return int(math.ceil(h)) if after else int(math.floor(h))
 
     def range(self, lo, hi, points=400):
+        return self.cached(("range", lo, hi, points), 3, lambda: self._range(lo, hi, points))
+
+    def _range(self, lo, hi, points=400):
         """Per-block (or bucketed) carrier bytes for a height range, for the bar chart."""
         db = self.db()
         if db is None:

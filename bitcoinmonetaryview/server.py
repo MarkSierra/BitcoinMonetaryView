@@ -64,9 +64,18 @@ STATIC_FILES = {
 MAX_BODY = 16 * 1024
 LOOKUP_COOLDOWN = 3.0        # seconds between on-demand block analyses
 LOOKUP_CACHE = 256
+FAILED_LOGIN_DELAY = 0.5     # seconds before answering a wrong password
 LOOKUP_TTL = 1800            # cached on-demand results expire (reorgs near the tip)
-HEX64 = re.compile(r"^[0-9a-fA-F]{64}$")
-HEIGHT = re.compile(r"^[0-9]{1,9}$")       # ASCII only: str.isdigit() also accepts e.g. '²'
+HEX64 = re.compile(r"[0-9a-fA-F]{64}")
+HEIGHT = re.compile(r"[0-9]{1,9}")         # ASCII only: str.isdigit() also accepts e.g. '²'
+
+
+def valid_hash(s):
+    return HEX64.fullmatch(s) is not None
+
+
+def valid_height(s):
+    return HEIGHT.fullmatch(s) is not None
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
        "connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; "
        "base-uri 'none'; form-action 'self'")
@@ -145,9 +154,9 @@ class App:
         touches the scan results. One lookup at a time, at most one per LOOKUP_COOLDOWN.
         """
         q = str(query or "").strip()
-        if HEIGHT.match(q):
+        if valid_height(q):
             height, hexhash = int(q), None
-        elif HEX64.match(q):
+        elif valid_hash(q):
             height, hexhash = None, q.lower()
         else:
             return 400, {"error": "Enter a block height or a 64-character block hash."}
@@ -346,6 +355,9 @@ def make_handler(app):
                               & hmac.compare_digest(pw.encode(), c.auth_password.encode()))
                     except (ValueError, UnicodeDecodeError):
                         ok = False
+                if not ok and hdr:
+                    log.warning("Failed web login from %s", self.client_address[0])
+                    time.sleep(FAILED_LOGIN_DELAY)
                 if not ok:
                     body = b"Authentication required"
                     self._headers(401, "text/plain", len(body),
@@ -363,6 +375,8 @@ def make_handler(app):
             self.do_GET()
 
         def do_GET(self):
+            if self.headers.get("Content-Length") or self.headers.get("Transfer-Encoding"):
+                self.close_connection = True        # the body is never read: it must not become the next request
             if not self.guard():
                 return
             path, q = self.query()
@@ -389,9 +403,9 @@ def make_handler(app):
                                           if a else [])
                 if path.startswith("/api/block/"):
                     key = path[len("/api/block/"):]
-                    if HEIGHT.match(key):
+                    if valid_height(key):
                         b = (a.block(int(key)) if a else None) or app.cached_lookup(height=int(key))
-                    elif HEX64.match(key):
+                    elif valid_hash(key):
                         b = (a.block_by_hash(key) if a else None) or app.cached_lookup(hexhash=key)
                     else:
                         return self.error(400, "invalid height or hash")
@@ -419,7 +433,7 @@ def make_handler(app):
                 return self.error(404, "not found")
             except CLIENT_GONE:
                 self.close_connection = True
-            except (ValueError, KeyError):
+            except (ValueError, KeyError, OverflowError):     # OverflowError: integers beyond SQLite's 64 bits
                 return self.error(400, "bad request")
             except Exception:
                 log.exception("API error")
@@ -467,13 +481,16 @@ def make_handler(app):
             self.close_connection = True
             if not self.guard():
                 return
+            if self.headers.get("Transfer-Encoding"):
+                return self.error(400, "chunked request bodies are not supported")
             path, _ = self.query()
             origin = self.headers.get("Origin")
             if origin:
                 o = urllib.parse.urlsplit(origin)
                 if o.netloc.lower() != (self.headers.get("Host") or "").lower():
                     return self.error(403, "cross-origin request refused")
-            if not hmac.compare_digest(self.headers.get("X-CSRF-Token", ""), app.csrf):
+            if not hmac.compare_digest(self.headers.get("X-CSRF-Token", "").encode("utf-8", "replace"),
+                                       app.csrf.encode()):
                 return self.error(403, "missing or invalid CSRF token")
             if (self.headers.get("Content-Type") or "").split(";")[0].strip() != "application/json":
                 return self.error(415, "JSON required")
@@ -537,13 +554,31 @@ def make_handler(app):
 class Server(ThreadingHTTPServer):
     daemon_threads = True
     request_queue_size = 64
+    MAX_CONNECTIONS = 64         # open connections served at once; further ones are closed at once
 
     ssl_ctx = None
 
     def __init__(self, addr, handler, ipv6=False):
         if ipv6:
             self.address_family = socket.AF_INET6
+        self._slots = threading.BoundedSemaphore(self.MAX_CONNECTIONS)
         super().__init__(addr, handler)
+
+    def process_request(self, request, client_address):
+        if not self._slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
 
     def server_close(self):
         super().server_close()
