@@ -23,7 +23,7 @@ from .node.transport import NodeUnreachable
 from .rules import UPSTREAM_COMMIT
 from .rules import monetary_rules as mr
 from .rules.upstream import carrier_policy as cp
-from .store import REORG_WINDOW, Bloom, Store
+from .store import REORG_WINDOW, Bloom, SchemaTooNew, Store
 from . import worker
 
 log = logging.getLogger("bmv.scanner")
@@ -266,7 +266,7 @@ class Scanner(threading.Thread):
                 self.status.event("info", f"Restarting scanner: {r}")
                 backoff = 2
                 continue
-            except SettingsDamaged as e:
+            except (SettingsDamaged, SchemaTooNew) as e:
                 self.status.set(phase="error", detail=str(e), last_error=str(e))
                 self.status.event("error", str(e))
                 self.sleep(60)
@@ -310,6 +310,7 @@ class Scanner(threading.Thread):
                 self.shutdown_analysis_pool()
                 if self.node is not None:
                     self.node.close()
+                self.processed_bytes = 0        # re-read from the database: a rollback may have undone blocks
         if self.store:
             self.save_bloom()
             self.store.close()
@@ -368,6 +369,7 @@ class Scanner(threading.Thread):
             self.store_path = path
             self.network = net
             self.bloom = None
+            self.processed_bytes = 0
         self.status.set(network=net, db_path=path)
 
     def load_bloom(self):
@@ -426,8 +428,10 @@ class Scanner(threading.Thread):
             full_next = self.full_next(info)
             history_pending = full_next <= tip
             if history_pending:
+                shown = self.store.get_meta("quick_done") == "1"     # follow_new_blocks_quick needs it
                 if self.paused:
-                    self.status.set(phase="paused", detail="Scanning is paused. New blocks are still shown.")
+                    self.status.set(phase="paused", detail="Scanning is paused. New blocks are still shown."
+                                    if shown else "Scanning is paused.")
                     self.follow_new_blocks_quick(tip)
                     self.sleep(LIVE_POLL_SECONDS)
                     info = None
@@ -435,7 +439,7 @@ class Scanner(threading.Thread):
                 if not in_window(self.config.scan_window, self.config.timezone):
                     self.status.set(phase="window",
                                     detail=f"History scan runs daily {self.config.scan_window} "
-                                           f"({self.config.timezone}). New blocks are still shown.")
+                                           f"({self.config.timezone})." + (" New blocks are still shown." if shown else ""))
                     self.follow_new_blocks_quick(tip)
                     self.sleep(30)
                     info = None

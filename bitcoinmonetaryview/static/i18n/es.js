@@ -455,6 +455,7 @@
       "RPC funciona sobre HTTP sin cifrar hacia otro equipo: tu contraseña RPC se envía sin cifrar. Mejor usa https, Tor o un túnel SSH.",
     "Loading spent-output filter from the database": "Cargando el filtro de outputs gastados desde la base de datos",
     "Scanning is paused. New blocks are still shown.": "El escaneo está en pausa. Los bloques nuevos se siguen mostrando.",
+    "Scanning is paused.": "El escaneo está en pausa.",
     "Up to date. Waiting for the next block.": "Al día. Esperando el siguiente bloque.",
     "Full history scan complete — now following new blocks live": "Escaneo completo del historial terminado; ahora se siguen los bloques nuevos en vivo",
     "Asking the node for the total UTXO set size (read-only, may take a few minutes)":
@@ -536,6 +537,8 @@
     [/^Spent-output filter loaded \(([\d,]+) spam outputs\)$/, (m, n) => `Filtro de outputs gastados cargado (${N(n)} outputs de spam)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Tu nodo aún se está sincronizando (${N(p)} %). El escaneo empieza cuando termine.`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `El escaneo del historial funciona a diario ${w} (${tz}). Los bloques nuevos se siguen mostrando.`],
+    [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `El escaneo del historial funciona a diario ${w} (${tz}).`],
+    [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `La base de datos del escaneo la escribió una versión más reciente de Monetary View (esquema ${a}; esta versión conoce el ${b}). Se deja tal cual: actualiza la aplicación o borra la base de datos para escanear de nuevo.`],
     [/^Pruned node: history before block ([\d,]+) is not available; spam UTXO figures will be incomplete$/,
       (m, h) => `Nodo podado: el historial anterior al bloque ${N(h)} no está disponible; las cifras de UTXO de spam quedarán incompletas`],
     [/^Chain reorganisation: blocks ([\d,]+)–([\d,]+) were replaced; results rolled back and will be re-analysed$/,

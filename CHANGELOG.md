@@ -35,6 +35,14 @@ All notable changes are documented here. This project uses [semantic versioning]
 - **Clear answers to bad input:** an unknown time zone on the Connection page is now reported as unknown
   instead of "internal error"; out-of-range numbers in API requests and unusual characters in
   request headers get a plain error instead of a logged traceback.
+- **Block check:** a block whose last transaction was repeated passes the merkle root check (a known
+  property of Bitcoin's merkle tree); a dishonest node could have served such a block and inflated the
+  spam figures. Such blocks are now refused, as Bitcoin Core does.
+- **Downgrades:** a scan database written by a newer version of the app is now refused with a clear message
+  and left as it is, instead of being used by an older version that does not understand it.
+- **Status texts:** while paused or outside the scan window, the status line no longer says "New blocks are
+  still shown" when the quick pass is off, because then they are not; the progress and ETA figures are
+  recalculated after an interrupted scan step.
 
 ## [0.3.12] — 2026-11-09
 

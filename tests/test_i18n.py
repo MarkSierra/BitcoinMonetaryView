@@ -144,6 +144,9 @@ class ServerPatterns(unittest.TestCase):
     """Real messages through i18n.js's server() in Node.js."""
 
     SAMPLES_DE = {
+        "History scan runs daily 01:00-07:00 (Europe/Berlin).":
+            "Der Scan der Historie läuft täglich 01:00-07:00 (Europe/Berlin).",
+        "Scanning is paused.": "Scannen ist pausiert.",
         "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
             "settings.json konnte nicht gelesen werden (Expecting value: line 1 column 1 (char 0)); die bisherigen Einstellungen gelten weiter",
         "Loading spent-output filter: 48,000,000 entries": "Lade Filter für ausgegebene Outputs: 48.000.000 Einträge",
@@ -169,6 +172,9 @@ class ServerPatterns(unittest.TestCase):
     }
 
     SAMPLES_ES = {
+        "History scan runs daily 01:00-07:00 (Europe/Berlin).":
+            "El escaneo del historial funciona a diario 01:00-07:00 (Europe/Berlin).",
+        "Scanning is paused.": "El escaneo está en pausa.",
         "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
             "No se pudo leer settings.json (Expecting value: line 1 column 1 (char 0)); se mantienen los ajustes anteriores",
         "Loading spent-output filter: 48,000,000 entries":
@@ -202,6 +208,9 @@ class ServerPatterns(unittest.TestCase):
     }
 
     SAMPLES_FR = {
+        "History scan runs daily 01:00-07:00 (Europe/Berlin).":
+            "L’analyse de l’historique tourne chaque jour 01:00-07:00 (Europe/Berlin).",
+        "Scanning is paused.": "L’analyse est en pause.",
         "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
             "Impossible de lire settings.json (Expecting value: line 1 column 1 (char 0))\u00a0; les paramètres précédents sont conservés",
         "Loading spent-output filter: 48,000,000 entries":
@@ -235,6 +244,9 @@ class ServerPatterns(unittest.TestCase):
     }
 
     SAMPLES_PL = {
+        "History scan runs daily 01:00-07:00 (Europe/Berlin).":
+            "Skanowanie historii działa codziennie 01:00-07:00 (Europe/Berlin).",
+        "Scanning is paused.": "Skanowanie jest wstrzymane.",
         "settings.json could not be read (Expecting value: line 1 column 1 (char 0)); keeping the previous settings":
             "Nie udało się odczytać settings.json (Expecting value: line 1 column 1 (char 0)); zachowuję poprzednie ustawienia",
         "Loading spent-output filter: 48,000,000 entries":
