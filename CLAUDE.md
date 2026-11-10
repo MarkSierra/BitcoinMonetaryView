@@ -55,11 +55,13 @@ test. `release.yml`: multi-arch image to ghcr.io.
    (`X.Y.Z:0`, or `:N+1` for a package-only change), move the `upstream` submodule, copy the `FROM` line of
    `upstream/Dockerfile`, write release notes in all five languages.
 3. **Test build:** a separate branch (`test/X.Y.Z-beta.N`) with one extra commit that only sets the version to
-   `X.Y.Z:0-beta.N`; run the **Build** workflow on it (workflow_dispatch) and give the maintainer the
-   `.s9pk` artifact link. `X.Y.Z:0-beta.N` < `X.Y.Z:0`, so the published build arrives as a normal update.
+   `X.Y.Z-beta.N:0`; run the **Build** workflow on it (workflow_dispatch) and give the maintainer the
+   `.s9pk` artifact link. `X.Y.Z-beta.N:0` < `X.Y.Z:0`, so the published build arrives as a normal update.
+   Start9's guide allows a prerelease suffix only on the upstream side, never after the `:` (0.3.13 used
+   `0.3.13:0-beta.1`, which built and installed, but is not the documented form).
    The maintainer sideloads and tests: update over the installed version, a clean install, tasks/actions,
    sign-in, health checks. Fixes go on the final-version branch; the next test build is `-beta.N+1`.
-   The first test build of a version is `-beta.0` (maintainer's choice, from 0.3.14 on; 0.3.13 used `-beta.1`).
+   The first test build of a version is `-beta.0` (maintainer's choice, from 0.3.14 on).
 4. PR from the final-version branch (never a test branch) to `Start9-Community/bitcoinmonetaryview-startos`
    `main`. This session cannot post or open PRs there (Claude's GitHub App is not installed on that org):
    give the maintainer a prefilled compare link plus the description in a plain code block. Leave
