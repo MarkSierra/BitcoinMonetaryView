@@ -121,17 +121,22 @@ Practical notes from the first releases through the fork:
   (`community-registry.start9.com`, `community-beta-registry.start9.com`). The Default environment blocks them.
 - No Docker daemon; Umbrel's lint and third-party node binaries (e.g. a Roots release) are blocked on purpose:
   test those in CI.
-- `git push --delete` is refused by the proxy: the maintainer deletes merged branches on GitHub.
+- `git push --delete` is refused by the proxy. In this repo GitHub deletes a PR branch on merge; pushing the
+  branch again recreates it (use a plain push: `--force-with-lease` fails on the deleted branch).
 - GitHub sometimes creates a CI run with no jobs or only some ("No jobs were run" email): re-run it once and
   check that all 15 jobs exist before merging.
 
-## State (2026-11-09)
+## State (2026-11-10)
 
-App v0.3.12. StartOS 0.3.12:0 in the Community Registry and on Community Beta, Bitcoin category set (Start9
-promoted it on its own within hours of merging #7; promotion issue #8 closed). The maintainer's server runs
-StartOS 0.4.2 with Knots 29.3. Umbrel community store 0.3.12; official Umbrel App Store
-getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review. Merged branches are deleted. Open: the Umbrel
-review; Roots wording once Roots is on community-prod.
+App 0.3.13 merged on `main` (fixes from a full code and security review: a damaged settings.json fails
+safe, weekly instead of daily gettxoutsetinfo, mutated-block check, request handling, actions pinned by
+commit, unused code removed); `release.yml` not run yet. Released: v0.3.12. StartOS 0.3.12:0 in the
+Community Registry and on Community Beta, Bitcoin category set (Start9 promoted it on its own within hours
+of merging #7; promotion issue #8 closed). The maintainer's server runs StartOS 0.4.2 with Knots 29.3. Umbrel
+community store 0.3.12; official Umbrel App Store getumbrel/umbrel-apps#6328 at 0.3.12, waiting for review.
+Open: release 0.3.13 and the
+package updates (StartOS: exclude `.<net>.nocow`/`.<net>.old` from backups, mention the weekly UTXO-size
+request in the descriptions); the Umbrel review; Roots wording once Roots is on community-prod.
 
 Idea for a later release (maintainer: "maybe later", not now): a missing RPC cookie file right after a
 reboot (the node has not written it yet) shows as a red "Authentication problem" until the 30 s retry
@@ -146,7 +151,8 @@ still run for users skipping a version stays in a historical version file, not i
 ## Before a UI release
 
 Measure texts in all five languages at 360–1920 px with Playwright (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`,
-Python 3.15 venv with playwright 1.63.0; CI pins 1.56.0 because of ubuntu-24.04) and send screenshots. The
+Python 3.15 venv with playwright 1.63.0, or the cloud image's Node Playwright 1.63.0 via
+`NODE_PATH=$(npm root -g)`; CI pins 1.56.0 because of ubuntu-24.04) and send screenshots. The
 demo server has a 50-block quick pass, so tiles that wait for it are not representative of mainnet.
 
 ## Start9's packaging rules (they hold every registry package to these)

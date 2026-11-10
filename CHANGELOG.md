@@ -2,7 +2,7 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.13] — 2026-11-10
 
 - **A damaged `settings.json` no longer switches the web login off or deletes the scan results.** Until now a
   settings file that could not be read (cut short, a typo), or a single invalid value, made the affected
