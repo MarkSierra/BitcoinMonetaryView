@@ -11,6 +11,8 @@ Roots node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of 
 - Never ask for tokens or passwords in chat.
 - Security and standard procedures come first. Test everything before it ships.
 - No Claude session links (`claude.ai/code/session_...`) in PR descriptions or commit messages.
+  The GitHub tool appends one to every PR it creates: remove it right after with an update (updates keep
+  the body as written). Older PRs (#1–#65, store #1–#15) still carry it; left as they are.
 - Standing permission: merge your own PRs in the `MarkSierra/*` repos once CI is green, and dispatch
   `release.yml`. Nothing is posted on Start9-Community or getumbrel without the maintainer's own action.
 
