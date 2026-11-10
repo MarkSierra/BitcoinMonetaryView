@@ -77,6 +77,8 @@ def _url(v):
     v = _str(v)
     if not re.match(r"^https?://[^\s/]+(:\d+)?(/\S*)?$", v):
         raise ValueError("must be an http:// or https:// URL")
+    if "@" in v.split("/")[2]:
+        raise ValueError("must not contain credentials; set rpc_user/rpc_password or rpc_cookie_file instead")
     return v
 
 
@@ -243,6 +245,11 @@ class Config:
             return False
         return bool(self.unknown & {"auth_user", "auth_password"})
 
+    @property
+    def auth_incomplete(self):
+        """True when a web login user is set without a password: no sign-in can be checked."""
+        return bool(self.values["auth_user"]) and not self.values["auth_password"]
+
     def _read_file(self):
         """(settings, None), or (None, reason) when the file exists but cannot be read."""
         try:
@@ -308,6 +315,9 @@ class Config:
                 values[s.name], sources[s.name] = val, src
             self.values, self.sources, self.warnings = values, sources, warnings
             self.unknown = {n for n in unknown if sources[n] == "default"}   # environment and CLI still decide
+            if values["auth_user"] and not values["auth_password"]:
+                warnings.append("auth_user is set without auth_password: the web interface stays locked "
+                                "until both are set")
             for w in warnings:
                 log.warning(w)
 

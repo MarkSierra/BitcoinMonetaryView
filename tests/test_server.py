@@ -188,6 +188,44 @@ class Basics(ServerTest):
         self.assertIn(r.status, (200, 400))
 
 
+class CredentialsInRpcUrl(ServerTest):
+    """An RPC URL with user:password@ is refused as a value, so the password is never shown."""
+    settings = '{"rpc_url": "http://rpcuser:hunter2@192.168.1.20:8332"}'
+
+    def test_password_never_shown(self):
+        for p in ("/api/settings", "/api/status"):
+            r, d = self.req("GET", p)
+            self.assertEqual(r.status, 200, p)
+            self.assertNotIn(b"hunter2", d, p)
+        self.assertNotIn("hunter2", self.config.rpc_url)
+        self.assertTrue(any("rpc_url" in w and "hunter2" not in w for w in self.config.warnings))
+
+    def test_rejected_from_every_source(self):
+        from bitcoinmonetaryview.config import BY_NAME
+        for url in ("http://u:p@host:8332", "https://u@host/", "http://user:pw@[::1]:8332"):
+            with self.assertRaises(ValueError, msg=url):
+                BY_NAME["rpc_url"].conv(url)
+        self.assertEqual(BY_NAME["rpc_url"].conv("http://host:8332/wallet/a@b"), "http://host:8332/wallet/a@b")
+        c = Config(self.dir, env={"BMV_RPC_URL": "http://u:hunter2@host:8332"})
+        self.assertNotIn("hunter2", c.rpc_url + " ".join(c.warnings))
+
+
+class UserWithoutPassword(ServerTest):
+    """auth_user without auth_password must not turn into a login that takes the empty password."""
+    cli_extra = {"auth_user": "bob"}
+
+    def test_every_login_refused(self):
+        for cred in (b"bob:", b"bob:x", b":", b"bob"):
+            r, d = self.req("GET", "/api/status", headers={"Authorization": "Basic " + base64.b64encode(cred).decode()})
+            self.assertEqual(r.status, 503, cred)
+            self.assertIn(b"auth_password", d)
+        r, _ = self.req("GET", "/")
+        self.assertEqual(r.status, 503)
+        r, _ = self.req("GET", "/api/health")
+        self.assertEqual(r.status, 200)
+        self.assertIn("auth_password", " ".join(self.config.warnings))
+
+
 class BasicAuth(ServerTest):
     cli_extra = {"auth_user": "bob", "auth_password": "pw"}
 

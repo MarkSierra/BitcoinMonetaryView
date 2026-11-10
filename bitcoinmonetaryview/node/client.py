@@ -84,10 +84,14 @@ class Node:
         self.rpc.close()
 
 
+NETWORKS = {"main": "mainnet", "test": "testnet3", "testnet4": "testnet4", "signet": "signet", "regtest": "regtest"}
+
+
 def network_name(chain):
-    """Normalise getblockchaininfo.chain to a short name."""
-    return {"main": "mainnet", "test": "testnet3", "testnet4": "testnet4",
-            "signet": "signet", "regtest": "regtest"}.get(chain, chain)
+    """getblockchaininfo.chain as the short name that also names the network's data directory."""
+    if chain not in NETWORKS:
+        raise NodeError(f"the node reports an unsupported chain {str(chain)[:40]!r}")
+    return NETWORKS[chain]
 
 
 def default_dust_start(network):

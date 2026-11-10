@@ -12,12 +12,22 @@ All notable changes are documented here. This project uses [semantic versioning]
   interface stays locked (503) until it is repaired or deleted (not on Umbrel, whose own login protects the
   dashboard), and a scan made with non-default spam rules is put on hold with its results kept. The settings page refuses to save into a damaged file instead of
   overwriting it. Settings from the command line or the environment are unaffected.
-
 - **Quick pass after an interruption:** if the app was stopped during the quick pass and started again after
   the chain had grown by more blocks than the pass had already done, the old piece stayed behind, with
   unscanned blocks between it and the latest 1,000. The dashboard then reported that stretch as scanned and
   left it out of the whole-chain estimate until the full scan reached it. A new quick pass now drops such
   leftovers, so the latest blocks are always one unbroken range.
+- **RPC URL with a password in it:** an `rpc_url` written as `http://user:password@host:8332` is now refused
+  as a value, with a warning to use `rpc_user`/`rpc_password` or the cookie file. Before, the app refused to
+  connect with it but still showed the whole URL, password included, on the Connection page and in the
+  settings API.
+- **Web login with a user name but no password** is now a configuration error: the web interface stays
+  locked (503) with an explanation until both are set. Before, it accepted the user name with an empty
+  password.
+- **Unknown network names from the node are refused.** The app names a directory after the network the node
+  reports; a name other than main, test, testnet4, signet or regtest now stops the scan with an error instead
+  of creating a directory for it (which could lie outside the data directory and outside the backup
+  exclusions).
 
 ## [0.3.12] — 2026-11-09
 

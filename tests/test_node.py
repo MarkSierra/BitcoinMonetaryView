@@ -28,6 +28,46 @@ def tearDownModule():
         n.close()
 
 
+class NetworkName(unittest.TestCase):
+    def test_known_chains(self):
+        from bitcoinmonetaryview.node.client import network_name
+        self.assertEqual([network_name(c) for c in ("main", "test", "testnet4", "signet", "regtest")],
+                         ["mainnet", "testnet3", "testnet4", "signet", "regtest"])
+
+    def test_other_names_are_refused(self):
+        """The name becomes a directory name: it must never point outside the data directory."""
+        from bitcoinmonetaryview.node.client import network_name
+        for chain in ("../../x", "mainnet", "", None, "x/y", "test2"):
+            with self.assertRaises(rpcmod.NodeError, msg=repr(chain)):
+                network_name(chain)
+
+    def test_scanner_writes_nothing_for_an_unknown_chain(self):
+        from bitcoinmonetaryview.config import Config
+        from bitcoinmonetaryview.scanner import Scanner
+        import time
+        chain = MockChain()
+        chain.build(3)
+        node = MockNode(chain, chain_name="../escaped")
+        d = tempfile.mkdtemp()
+        data = os.path.join(d, "data")
+        os.mkdir(data)                  # as __main__ does before the scanner starts
+        try:
+            s = Scanner(Config(data, cli={"rpc_url": node.url, "rpc_user": "u", "rpc_password": "p"}, env={}))
+            s.start()
+            t = time.time()
+            while s.status.get("phase") != "error" and time.time() - t < 20:
+                time.sleep(0.05)
+            s.stop()
+            s.join(10)
+            self.assertEqual(s.status.get("phase"), "error")
+            self.assertIn("chain", s.status.get("detail"))
+            self.assertEqual(sorted(os.listdir(d)), ["data"])
+            self.assertEqual(os.listdir(data), [])
+        finally:
+            node.stop()
+            shutil.rmtree(d)
+
+
 class Whitelist(unittest.TestCase):
     def test_forbidden_methods_refused_locally(self):
         for m in ("stop", "dumptxoutset", "invalidateblock", "sendtoaddress", "walletpassphrase",
