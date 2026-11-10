@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project uses [semantic versioning](https://semver.org/).
 
+## [0.3.14] — 2026-11-10
+
+- **After a reboot:** while the node has not yet written its RPC cookie file, the app now shows "Waiting for
+  the node to write its RPC cookie file" (with the file's path) instead of a red "Authentication problem",
+  and checks again every 10 seconds. A cookie the node refuses is still shown as an authentication problem.
+  The connection test says the node may still be starting.
+
 ## [0.3.13] — 2026-11-10
 
 - **A damaged `settings.json` no longer switches the web login off or deletes the scan results.** Until now a

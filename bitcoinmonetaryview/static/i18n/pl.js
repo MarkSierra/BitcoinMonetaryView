@@ -491,6 +491,8 @@
     "Check rpc_user/rpc_password, or point rpc_cookie_file to the node's .cookie file. On Start9 the RPC credentials are shown in the Bitcoin Core/Knots/Roots service's properties.":
       "Sprawdź rpc_user/rpc_password albo ustaw rpc_cookie_file na plik .cookie węzła. Na Start9 dane logowania RPC są pokazane we właściwościach usługi Bitcoin Core/Knots/Roots.",
     "The node may still be starting up. Try again in a minute.": "Węzeł może się jeszcze uruchamiać. Spróbuj ponownie za minutę.",
+    "The node writes this file when it starts, so it may still be starting. If it is running, check rpc_cookie_file.":
+      "Węzeł zapisuje ten plik przy starcie, więc może jeszcze się uruchamiać. Jeśli działa, sprawdź rpc_cookie_file.",
     "Scanning starts automatically once the node is fully synced.": "Skanowanie zacznie się automatycznie, gdy węzeł będzie w pełni zsynchronizowany.",
     "Node is fully synced": "Węzeł jest w pełni zsynchronizowany",
     "Block statistics cover the available range only; the exact spam UTXO figure needs a non-pruned node.":
@@ -542,6 +544,7 @@
     [/^Spent-output filter loaded \(([\d,]+) spam outputs\)$/,
       (m, n) => `Filtr wydanych wyjść wczytany (${N(n)} ${F(n, "wyjście", "wyjścia", "wyjść")} spamu)`],
     [/^Your node is still syncing \(([\d.]+) %\)\. Scanning starts when it is done\.$/, (m, p) => `Twój węzeł wciąż się synchronizuje (${N(p)} %). Skanowanie zacznie się, gdy skończy.`],
+    [/^Waiting for the node to write its RPC cookie file \((.+)\)$/, (m, p) => `Czekam, aż węzeł zapisze swój plik cookie RPC (${p})`],
     [/^History scan runs daily (.+) \((.+)\)\. New blocks are still shown\.$/, (m, w, tz) => `Skanowanie historii działa codziennie ${w} (${tz}). Nowe bloki są nadal pokazywane.`],
     [/^History scan runs daily (.+) \((.+)\)\.$/, (m, w, tz) => `Skanowanie historii działa codziennie ${w} (${tz}).`],
     [/^The scan database was written by a newer version of Monetary View \(schema (\d+), this version knows (\d+)\)\. It is left as it is: update the app, or delete the database to scan again\.$/, (m, a, b) => `Bazę danych skanowania zapisała nowsza wersja Monetary View (schemat ${a}, ta wersja zna ${b}). Pozostaje bez zmian: zaktualizuj aplikację albo usuń bazę danych, aby skanować od nowa.`],
@@ -568,6 +571,7 @@
     [/^UTXO set: ([\d,]+) entries$/, (m, n) => `Zbiór UTXO: ${N(n)} ${F(n, "wpis", "wpisy", "wpisów")}`],
     [/^Could not read the UTXO set size \((.+)\); will retry later$/s, (m, e) => `Nie udało się odczytać rozmiaru zbioru UTXO (${e}); ponowna próba później`],
     // connection test
+    [/^RPC cookie file (.+) does not exist yet$/, (m, p) => `Plik cookie RPC ${p} jeszcze nie istnieje`],
     [/^Connected to (\S+) \((\d+) ms\)$/, (m, u, ms) => `Połączono z ${u} (${ms} ms)`],
     [/^Node answered with an error: (.+)$/s, (m, e) => `Węzeł odpowiedział błędem: ${e}`],
     [/^Chain: (\S+), height ([\d,]+)$/, (m, c, h) => `Łańcuch: ${c}, wysokość ${N(h)}`],
