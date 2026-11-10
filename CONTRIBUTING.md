@@ -49,10 +49,11 @@ language at desktop, tablet and phone width.
       from that fork, then branch. Move the `upstream` submodule to the release, copy the `FROM` line of
       `upstream/Dockerfile`, and set `startos/versions/current.ts` to the final version (`X.Y.Z:0`) with release
       notes in all five languages (see the fork's `UPDATING.md` and Start9's packaging guide).
-   2. Test build: on a second branch, one extra commit sets the version to `X.Y.Z:0-beta.N`; run the *Build*
+   2. Test build: on a second branch, one extra commit sets the version to `X.Y.Z-beta.N:0`; run the *Build*
       workflow on it and sideload the `.s9pk` (an update over the installed version, a clean install, tasks and
       actions, sign-in, health checks). `-beta.N` sorts before `X.Y.Z:0`, so the published build arrives as a
-      normal update. Fixes go on the final-version branch; the next test build is `-beta.N+1`.
+      normal update. Fixes go on the final-version branch; the first test build is `-beta.0`, the next
+      `-beta.N+1`.
    3. Open the pull request to the fork from the final-version branch, never from a test branch. Each merge
       publishes to Community Beta; promotion to the Community Registry is requested with an issue on the fork.
 4. Umbrel: in [umbrel-community-app-store](https://github.com/MarkSierra/umbrel-community-app-store), pin the
