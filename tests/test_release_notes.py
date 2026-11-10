@@ -39,3 +39,12 @@ class ReleaseNotes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Version(unittest.TestCase):
+    def test_pyproject_matches_the_package(self):
+        """release.yml refuses to publish when these differ; CI should say so first."""
+        import re
+        from bitcoinmonetaryview import __version__
+        with open(os.path.join(ROOT, "pyproject.toml"), encoding="utf-8") as f:
+            self.assertEqual(re.search(r'^version = "([^"]+)"$', f.read(), re.M).group(1), __version__)
