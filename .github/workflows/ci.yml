@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -14,8 +15,8 @@ jobs:
       matrix:
         python: ["3.10", "3.12", "3.13", "3.14", "3.15"]   # oldest supported … the one in the image
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
       - name: Unit, parity, security and upstream tests
@@ -58,8 +59,8 @@ jobs:
             file: bitcoin-roots-linux-x86_64.tar.gz
             sums: SHA512SUMS
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
       - name: Download ${{ matrix.node }} (checksum verified)
@@ -85,8 +86,8 @@ jobs:
     # The result database on a real btrfs file system (as on StartOS): created nodatacow.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
       - name: Mount a small btrfs file system
@@ -113,8 +114,8 @@ jobs:
     # API calls, no requests outside the app, no sideways scrolling on phones and tablets.
     runs-on: ubuntu-24.04   # Playwright 1.56 cannot install Chromium on ubuntu-latest (26.04)
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.15"
       - name: Install Playwright and Chromium (test tooling only, not an app dependency)
@@ -127,7 +128,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build image
         run: docker build -t bitcoinmonetaryview:ci .
       - name: Full test suite on the image's own Python
@@ -146,9 +147,9 @@ jobs:
     # The released image includes linux/riscv64; check that it builds and serves under emulation.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build image for riscv64
         run: docker buildx build --platform linux/riscv64 --load -t bitcoinmonetaryview:riscv64 .
       - name: Image starts and reports healthy API (emulated)
