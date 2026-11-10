@@ -139,16 +139,13 @@ deleting gettxoutsetinfo (S1, kept weekly instead), replacing the connection poo
 bit-layout copy (S8), phase/progress in /api/health (S12), signature checks for CI node binaries (N8), a
 lock file against two processes (N11), and refusing state-changing requests on an open LAN bind.
 
-StartOS: 0.3.14:0 ready on `claude/bold-planck-14e4f1` in our workspace (upstream at v0.3.14, settings guard
-notes with headers). 0.3.13:0 was only a test build and never submitted.
-Tested by the maintainer as 0.3.14-beta.0:0 on StartOS 0.4.2 with Knots 29.3: update with results kept, new
-init ran, health checks, Bitcoin restart and server reboot without an authentication error. Clean install not
-tested (no second server; stated in the PR text). Submitted as Start9-Community/bitcoinmonetaryview-startos#9
-(test branches already deleted). Matt's review: the settings guard came out again (commit ab369b2); the SDK
-will rebuild unparsable file models from `.catch()` defaults (start-sdk 4.1.1, Start9Labs/start-technologies#4670). After the merge:
-sync our `main` from the fork, ask the maintainer to delete `claude/bold-planck-14e4f1` in our workspace,
-archive the read-only helper session. Released there: 0.3.12:0 (Community Registry and Community Beta,
-Bitcoin category set).
+StartOS: 0.3.14:0 merged in Start9-Community/bitcoinmonetaryview-startos#9 (merge 4a527e8; our `main` and
+`next` synced to it). Tested by the maintainer as 0.3.14-beta.0:0 on StartOS 0.4.2 with Knots 29.3: update with
+results kept, health checks, Bitcoin restart and server reboot without an authentication error; clean install
+not tested (no second server). Matt's review removed the package-side settings guard (ab369b2): the SDK will
+rebuild unparsable file models from `.catch()` defaults (start-sdk 4.1.1, Start9Labs/start-technologies#4670).
+Open: the maintainer deletes `claude/bold-planck-14e4f1` in our workspace; check Community Beta, then the
+Community Registry (promotion issue only if Start9 does not promote on its own). Previously released: 0.3.12:0.
 
 Umbrel: 0.3.14 merged in the community store (MarkSierra/umbrel-community-app-store#16). Official store:
 the fork's `bitcoinmonetaryview` branch is at 8011111 (0.3.14), tested by umbrelOS run
