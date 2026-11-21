@@ -100,8 +100,8 @@ Practical notes from the first releases through the fork:
   published version.
 - Bitcoin Roots: the dependency range accepts `>=#roots:29.4:1`. Package descriptions and release notes do
   not mention Roots (Matt's request on PR #4). Roots is on the Community Registry since November 2026
-  (`#roots:29.4:4`), but untested with Monetary View on StartOS: add the wording back only with the
-  maintainer's OK. The app itself and its README may name Roots.
+  (`#roots:29.4:4`); the maintainer approved naming it from package 0.3.15:0 on (untested with the Roots
+  package on StartOS; CI tests the app against Roots). The app itself and its README may name Roots.
 - `next` in our StartOS workspace is a copy of Start9-Community's own `next` branch; leave it (not ours).
 - Release notes follow the guide (`versions.md`): "Updated Monetary View to X.Y.Z.", then bullets under bold
   headers once several categories are covered (**Security**, **Changes**, **Fixes**; localized), then a link
@@ -178,6 +178,10 @@ SDK bump, then Umbrel.
    as today on low screens (height under ~500 px). Scroll targets must land below the fixed header.
 5. Latest-block tile font size stays.
 6. Blocks page: 16 rows, "Load more" adds 16 (today 50); server limits unchanged.
+7. Overview "Spam by carrier": remove the "Show as table" button (the legend shows the same); move the
+   "≈" of estimates into the legend. The toggles on the Blocks chart and History stay.
+Package 0.3.15:0 also names Bitcoin Roots in the description and release notes (maintainer's OK,
+2026-11-21).
 Hard stop before any merge: before/after screenshots to the maintainer (phone 390x844 live and scanning, at
 the top and scrolled; Blocks table; History; desktop strip; one long-text language; landscape), then wait
 for the OK. No 0.4.0 planned: the maintainer declined a mempool view (empty on Knots) and fees paid by spam
