@@ -6,7 +6,8 @@ Roots node with the Monetary Node spam rules. AGPL-3.0-or-later. Independent of 
 ## Ground rules from the maintainer
 
 - Strictly read-only towards bitcoind: RPC/REST whitelist, never change the node's configuration, never
-  modify block files (not even when reading them directly). Bitcoind's volume is mounted read-only.
+  modify block files (not even when reading them directly). Only bitcoind's `public` volume (its RPC cookie) is
+  mounted, read-only.
 - The scan databases are never included in backups.
 - Never ask for tokens or passwords in chat.
 - Security and standard procedures come first. Test everything before it ships.
@@ -97,10 +98,10 @@ Practical notes from the first releases through the fork:
 - Version numbers may skip: a package version that never reached a registry can be replaced by a newer one
   in the same PR (0.3.8:0 became 0.3.10:0); the release notes then cover everything since the last
   published version.
-- Bitcoin Roots: the dependency range accepts `>=#roots:29.4:0`, but Roots is not on the Community Registry
-  yet, so package descriptions and release notes do not mention it (Matt's request on PR #4). Add the wording
-  back once Roots is on community-prod and tested against the Roots package on StartOS. The app itself and
-  its README may name Roots.
+- Bitcoin Roots: the dependency range accepts `>=#roots:29.4:1`. Package descriptions and release notes do
+  not mention Roots (Matt's request on PR #4). Roots is on the Community Registry since November 2026
+  (`#roots:29.4:4`); the maintainer approved naming it from package 0.3.15:0 on (untested with the Roots
+  package on StartOS; CI tests the app against Roots). The app itself and its README may name Roots.
 - `next` in our StartOS workspace is a copy of Start9-Community's own `next` branch; leave it (not ours).
 - Release notes follow the guide (`versions.md`): "Updated Monetary View to X.Y.Z.", then bullets under bold
   headers once several categories are covered (**Security**, **Changes**, **Fixes**; localized), then a link
@@ -148,14 +149,21 @@ not tested (no second server). Matt's review removed the package-side settings g
 rebuild unparsable file models from `.catch()` defaults (start-sdk 4.1.1, Start9Labs/start-technologies#4670).
 Released on Community Beta and the Community Registry (Start9 promoted it on its own; no issue needed).
 All package branches besides `main` and `next` are deleted in our workspace.
+Then Matt Hill released 0.3.14:1 and 0.3.14:2 himself (fork PRs #10-#12, merge 092453c, 2026-11-20; on both
+registries; our `main` and `next` synced): only bitcoind's `public` volume is mounted (bitcoind copies its
+`.cookie` there for dependents) instead of its `main` volume; the bitcoind range is raised to the releases
+that publish it (`>=#knotsprerdts:29.3:33`, `>=#roots:29.4:1`, Core `29.5:4`/`30.4:4`/`31.2:4`/`28.4:42`);
+with an older Bitcoin the "Bitcoin connection" check fails once with "Update Bitcoin so Monetary View can
+connect to it" (`onceTrigger`) and Monetary View starts by itself after the Bitcoin update; start-sdk 4.1.0.
+Upstream submodule unchanged (v0.3.14). The next package version is 0.3.15:0.
 
 Umbrel: 0.3.14 merged in the community store (MarkSierra/umbrel-community-app-store#16). Official store:
 the fork's `bitcoinmonetaryview` branch is at 8011111 (0.3.14), tested by umbrelOS run
 https://github.com/MarkSierra/BitcoinMonetaryView/actions/runs/42839460691 (the maintainer puts that link in
-the PR text); getumbrel/umbrel-apps#6328 is still waiting for Umbrel's review. Open beyond that: Roots wording once Roots is on community-prod; start-sdk 4.1.1 (rebuilds an
+the PR text); getumbrel/umbrel-apps#6328 is still waiting for Umbrel's review. Open beyond that: Roots wording once Roots is on community-prod; start-sdk 4.1.1 (#4670 merged 2026-11-12, not on npm yet on 2026-11-21; rebuilds an
 unparsable settings.json from defaults) goes in with the next package release, no release of its own (or
-`0.3.14:1` if no app release is near); test it by writing invalid JSON into settings.json on the server. The maintainer's server runs
-StartOS 0.4.2 with Knots 29.3.
+`0.3.14:3` if no app release is near); test it by writing invalid JSON into settings.json on the server. The maintainer's server runs
+StartOS 0.4.2 with Knots 29.3 (needs `29.3:33` or later for 0.3.14:1+).
 
 Next release, agreed with the maintainer on 2026-11-10 and NOT started (it starts when start-sdk 4.1.1 is out;
 the maintainer has the full prompt): app 0.3.15, UI only (CSS and `app.js`), then package 0.3.15:0 with the
@@ -170,6 +178,10 @@ SDK bump, then Umbrel.
    as today on low screens (height under ~500 px). Scroll targets must land below the fixed header.
 5. Latest-block tile font size stays.
 6. Blocks page: 16 rows, "Load more" adds 16 (today 50); server limits unchanged.
+7. Overview "Spam by carrier": remove the "Show as table" button (the legend shows the same); move the
+   "≈" of estimates into the legend. The toggles on the Blocks chart and History stay.
+Package 0.3.15:0 also names Bitcoin Roots in the description and release notes (maintainer's OK,
+2026-11-21).
 Hard stop before any merge: before/after screenshots to the maintainer (phone 390x844 live and scanning, at
 the top and scrolled; Blocks table; History; desktop strip; one long-text language; landscape), then wait
 for the OK. No 0.4.0 planned: the maintainer declined a mempool view (empty on Knots) and fees paid by spam
